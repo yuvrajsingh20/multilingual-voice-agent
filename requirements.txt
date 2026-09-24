@@ -1,6 +1,10 @@
+fastapi
 pydantic
 pydantic-settings
 python-dotenv
-pytest
-fastapi
 uvicorn[standard]
+
+# Test-only. Starlette's TestClient needs an HTTP client library; httpx2 is the
+# one this Starlette version expects.
+httpx2
+pytest
