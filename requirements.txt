@@ -4,7 +4,13 @@ pydantic-settings
 python-dotenv
 uvicorn[standard]
 
-# Test-only. Starlette's TestClient needs an HTTP client library; httpx2 is the
-# one this Starlette version expects.
+# Runtime, since Stage 3A. The OpenAI-compatible model adapter
+# (app/services/llm_openai.py) needs an HTTP client with per-phase timeouts,
+# typed transport errors and a pluggable transport for tests. No dependency was
+# added to get it: httpx2 was already here for Starlette's TestClient, it is the
+# client this Starlette version expects, and it provides all three. No provider
+# SDK is installed - the OpenAI chat-completions dialect is spoken directly, so
+# the deployment can be vLLM, llama.cpp, TGI or anything else that serves it.
 httpx2
+
 pytest

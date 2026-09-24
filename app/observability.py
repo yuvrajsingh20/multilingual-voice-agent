@@ -113,6 +113,19 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str, ensure_ascii=False, sort_keys=True)
 
 
+#: Third-party loggers held at WARNING regardless of the application's level.
+#:
+#: This is a redaction control, not noise reduction. The HTTP client logs one
+#: INFO line per request containing the *full* request URL - which carries the
+#: model endpoint's path and any credentials embedded in it
+#: (``https://user:pass@host/v1/...``). That line is the library's own message
+#: string, so :func:`redact` never sees it: redaction operates on structured
+#: fields, and a formatted message has none. Level is therefore the only control
+#: that works, and the application logs its own sanitised record for every model
+#: call anyway (see :mod:`app.services.llm_openai`).
+QUIET_LOGGERS: tuple[str, ...] = ("httpx", "httpx2", "httpcore", "httpcore2")
+
+
 def configure_logging(level: str = "INFO", stream: Any = None) -> None:
     """Install the JSON formatter on the root logger.
 
@@ -125,6 +138,8 @@ def configure_logging(level: str = "INFO", stream: Any = None) -> None:
         root.removeHandler(existing)
     root.addHandler(handler)
     root.setLevel(level.upper())
+    for name in QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

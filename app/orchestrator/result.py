@@ -86,6 +86,18 @@ class TurnErrorCategory(str, Enum):
     POLICY_EVALUATION_FAILED = "policy_evaluation_failed"
     LLM_NOT_CONFIGURED = "llm_not_configured"
     LLM_FAILED = "llm_failed"
+    # The model boundary's own failure taxonomy, surfaced so that an operator can
+    # tell an unreachable endpoint from a slow one, a credential problem from a
+    # broken serialiser, and a model that said nothing from a model that said
+    # something unusable. Every one of these ends the turn exactly as
+    # LLM_FAILED does; they differ in what they tell the person on call. The
+    # string values match app.services.llm.LlmError.category exactly.
+    LLM_TIMEOUT = "llm_timeout"
+    LLM_CONNECTION_FAILED = "llm_connection_failed"
+    LLM_UPSTREAM_ERROR = "llm_upstream_error"
+    LLM_MALFORMED_RESPONSE = "llm_malformed_response"
+    LLM_EMPTY_RESPONSE = "llm_empty_response"
+    LLM_INVALID_TOOL_CALL = "llm_invalid_tool_call"
     INVALID_TOOL_REQUEST = "invalid_tool_request"
     TOOL_EXECUTION_FAILED = "tool_execution_failed"
     TOOL_BACKEND_NOT_IMPLEMENTED = "tool_backend_not_implemented"

@@ -10,7 +10,13 @@ one only fails, in the one way a real component could fail.
 
 from __future__ import annotations
 
+import json
+import socket
+import threading
+import time
+from dataclasses import dataclass
 from datetime import date
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from pydantic import BaseModel
 
@@ -191,3 +197,180 @@ def tool_generation(tool_name: str, arguments: dict | None = None, *, call_id: s
         tool_calls=(LlmToolCall(call_id=call_id, tool_name=tool_name, arguments=arguments or {}),),
         model="scripted",
     )
+
+
+# --- OpenAI-compatible model server doubles --------------------------------
+#
+# Nothing here talks to a real model, to a cloud or to the internet. The bodies
+# are hand-written examples of the OpenAI chat-completions wire format, and the
+# server below binds to loopback on an ephemeral port.
+
+
+def openai_text_completion(
+    text: str,
+    *,
+    model: str = "test-model",
+    finish_reason: str = "stop",
+    usage: dict | None = None,
+) -> dict:
+    """A normal assistant reply, in OpenAI chat-completions form."""
+    body = {
+        "id": "chatcmpl-test",
+        "object": "chat.completion",
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": text},
+                "finish_reason": finish_reason,
+            }
+        ],
+    }
+    if usage is not None:
+        body["usage"] = usage
+    return body
+
+
+def openai_tool_completion(
+    *calls: tuple[str, dict],
+    model: str = "test-model",
+    content: str | None = None,
+    finish_reason: str = "tool_calls",
+    call_ids: tuple[str, ...] | None = None,
+) -> dict:
+    """An assistant reply that requests one or more tools.
+
+    ``arguments`` is serialised as a JSON *string*, which is what the OpenAI wire
+    format specifies and what vLLM emits.
+    """
+    ids = call_ids or tuple(f"call_{i}" for i in range(len(calls)))
+    return {
+        "id": "chatcmpl-test",
+        "object": "chat.completion",
+        "model": model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": content,
+                    "tool_calls": [
+                        {
+                            "id": call_id,
+                            "type": "function",
+                            "function": {"name": name, "arguments": json.dumps(arguments)},
+                        }
+                        for call_id, (name, arguments) in zip(ids, calls)
+                    ],
+                },
+                "finish_reason": finish_reason,
+            }
+        ],
+    }
+
+
+@dataclass
+class RecordedRequest:
+    """What :class:`FakeOpenAiServer` actually received on the wire."""
+
+    method: str
+    path: str
+    headers: dict[str, str]
+    body: bytes
+
+    def json(self) -> object:
+        return json.loads(self.body.decode("utf-8"))
+
+
+class FakeOpenAiServer:
+    """A real HTTP server on loopback that speaks the chat-completions dialect.
+
+    ``httpx2.MockTransport`` is enough for parsing tests and is what most of the
+    suite uses. This exists for the handful of properties a transport stub cannot
+    demonstrate, because they are properties of an actual socket: that the
+    configured base URL is the one dialled, that the ``Authorization`` header
+    leaves the process, and that a slow server trips the configured timeout.
+
+    Binds to 127.0.0.1 on an ephemeral port. Nothing leaves the machine.
+    """
+
+    def __init__(
+        self,
+        *,
+        status: int = 200,
+        body: object = None,
+        raw_body: bytes | None = None,
+        delay_seconds: float = 0.0,
+        content_type: str = "application/json",
+    ) -> None:
+        self.status = status
+        self.body = body
+        self.raw_body = raw_body
+        self.delay_seconds = delay_seconds
+        self.content_type = content_type
+        self.requests: list[RecordedRequest] = []
+        self._server: ThreadingHTTPServer | None = None
+        self._thread: threading.Thread | None = None
+
+    @property
+    def base_url(self) -> str:
+        if self._server is None:  # pragma: no cover - misuse
+            raise RuntimeError("server is not running")
+        return f"http://127.0.0.1:{self._server.server_address[1]}/v1"
+
+    def __enter__(self) -> "FakeOpenAiServer":
+        outer = self
+
+        class _Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler's contract
+                length = int(self.headers.get("Content-Length") or 0)
+                payload = self.rfile.read(length) if length else b""
+                outer.requests.append(
+                    RecordedRequest(
+                        method="POST",
+                        path=self.path,
+                        headers={k.lower(): v for k, v in self.headers.items()},
+                        body=payload,
+                    )
+                )
+                if outer.delay_seconds:
+                    time.sleep(outer.delay_seconds)
+                if outer.raw_body is not None:
+                    encoded = outer.raw_body
+                else:
+                    encoded = json.dumps(outer.body or {}).encode("utf-8")
+                self.send_response(outer.status)
+                self.send_header("Content-Type", outer.content_type)
+                self.send_header("Content-Length", str(len(encoded)))
+                self.end_headers()
+                self.wfile.write(encoded)
+
+            def log_message(self, *_args: object) -> None:
+                """Silence the default stderr access log; the suite is not a web server."""
+
+        self._server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        self._server.daemon_threads = True
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        if self._server is not None:
+            self._server.shutdown()
+            self._server.server_close()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+
+
+def unused_loopback_url() -> str:
+    """A base URL on loopback with nothing listening behind it.
+
+    Bound and released, so the port was free at the moment it was chosen. Used to
+    provoke a genuine connection failure rather than a simulated one.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    return f"http://127.0.0.1:{port}/v1"

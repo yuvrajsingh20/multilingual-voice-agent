@@ -29,12 +29,53 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO")
 
     # --- LLM boundary -----------------------------------------------------
-    # Nothing is connected yet. These describe a remote OpenAI-compatible
-    # endpoint so that app.services.llm can be pointed at Gemma later.
-    model_base_url: str | None = Field(default=None)
-    model_name: str | None = Field(default=None)
-    model_api_key: SecretStr | None = Field(default=None)
-    model_timeout_seconds: float = Field(default=20.0, gt=0)
+    # A remote OpenAI-compatible chat-completions endpoint. Provider-neutral by
+    # construction: the dialect is the API, and *which* model answers is
+    # `model_name`. Nothing here names Gemma, vLLM or a cloud.
+    #
+    # Both `model_base_url` and `model_name` are unset by default, which keeps
+    # app.runtime on NotConfiguredLlmService. That default is what stops a test
+    # run, a local import or a misconfigured deploy from reaching the network:
+    # with neither set, no HTTP client is ever constructed. Setting exactly one
+    # of the two is a deployment mistake and is rejected at startup rather than
+    # falling back to some other model.
+    model_base_url: str | None = Field(
+        default=None, description="e.g. http://localhost:8000/v1 - include the API version."
+    )
+    model_name: str | None = Field(
+        default=None, description="Model identifier as the serving layer exposes it."
+    )
+    model_api_key: SecretStr | None = Field(
+        default=None, description="Sent as `Authorization: Bearer`. Never logged."
+    )
+    model_timeout_seconds: float = Field(
+        default=20.0, gt=0, description="Whole-request budget for one model call."
+    )
+    model_connect_timeout_seconds: float | None = Field(
+        default=None,
+        gt=0,
+        description="Connection-establishment budget. Falls back to model_timeout_seconds.",
+    )
+    model_max_output_tokens: int | None = Field(
+        default=None,
+        gt=0,
+        description="Cap on generated tokens. None leaves LlmRequest's own default in force.",
+    )
+    model_temperature: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature. None leaves LlmRequest's own default in force.",
+    )
+    # Bounded, and off by default. A retry on a live call is spent out of the
+    # customer's silence, so failing fast and ending the turn is the safer
+    # default; only clearly transient failures are ever retried. See
+    # app.services.llm_openai.
+    model_max_retries: int = Field(default=0, ge=0, le=3)
+    model_provider: str = Field(
+        default="openai-compatible",
+        description="Log label only. Never affects request construction.",
+    )
 
     # --- Policy -----------------------------------------------------------
     default_timezone: str = Field(
@@ -76,6 +117,35 @@ class Settings(BaseSettings):
         except ZoneInfoNotFoundError as exc:  # pragma: no cover - config error path
             raise ValueError(f"unknown IANA timezone: {value!r}") from exc
         return value
+
+    @field_validator("model_base_url", "model_name", "model_api_key", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        """Treat an empty environment variable as absent.
+
+        `MODEL_API_KEY=` in a .env file is how an operator says "no key", and
+        `MODEL_BASE_URL=` is how a template ships. Carrying an empty string
+        forward would build an adapter with an unusable URL or send
+        `Authorization: Bearer `.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("model_base_url")
+    @classmethod
+    def _base_url_is_http(cls, value: str | None) -> str | None:
+        """Reject a base URL that is not HTTP, loudly and at startup.
+
+        A typo here would otherwise surface as a connection failure on a live
+        call, which reads like an outage rather than like a configuration error.
+        """
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped.startswith(("http://", "https://")):
+            raise ValueError("model_base_url must start with http:// or https://")
+        return stripped.rstrip("/")
 
     @field_validator("log_level")
     @classmethod

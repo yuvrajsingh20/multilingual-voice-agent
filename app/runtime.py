@@ -15,7 +15,12 @@ from app.core.checks import PolicyConfig
 from app.core.policy import PolicyEngine
 from app.core.rules import RuleSet, load_rule_set
 from app.core.session import SessionStore
-from app.services.llm import LlmService, NotConfiguredLlmService
+from app.services.llm import (
+    LlmConfigurationError,
+    LlmService,
+    NotConfiguredLlmService,
+)
+from app.services.llm_openai import OpenAiCompatibleLlmService
 from app.services.stt import TranscriptNormalizer, WhitespaceTranscriptNormalizer
 from app.services.tts import SpanDetectingTtsNormalizer, TtsNormalizer
 from app.services.turn import (
@@ -45,6 +50,50 @@ class Runtime:
     turn_detector: SilenceTurnDetector
 
 
+def build_llm_service(settings: Settings) -> LlmService:
+    """Choose the model service from configuration. The only place that choice is made.
+
+    Three outcomes, and no fourth:
+
+    * Neither a base URL nor a model name - the model is not configured, and the
+      application keeps :class:`NotConfiguredLlmService`. No HTTP client is
+      constructed, so an unconfigured process cannot reach a network at all. This
+      is the default, and it is what keeps the test suite offline.
+    * Exactly one of the two - a deployment mistake. It raises, so the process
+      fails to start. Guessing a model name or a URL would silently point a
+      compliance-sensitive call at the wrong model.
+    * Both - the OpenAI-compatible adapter, pointed wherever configuration says.
+
+    There is no fallback path. A configured model that is unreachable fails the
+    turn; it never degrades to a different model.
+    """
+    has_url = settings.model_base_url is not None
+    has_model = settings.model_name is not None
+
+    if not has_url and not has_model:
+        return NotConfiguredLlmService()
+    if has_url != has_model:
+        missing = "MODEL_NAME" if has_url else "MODEL_BASE_URL"
+        raise LlmConfigurationError(
+            f"{missing} is not set. A model endpoint needs both MODEL_BASE_URL and "
+            "MODEL_NAME; the application will not guess one of them."
+        )
+
+    return OpenAiCompatibleLlmService(
+        base_url=settings.model_base_url,  # type: ignore[arg-type]
+        model=settings.model_name,  # type: ignore[arg-type]
+        api_key=(
+            settings.model_api_key.get_secret_value() if settings.model_api_key else None
+        ),
+        timeout_seconds=settings.model_timeout_seconds,
+        connect_timeout_seconds=settings.model_connect_timeout_seconds,
+        max_output_tokens=settings.model_max_output_tokens,
+        temperature=settings.model_temperature,
+        max_retries=settings.model_max_retries,
+        provider=settings.model_provider,
+    )
+
+
 def build_runtime(
     settings: Settings | None = None,
     *,
@@ -71,7 +120,7 @@ def build_runtime(
         sessions=SessionStore(max_sessions=resolved.max_active_sessions),
         tools=tools,
         validator=ResponseValidator(rule_set, tools.names),
-        llm=llm or NotConfiguredLlmService(),
+        llm=llm if llm is not None else build_llm_service(resolved),
         transcript_normalizer=WhitespaceTranscriptNormalizer(),
         tts_normalizer=SpanDetectingTtsNormalizer(),
         barge_in=HeuristicBargeInClassifier(),

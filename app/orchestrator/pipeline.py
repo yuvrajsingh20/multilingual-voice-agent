@@ -78,11 +78,25 @@ from app.orchestrator.result import (
     TurnStage,
 )
 from app.runtime import Runtime
-from app.services.llm import LlmMessage, LlmNotConfigured, LlmToolCall
+from app.services.llm import LlmError, LlmMessage, LlmNotConfigured, LlmToolCall
 from app.services.stt import TranscriptSegment
 from app.services.validation import DraftResponse, GroundingFacts
 
 _logger = get_logger(__name__)
+
+
+def _llm_error_category(exc: LlmError) -> TurnErrorCategory:
+    """Map a model-boundary failure onto a turn error category.
+
+    The two enumerations share their string values deliberately, so this is a
+    lookup rather than a table that could drift. An unrecognised category - a
+    failure class added at the boundary and not yet given a category here - falls
+    back to the generic one rather than raising inside an error path.
+    """
+    try:
+        return TurnErrorCategory(exc.category)
+    except ValueError:
+        return TurnErrorCategory.LLM_FAILED
 
 
 class UnknownSession(KeyError):
@@ -610,6 +624,17 @@ class ConversationOrchestrator:
                 TurnErrorCategory.LLM_NOT_CONFIGURED,
                 TurnStage.LLM,
                 "No model endpoint is configured; this turn produces no response.",
+            )
+            return None
+        except LlmError as exc:
+            # A classified failure from the model boundary. `exc.detail` is
+            # authored by app.services.llm and is guaranteed to carry no upstream
+            # body, URL, header or key; `str(exc)` is not used for that reason.
+            work.llm_ms += _elapsed(started)
+            work.fail(
+                _llm_error_category(exc),
+                TurnStage.LLM,
+                f"Model call failed: {exc.detail}.",
             )
             return None
         except Exception as exc:  # noqa: BLE001 - boundary: never leak a provider trace

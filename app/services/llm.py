@@ -1,9 +1,16 @@
 """Model-service boundary.
 
-Nothing is connected. No provider SDK is installed and no network call is made
-anywhere in this package. The point of this module is that when Gemma is hosted
-behind an OpenAI-compatible endpoint, one adapter class implementing
-:class:`LlmService` is the only thing that needs writing.
+This module owns the *contract*: the request and generation shapes, the error
+taxonomy, and the :class:`LlmService` protocol. It performs no I/O and imports no
+HTTP library. The transport lives next door in
+:mod:`app.services.llm_openai`, which speaks the OpenAI-compatible
+chat-completions dialect and is the only module in the application that opens a
+socket to a model.
+
+No real model is connected. The adapter is wired only when a base URL and a model
+name are configured; with neither set the application keeps
+:class:`NotConfiguredLlmService`, so nothing here can reach the network by
+accident.
 
 The application depends on :class:`LlmService`, never on a provider. Two rules
 hold whatever the provider turns out to be:
@@ -58,6 +65,21 @@ class LlmRequest(BaseModel):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
 
 
+class LlmUsage(BaseModel):
+    """Token accounting, when the server reports it.
+
+    Every field is optional: an OpenAI-compatible server is not obliged to return
+    a ``usage`` block, and a missing count is recorded as missing rather than as
+    zero. These are counts only - no prompt or completion text is carried here.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    prompt_tokens: int | None = Field(default=None, ge=0)
+    completion_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
+
+
 class LlmGeneration(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -66,10 +88,106 @@ class LlmGeneration(BaseModel):
     model: str | None = None
     finish_reason: str | None = None
     latency_ms: float = Field(default=0.0, ge=0)
+    usage: LlmUsage | None = Field(
+        default=None, description="None when the server reported no usage block."
+    )
 
 
-class LlmNotConfigured(RuntimeError):
+class LlmError(RuntimeError):
+    """Base of every failure at the model boundary.
+
+    Failures are classified, not described. :attr:`category` is a stable string a
+    caller can branch on and an operator can aggregate; :attr:`detail` is the
+    operator-facing phrase the orchestrator records. Neither ever carries an
+    upstream response body, a URL, a header or an API key - a model server's
+    error text is attacker-influenceable and routinely echoes the request.
+
+    The category strings are deliberately equal to the corresponding
+    :class:`~app.orchestrator.result.TurnErrorCategory` values, so the
+    orchestrator can map a failure without a lookup table that could drift.
+    """
+
+    category: str = "llm_failed"
+
+    @property
+    def detail(self) -> str:
+        """A short, safe, application-authored description. Never upstream text."""
+        return self.category
+
+
+class LlmNotConfigured(LlmError):
     """No model endpoint is configured. Raised instead of silently degrading."""
+
+    category = "llm_not_configured"
+
+
+class LlmConfigurationError(LlmNotConfigured):
+    """The model configuration is present but unusable.
+
+    A half-configured endpoint - a base URL with no model name, or a URL that is
+    not HTTP - is a deployment mistake, not a degraded mode. It is raised while
+    the application is being built so the process fails to start, rather than at
+    the first customer turn. Silently falling back to another model, or to no
+    model, would hide it.
+    """
+
+
+class LlmTimeout(LlmError):
+    """The model server did not answer inside the configured budget."""
+
+    category = "llm_timeout"
+
+
+class LlmConnectionFailed(LlmError):
+    """The model server could not be reached at all."""
+
+    category = "llm_connection_failed"
+
+
+class LlmUpstreamError(LlmError):
+    """The model server answered with an HTTP error status.
+
+    Only the status code is retained. The response body is discarded at the
+    boundary and never reaches a log, a result or a customer.
+    """
+
+    category = "llm_upstream_error"
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__(f"model server returned HTTP {status_code}")
+        self.status_code = status_code
+
+    @property
+    def detail(self) -> str:
+        return f"{self.category} (HTTP {self.status_code})"
+
+
+class LlmMalformedResponse(LlmError):
+    """The body was not the OpenAI-compatible shape: bad JSON, or fields missing."""
+
+    category = "llm_malformed_response"
+
+
+class LlmEmptyResponse(LlmError):
+    """The model returned neither text nor a tool call.
+
+    Treated as a failure rather than as an empty turn: an agent that says nothing
+    on a live call is a defect, and an empty draft must not be handed to
+    validation as though the model had chosen to say nothing.
+    """
+
+    category = "llm_empty_response"
+
+
+class LlmInvalidToolCall(LlmError):
+    """A tool call could not be read: no name, or arguments that are not a JSON object.
+
+    Raised instead of guessing. A repaired tool call is a tool call the
+    application invented, and the registry would then validate arguments no model
+    actually asked for.
+    """
+
+    category = "llm_invalid_tool_call"
 
 
 class LlmService(Protocol):

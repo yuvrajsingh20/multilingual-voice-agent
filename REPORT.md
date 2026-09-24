@@ -1126,3 +1126,377 @@ end `response_blocked`, `speakable=False`, with the offending figure named in th
 validation issues, while the legitimate turn still completes.
 
 Stage 3 has not been started.
+
+
+# Stage 3A — Real LLM Service Boundary + OpenAI-Compatible HTTP Client
+
+**REAL GEMMA MODEL IS NOT CONNECTED YET.** No model weights were downloaded, no
+model server was started, and no inference has ever run against this code.
+
+**GCP/vLLM deployment is intentionally deferred to the next step.** Nothing was
+deployed, no CUDA or NVIDIA driver was installed, no vLLM was installed, and no
+cloud resource was created. Every test in this repository runs offline against an
+in-process transport stub or a `http.server` bound to `127.0.0.1`.
+
+## S3A.1 Objective
+
+Make the Stage 2 orchestrator able to talk to a remotely hosted, OpenAI-compatible
+model server — without the orchestrator learning that it is doing so. Stage 2
+already depended on an `LlmService` protocol with a single `generate(LlmRequest)
+-> LlmGeneration` method and a `NotConfiguredLlmService` that failed loudly. Stage
+3A supplies the one implementation that was missing, and nothing else: no new
+abstraction, no change to prompt construction, no change to policy, no change to
+tool execution.
+
+## S3A.2 Architecture
+
+```
+ConversationOrchestrator          owns order, policy checkpoints, identity binding
+        |
+        v
+LlmService (Protocol)             app/services/llm.py — contract + error taxonomy, no I/O
+        |
+        v
+OpenAiCompatibleLlmService        app/services/llm_openai.py — the only module that opens a socket
+        |
+        v
+POST {MODEL_BASE_URL}/chat/completions
+        |
+        v
+any OpenAI-compatible server      vLLM / llama.cpp / TGI / OpenAI — a deployment choice, not a code one
+```
+
+and, separately, the path a tool request takes — which the adapter is not on:
+
+```
+model  ->  tool_calls JSON  ->  LlmToolCall  ->  ConversationOrchestrator
+                                                       |  binds account_ref/customer_ref
+                                                       |  checks write preconditions
+                                                       v
+                                                  ToolRegistry  ->  banking backend
+```
+
+The orchestrator does not know whether the model is Gemma, where it runs, what
+serves it, that it is reached over HTTP, or that it is authenticated. It imports
+`LlmService`, `LlmMessage`, `LlmToolCall` and `LlmError` — no HTTP type, no
+provider name, no URL. `app/services/llm.py` itself imports no HTTP library.
+
+### Why the adapter is a translator and nothing else
+
+`app/services/llm_openai.py` contains no prompt text, no policy, no grounding, no
+conversation state and no tool execution. It converts an `LlmRequest` to JSON and
+JSON back to an `LlmGeneration`. A tool call arrives as data and leaves as data;
+what makes that claim true rather than aspirational is that the adapter has no
+reference to `ToolRegistry`, to any backend, or to the session — it cannot execute
+anything even by mistake. `test_the_adapter_never_executes_a_tool` puts a
+tripwire on `ToolRegistry.execute` and asserts it is never reached.
+
+## S3A.3 Files added
+
+| File | What it is |
+| --- | --- |
+| `app/services/llm_openai.py` | The OpenAI-compatible HTTP adapter: request translation, response parsing, error mapping, bounded retries, latency measurement, structured logging. |
+| `tests/test_llm_http_adapter.py` | 99 tests over the adapter in isolation. |
+| `tests/test_llm_http_integration.py` | 38 tests driving the real orchestrator through an HTTP endpoint. |
+
+## S3A.4 Files modified
+
+| File | Change |
+| --- | --- |
+| `app/services/llm.py` | Added the `LlmError` taxonomy (`LlmNotConfigured` now subclasses it), `LlmConfigurationError`, and `LlmUsage` + `LlmGeneration.usage`. No existing field or signature changed. |
+| `app/config.py` | Added seven `MODEL_*` settings and two validators (blank-means-unset; base URL must be HTTP). |
+| `app/runtime.py` | Added `build_llm_service(settings)`; `build_runtime` now uses it instead of hard-coding `NotConfiguredLlmService()`. |
+| `app/orchestrator/result.py` | Added six `TurnErrorCategory` members whose string values equal the boundary's `LlmError.category` values. |
+| `app/orchestrator/pipeline.py` | One `except LlmError` clause between the existing `LlmNotConfigured` and generic handlers, plus `_llm_error_category`. Control flow is unchanged: every boundary failure still ends the turn with no speakable text. |
+| `app/observability.py` | Added `QUIET_LOGGERS`, applied in `configure_logging`. A redaction control — see S3A.9. |
+| `app/main.py` | Added a lifespan that closes the model connection pool on shutdown. |
+| `tests/fakes.py` | Added OpenAI-compatible response builders, `FakeOpenAiServer` (a real loopback server), and `unused_loopback_url`. |
+| `.env.example`, `requirements.txt` | Documented below. |
+
+Not touched: `data/regulatory/`, `app/core/`, `app/models/`, `app/tools/`,
+`app/api/`, `app/orchestrator/prompt.py`, `app/services/validation.py`,
+`app/services/stt.py`, `app/services/tts.py`, `app/services/turn.py`. No existing
+test was weakened, loosened or deleted.
+
+## S3A.5 Configuration
+
+All environment-driven, all documented in `.env.example`. The `MODEL_*` prefix is
+the convention Stage 1 already established, so no new naming scheme was invented.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MODEL_BASE_URL` | *unset* | OpenAI-compatible base URL including the API version, e.g. `http://localhost:8000/v1`. Must be `http://` or `https://`. |
+| `MODEL_NAME` | *unset* | The model identifier exactly as the serving layer exposes it. |
+| `MODEL_API_KEY` | *unset* | Sent as `Authorization: Bearer`. A `SecretStr`. Blank sends no header at all. |
+| `MODEL_TIMEOUT_SECONDS` | `20` | Whole-request budget for one model call. |
+| `MODEL_CONNECT_TIMEOUT_SECONDS` | *unset* | Connection-establishment budget; falls back to `MODEL_TIMEOUT_SECONDS`. |
+| `MODEL_MAX_OUTPUT_TOKENS` | *unset* | Cap on generated tokens; unset leaves `LlmRequest`'s own default (512). |
+| `MODEL_TEMPERATURE` | *unset* | Sampling temperature; unset leaves `LlmRequest`'s own default (0.2). |
+| `MODEL_MAX_RETRIES` | `0` | Bounded retries, off by default. Max 3. |
+| `MODEL_PROVIDER` | `openai-compatible` | Log label only; never affects request construction. |
+
+### The default cannot make a network request
+
+With both `MODEL_BASE_URL` and `MODEL_NAME` unset — the shipped default and what
+`tests/conftest.py` builds — `build_llm_service` returns `NotConfiguredLlmService`
+and **no HTTP client object is ever constructed**. That is the control, not a
+convention: an unconfigured process has nothing to make a request with.
+
+Setting exactly one of the two raises `LlmConfigurationError` while the
+application is being built, so the process fails to start rather than failing on a
+customer's call. Nothing falls back to another model, another URL or a stub. A
+blank `MODEL_BASE_URL=` in a shipped `.env` template reads as unset rather than as
+a half-configuration.
+
+## S3A.6 HTTP library
+
+No dependency was added. `httpx2` (2.13.1) was already in `requirements.txt` — it
+is the HTTP client this Starlette version expects for `TestClient` — and it
+provides everything the adapter needs: per-phase timeouts (`connect`/`read`),
+typed transport exceptions, and `MockTransport` for a pluggable test transport. It
+moved out of the "test-only" section of `requirements.txt` and is now documented
+as a runtime dependency. No provider SDK is installed: the chat-completions
+dialect is spoken directly, which is what keeps the deployment choice out of the
+code.
+
+## S3A.7 Request / response mapping
+
+**Request.** `LlmRequest` → `POST {base}/chat/completions`:
+
+```json
+{ "model": "<MODEL_NAME>",
+  "messages": [{"role": "system", "content": "..."},
+               {"role": "user", "content": "..."},
+               {"role": "tool", "content": "...", "tool_call_id": "..."}],
+  "max_tokens": 512, "temperature": 0.2, "stream": false,
+  "tools": [{"type": "function", "function": {"name": "...", "description": "...", "parameters": {…}}}] }
+```
+
+`tool_call_id` appears only on messages that carry one. `tools` is omitted
+entirely when none are offered. `parameters` is the registry's own
+`model_json_schema()` passed through **unaltered** — rewriting it would offer the
+model a looser contract than the registry enforces. `stream` is always `false`;
+streaming is out of scope for this stage.
+
+Prompt construction remains entirely `app/orchestrator/prompt.py`'s. The adapter
+appends nothing, edits nothing and authors nothing;
+`test_the_prompt_the_orchestrator_built_is_what_goes_on_the_wire` pins that, and
+`test_the_model_is_still_never_told_an_account_or_customer_reference` re-checks
+the Stage 2 invariant at the byte level now that a real serialiser is involved.
+
+`max_tokens` and `temperature` come from configuration **unless** the caller set
+them explicitly on the `LlmRequest` (detected via pydantic's `model_fields_set`,
+which distinguishes "the caller chose 0.2" from "0.2 is the field default"). The
+request wins when it spoke.
+
+**Response.** `choices[0].message` → `LlmGeneration`:
+
+| Wire | Internal |
+| --- | --- |
+| `message.content` | `text` (whitespace-only becomes `None`) |
+| `message.tool_calls[]` | `tool_calls: tuple[LlmToolCall, ...]` |
+| `choices[0].finish_reason` | `finish_reason` |
+| `model` | `model`, falling back to the configured name |
+| `usage` | `usage: LlmUsage \| None` |
+| measured | `latency_ms` |
+
+Parsing is strict. Every shape the adapter does not recognise raises rather than
+being coerced into something plausible: a body the application had to guess at is
+a body it cannot claim the model produced.
+
+## S3A.8 Tool-call handling
+
+`message.tool_calls[].function.arguments` is a JSON **string** on the wire.
+`_parse_arguments` decodes it and requires a JSON object. It also accepts an
+already-decoded object, because several OpenAI-compatible servers emit one; that
+is tolerance for two documented wire forms, not a guess about intent.
+
+Everything else raises `LlmInvalidToolCall`: a broken JSON string, valid JSON that
+is not an object (`[1,2,3]`, `"ACC-1"`, `42`), a missing or empty tool name, a
+`tool_calls` value that is not an array, a call with no `function` object, or an
+`id` of the wrong type. **No tool call is ever repaired** — a repaired tool call
+is one the application invented, and the registry would then validate arguments no
+model actually asked for.
+
+A missing `id` is the one tolerated omission: it becomes `""`, and the
+orchestrator's existing `request_id = call.call_id or uuid4().hex` mints one.
+
+The adapter does not execute, dispatch, queue or forward tool calls. It returns
+them. Stage 2's controls are untouched and still run afterwards: identity binding
+overwrites `account_ref`/`customer_ref` from the session, write tools require
+corroborating conversation state, a write must be alone in its round, and
+`MAX_TOOL_CALLS_PER_TURN` bounds the loop.
+`test_the_model_still_cannot_choose_which_account_a_tool_reads_over_http` runs a
+model that names `ACC-VICTIM` over HTTP and shows this session's own account is
+what gets read.
+
+## S3A.9 Timeout, error and retry behaviour
+
+Every failure is a typed subclass of `LlmError` with a stable `category` string.
+Those strings are deliberately equal to the corresponding `TurnErrorCategory`
+values, so `pipeline.py` maps a failure by lookup rather than by a table that
+could drift out of date.
+
+| Condition | Exception | Turn error category |
+| --- | --- | --- |
+| Nothing configured | `LlmNotConfigured` | `llm_not_configured` |
+| Half-configured | `LlmConfigurationError` | raised at startup, not at turn time |
+| Read/connect/pool timeout | `LlmTimeout` | `llm_timeout` |
+| Connect, DNS, TLS, proxy, protocol error | `LlmConnectionFailed` | `llm_connection_failed` |
+| Any status ≥ 400 | `LlmUpstreamError` (status only) | `llm_upstream_error` |
+| Body not JSON, or wrong shape | `LlmMalformedResponse` | `llm_malformed_response` |
+| No text and no tool call | `LlmEmptyResponse` | `llm_empty_response` |
+| Unreadable tool call | `LlmInvalidToolCall` | `llm_invalid_tool_call` |
+
+An empty model response is a failure, not an empty turn: an agent that says
+nothing on a live call is a defect, and an empty draft must not be handed to
+validation as though the model had chosen silence.
+
+**Retries are bounded and off by default.** A retry on a live call is spent out of
+the customer's silence, so the default is to fail fast and end the turn. When
+enabled, only clearly transient failures are retried: a connection that never
+opened, a connect/pool timeout, and 408/429/500/502/503/504. A 400, 401, 403, 404,
+409 or 422 is never retried — it is a bug or a credential problem, and repeating
+it fixes neither. A **read** timeout is not retried either: the turn has already
+spent its entire latency budget once. A malformed body is not retried: the same
+request would produce the same body. `max_retries=2` means exactly three attempts,
+and then it stops.
+
+**Latency** is measured at the boundary with `time.perf_counter()` around the
+whole call, carried on `LlmGeneration.latency_ms`, logged as `model_latency_ms`,
+and accumulated by the orchestrator into `TurnLatency.llm_ms`. Observability only
+— nothing here is optimised, and no streaming was added.
+
+## S3A.10 Security and logging
+
+The adapter emits one `llm_call` record per attempt through the existing
+`app.observability.log_event`. No second logging system was introduced.
+
+Logged: `provider`, `model`, `endpoint` (scheme + host + port only), `request_id`
+(a per-call correlation id), `attempt`, `outcome` (`ok` / `retrying` / `failed`),
+`http_status`, `error_type`, `error_category`, `model_latency_ms`,
+`finish_reason`, `tool_call_count`, `usage_prompt`, `usage_completion`,
+`usage_total`.
+
+Never logged: the API key, the `Authorization` header, the prompt, the FACTS
+block, the draft, the transcript, the response body, the request path, any
+customer name, account reference or amount.
+
+Three details worth stating explicitly:
+
+1. **Credentials in the base URL.** A base URL may legitimately carry userinfo
+   (`https://user:pass@host/v1`). `_endpoint_label` keeps only scheme, host and
+   port, so the password never reaches a log line.
+2. **`usage_*` rather than `*_tokens`.** `redact()` blanks any field whose name
+   contains `token` — correct for credentials, and it would otherwise blank the
+   token counts too. The names avoid the fragment rather than weakening the
+   redaction list.
+3. **`QUIET_LOGGERS`.** This was found by a test, not by inspection. `httpx2` logs
+   one INFO line per request containing the **full** request URL — including any
+   embedded credentials. That line is the library's own message string, so
+   `redact()` never sees it: redaction operates on structured fields and a
+   formatted message has none. Level is the only control that works, so
+   `configure_logging` now holds `httpx`/`httpx2`/`httpcore`/`httpcore2` at
+   WARNING. The application logs its own sanitised record for every model call
+   regardless.
+
+Upstream response bodies are discarded at the boundary. `LlmUpstreamError` retains
+the status code and nothing else; there are tests asserting that an API key or an
+organisation name embedded in a 401 body appears in neither the exception nor the
+log.
+
+## S3A.11 Test coverage
+
+Every test is offline. Most drive the adapter through `httpx2.MockTransport` in
+this process; a handful use `FakeOpenAiServer`, a real `http.server` bound to
+`127.0.0.1` on an ephemeral port, for the properties a transport stub cannot
+demonstrate — that the configured URL is the one dialled, that the
+`Authorization` header leaves the process, and that a slow server really does trip
+the configured timeout.
+
+### The cases Stage 3A required
+
+| Required case | Test |
+| --- | --- |
+| 1. Normal text response | `test_a_normal_assistant_reply_becomes_a_generation` |
+| 2. Tool-call response | `test_a_tool_call_response_is_parsed_into_the_projects_tool_call_type` |
+| 3. Multiple tool calls | `test_multiple_tool_calls_are_all_preserved_in_order` |
+| 4. Malformed JSON | `test_a_body_that_is_not_json_is_a_malformed_response`, `test_over_a_real_socket_a_non_json_body_is_malformed` |
+| 5. Missing response fields | `test_a_body_missing_expected_fields_is_a_malformed_response` (8 shapes) |
+| 6. HTTP 400 | `test_every_http_error_status_becomes_a_typed_upstream_error[400]` |
+| 7. HTTP 401 / 403 | same, `[401]` and `[403]` |
+| 8. HTTP 404 | same, `[404]` |
+| 9. HTTP 429 | same, `[429]` |
+| 10. HTTP 500 / 502 / 503 | same, `[500]`, `[502]`, `[503]`, `[504]`; plus `test_over_a_real_socket_a_500_is_an_upstream_error` |
+| 11. Timeout | `test_a_timeout_becomes_an_llm_timeout` (3 kinds), `test_a_slow_server_trips_the_configured_timeout` (real socket) |
+| 12. Connection failure | `test_a_transport_failure_becomes_a_connection_failure`, `test_a_real_closed_port_is_a_connection_failure` |
+| 13. Empty model response | `test_a_model_that_says_nothing_is_a_failure_not_an_empty_turn` (`None`, `""`, whitespace) |
+| 14. API key sent, never logged | `test_the_configured_api_key_is_sent_as_a_bearer_token`, `test_the_api_key_never_appears_in_a_log_line`, `test_credentials_embedded_in_the_base_url_are_not_logged`, `test_the_repr_does_not_carry_the_api_key` |
+| 15. Model name sent | `test_the_configured_model_name_is_what_is_sent`, `test_over_a_real_socket_the_url_key_and_model_all_arrive` |
+| 16. Base URL respected | `test_the_configured_base_url_is_what_is_dialled`, `test_a_trailing_slash_on_the_base_url_does_not_double_up` |
+| 17. Request timeout respected | `test_the_configured_timeout_is_applied_to_the_client`, `test_the_connect_timeout_falls_back_to_the_request_timeout`, `test_a_slow_server_trips_the_configured_timeout` |
+
+### The orchestrator integration cases
+
+| Required case | Test |
+| --- | --- |
+| Orchestrator → LlmService → mock endpoint → orchestrator continues | `test_a_turn_completes_with_the_model_answering_over_http`, `test_a_full_turn_over_a_real_loopback_server` |
+| Tool call → orchestrator → ToolRegistry executes | `test_a_tool_call_arriving_over_http_is_executed_through_the_registry` |
+| Policy checkpoints remain active | `test_the_policy_checkpoints_are_all_still_evaluated_around_an_http_tool_call` |
+| The adapter never executes the tool | `test_the_adapter_never_executes_a_tool`, `test_the_http_adapter_is_not_what_reached_the_banking_backend` |
+
+### Beyond the required list
+
+Identity binding still defeats a model that names another account over HTTP; a
+policy-blocked turn makes **no HTTP request at all**; an ungrounded figure arriving
+over HTTP is still blocked before TTS; tool results are fed back as outcomes and
+never as payloads (no paise, no `account_ref`); every boundary failure maps to its
+own turn error category with `speakable=False`; upstream error detail reaches the
+operator but never the customer; retries are bounded, never applied to 4xx, never
+to read timeouts, never to malformed bodies, and each attempt is logged so a
+degrading endpoint is visible; configuration reaches the wire intact; a
+half-configuration fails loudly; and an injected HTTP client is not closed by the
+service that did not create it.
+
+## S3A.12 Verification performed
+
+- Baseline before any Stage 3A change: `.venv/bin/python -m pytest -q` → **321 passed**.
+- After Stage 3A: `.venv/bin/python -m pytest -q` → **458 passed** (137 new; 99 adapter, 38 integration).
+- All 321 Stage 1 and Stage 2 tests pass **unchanged**. No existing test was modified.
+
+## S3A.13 Known limitations
+
+1. **No real model has ever answered.** Every response this code has parsed was
+   written by hand in `tests/fakes.py`. A real server's quirks — how vLLM emits a
+   Gemma tool call, whether it returns `usage`, what it does on a truncated
+   generation — are unverified. The first real connection is expected to find
+   something.
+2. **No streaming.** `stream` is always `false`. A voice agent ultimately wants
+   token streaming to cut time-to-first-audio; that is a later stage and would
+   change the `LlmService` contract, not just the adapter.
+3. **Synchronous.** `generate` blocks. Under FastAPI a sync path runs in a
+   threadpool, which is adequate here but is not the shape a high-concurrency
+   telephony deployment will want.
+4. **One connection pool, no health checking.** There is no circuit breaker, no
+   endpoint failover and no warm-up. A degrading endpoint is visible in the logs
+   and fails turns; nothing reacts to it automatically.
+5. **Per-attempt timeouts.** With retries enabled, worst-case wall clock is
+   roughly `(max_retries + 1) × MODEL_TIMEOUT_SECONDS`. There is no total-budget
+   clock across attempts. The default of zero retries makes this moot unless an
+   operator changes it.
+6. **`finish_reason` is recorded, not acted on.** A generation truncated by
+   `max_tokens` arrives as ordinary text with `finish_reason="length"`. Validation
+   and grounding still apply, so nothing unbacked can be spoken, but the turn is
+   not retried or flagged.
+7. **No authentication scheme but bearer tokens.** mTLS, cloud IAM signing and
+   header-based API keys are not supported.
+8. **Tool-call streaming deltas are not handled**, since streaming is off. A
+   server that only emits tool calls in streaming mode would not work.
+9. Everything listed under Stage 1 and Stage 2 limitations still stands: no
+   telephony, no STT, no TTS synthesis, no banking backend, no authentication, no
+   persistence, no evaluation harness.
+
+**No claim is made that this is production ready, and no claim is made that Gemma
+works against a real model.** What Stage 3A delivers is a tested, typed, offline
+boundary that a remote OpenAI-compatible Gemma server can be pointed at by
+configuration alone.
