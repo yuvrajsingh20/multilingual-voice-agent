@@ -1,6 +1,8 @@
-def main():
-    print("Voice Agent starting...")
+from fastapi import FastAPI
+
+app = FastAPI(title="Multilingual Debt Voice Agent")
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/health")
+def health():
+    return {"status": "ok"}

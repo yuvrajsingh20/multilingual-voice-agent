@@ -1,0 +1,184 @@
+{
+  "as_of": "2026-09-24",
+  "corpus_version": "2026-09-24.2",
+  "agent": "Multilingual debt-collection voice agent",
+  "how_to_use": "These are identified controls. They are not encoded in app/core/policy.py. The policy engine decides whether a control applies. The language model does not.",
+  "facts_required_before_a_control_can_apply": [
+    "lender_type",
+    "product_type",
+    "is_microfinance",
+    "is_digital_lending",
+    "borrower_or_guarantor_confirmed",
+    "grievance_open",
+    "recovery_agent_notice_sent_by_email_or_sms",
+    "call_local_time",
+    "borrower_requested_other_hours"
+  ],
+  "regimes": [
+    {
+      "regime_id": "current",
+      "from": "2025-11-28",
+      "until": "2026-12-31",
+      "summary": "Recovery conduct is in the November 2025 Responsible Business Conduct Directions. Calls for overdue loans, other than microfinance, are barred before 8:00 a.m. and after 7:00 p.m."
+    },
+    {
+      "regime_id": "from_2027_01_01",
+      "from": "2027-01-01",
+      "until": null,
+      "summary": "The 6 August 2026 amendments replace the current recovery-agent paragraphs. Contact is allowed only from 08:00 to 19:00 unless the borrower or guarantor has expressly authorised another time. The agent may discuss the dues only with the borrower or guarantor."
+    }
+  ],
+  "identified_controls": [
+    {
+      "control_id": "NO_HARASSMENT",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "Any collection call, for the lender type named in the source.",
+      "action": "Do not intimidate, threaten, use abusive language, publicly humiliate, misstate the debt or the consequences of non-payment, or contact family, referees, friends, or co-workers in a way that intrudes on their privacy.",
+      "sources": [
+        {"doc_id": "rbi-cb-rbc-2025", "reference": "paragraphs 343 and 445", "effective": "current", "until": "2026-12-31"},
+        {"doc_id": "rbi-nbfc-rbc-2025", "reference": "paragraphs 20 and 100", "effective": "current", "until": "2026-12-31"},
+        {"doc_id": "rbi-cb-rbc-amend-4-2026", "reference": "paragraph 454Z", "effective": "2027-01-01"},
+        {"doc_id": "rbi-nbfc-rbc-amend-3-2026", "reference": "paragraph 100Z", "effective": "2027-01-01"}
+      ]
+    },
+    {
+      "control_id": "CONTACT_HOURS",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "Overdue-loan recovery calls. Until 31 December 2026 this control does not apply to microfinance loans. From 1 January 2027 the 08:00–19:00 window is general, and a microfinance loan has an additional place-of-collection rule.",
+      "action": "Until 2026-12-31: do not call before 8:00 a.m. or after 7:00 p.m. From 2027-01-01: contact only between 08:00 and 19:00, unless the borrower or guarantor has expressly requested or authorised another time, and honour a request to avoid a particular time.",
+      "sources": [
+        {"doc_id": "rbi-cb-rbc-2025", "reference": "paragraph 445, including the microfinance carve-out", "effective": "current", "until": "2026-12-31"},
+        {"doc_id": "rbi-nbfc-rbc-2025", "reference": "paragraph 100, including the microfinance carve-out", "effective": "current", "until": "2026-12-31"},
+        {"doc_id": "rbi-cb-rbc-amend-4-2026", "reference": "paragraph 454Y(4) and 454Y(7)", "effective": "2027-01-01"},
+        {"doc_id": "rbi-nbfc-rbc-amend-3-2026", "reference": "paragraph 100Y(4) and 100Y(7)", "effective": "2027-01-01"}
+      ]
+    },
+    {
+      "control_id": "SPEAK_ONLY_TO_BORROWER_OR_GUARANTOR",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "From 2027-01-01, once the called party is not the borrower or guarantor. Until then, the binding text is the privacy limb of the harassment rule, not a separate identification rule.",
+      "action": "Discuss the dues only with the borrower or guarantor. If the person is the wrong party, stop discussing the account.",
+      "sources": [
+        {"doc_id": "rbi-cb-rbc-2025", "reference": "paragraph 445 privacy limb", "effective": "current", "until": "2026-12-31"},
+        {"doc_id": "rbi-cb-rbc-amend-4-2026", "reference": "paragraph 454Y(1)", "effective": "2027-01-01"},
+        {"doc_id": "rbi-nbfc-rbc-amend-3-2026", "reference": "paragraph 100Y(1)", "effective": "2027-01-01"}
+      ]
+    },
+    {
+      "control_id": "RECORD_AND_TELL",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "Commercial-bank recovery calls now. NBFC recovery calls from 2027-01-01. The current NBFC Responsible Business Conduct Directions do not contain the tape-recording sentence.",
+      "action": "Record the content of calls both ways, and tell the person that the conversation is being recorded. From 2027-01-01, keep the recording for six months, or until a sub judice matter is disposed of.",
+      "sources": [
+        {"doc_id": "rbi-cb-rbc-2025", "reference": "paragraph 442(4)", "effective": "current", "until": "2026-12-31"},
+        {"doc_id": "rbi-cb-rbc-amend-4-2026", "reference": "paragraph 454P", "effective": "2027-01-01"},
+        {"doc_id": "rbi-nbfc-rbc-amend-3-2026", "reference": "paragraph 100P", "effective": "2027-01-01"}
+      ]
+    },
+    {
+      "control_id": "CONFIDENTIALITY",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "Every call. Disclosure is limited to what that agent needs in order to recover that loan.",
+      "action": "Do not disclose customer information beyond the recovery task, and do not let incentives push the call into harsh conduct.",
+      "sources": [
+        {"doc_id": "rbi-cb-rbc-2025", "reference": "paragraphs 443 and 446", "effective": "current"},
+        {"doc_id": "rbi-nbfc-rbc-2025", "reference": "paragraph 99", "effective": "current"},
+        {"doc_id": "rbi-cb-outsourcing-2025", "reference": "paragraphs 23 and 24", "effective": "current"},
+        {"doc_id": "rbi-nbfc-outsourcing-2025", "reference": "paragraphs 23 and 24", "effective": "current"},
+        {"doc_id": "rbi-cb-rbc-amend-4-2026", "reference": "paragraph 454O", "effective": "2027-01-01"}
+      ]
+    },
+    {
+      "control_id": "GRIEVANCE_PAUSE",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "The lender has marked a grievance or complaint on this account as open. The exception for a frivolous complaint is a lender determination, not a decision for the voice agent.",
+      "action": "Do not continue recovery on an account while a borrower grievance is pending.",
+      "sources": [
+        {"doc_id": "rbi-cb-rbc-2025", "reference": "paragraph 442(6)", "effective": "current", "until": "2026-12-31"}
+      ]
+    },
+    {
+      "control_id": "DIGITAL_LOAN_NOTICE_BEFORE_CONTACT",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "The loan is a digital lending loan. Do not apply this to every loan.",
+      "action": "Do not contact the borrower until the lender has sent the recovery agent's particulars by email or SMS. Send again before contact if the agent changes.",
+      "sources": [
+        {"doc_id": "rbi-digital-lending-2025", "reference": "paragraph 8(v)", "effective": "published as a live notification dated 2025-05-08"},
+        {"doc_id": "rbi-cb-credit-facilities-2025", "reference": "paragraph 9(6) of the digital-lending chapter", "effective": "2025-11-28"},
+        {"doc_id": "rbi-nbfc-credit-facilities-2025", "reference": "paragraph 9(6) of the digital-lending chapter", "effective": "2025-11-28"}
+      ],
+      "overlap_note": "The May 2025 Digital Lending Directions and the November 2025 Credit Facilities Directions both contain this sentence. The Credit Facilities Directions repeal earlier credit-facility instructions through circular DOR.RRC.REC.302/33-01-010/2025-26. The Digital Lending notification page did not carry a repeal banner on 24 September 2026. The engine should enforce the shared duty. It should not choose which instrument 'wins'."
+    },
+    {
+      "control_id": "CARD_AGENT_DISCLOSURE",
+      "status": "identified_not_encoded",
+      "severity": "mandatory",
+      "applies_when": "The debt is credit-card dues.",
+      "action": "The issuer must have given the cardholder the agent's name and contact details on assignment. Communications name the issuer's senior officer. Do not use customer information that is not required for recovery.",
+      "sources": [
+        {"doc_id": "rbi-cb-credit-cards-2025", "reference": "paragraphs 38, 40 and 41", "effective": "2025-11-28"},
+        {"doc_id": "rbi-nbfc-credit-cards-2025", "reference": "paragraphs 38, 40 and 41", "effective": "2025-11-28"}
+      ]
+    },
+    {
+      "control_id": "DPDP_CALL_DUTIES",
+      "status": "identified_not_encoded",
+      "severity": "not_yet_in_force",
+      "applies_when": "Not on 24 September 2026. Sections 3 to 17 of the Act, which cover notice, consent, purpose limitation, security, and data-principal rights, come into force on 13 May 2027 under G.S.R. 843(E). Rules 3 and 5 to 16 follow the same date.",
+      "action": "Do not treat DPDP notice, consent, or erasure duties as binding call rules before 13 May 2027. What is in force now is the institutional machinery: section 1(2), section 2, sections 18 to 26, sections 35 and 38 to 43, and section 44(1) and (3).",
+      "sources": [
+        {"doc_id": "meity-dpdp-commencement-2025", "reference": "G.S.R. 843(E) clauses (a), (b) and (c)", "effective": "2025-11-13"},
+        {"doc_id": "meity-dpdp-act-2023", "reference": "Act No. 22 of 2023", "effective": "phased"},
+        {"doc_id": "meity-dpdp-rules-2025", "reference": "rule 1(2) to 1(4)", "effective": "phased"}
+      ]
+    }
+  ],
+  "stored_but_not_a_voice_call_rule": [
+    {
+      "topic": "Technology lock on a financed mobile device",
+      "doc_id": "rbi-cb-rbc-amend-4-2026",
+      "reference": "paragraphs 454S to 454U",
+      "effective": "2027-01-01",
+      "note": "Applies only if this product restricts a financed phone, tablet, or laptop. A voice call does not."
+    },
+    {
+      "topic": "Possession and sale of security",
+      "doc_id": "rbi-cb-rbc-amend-4-2026",
+      "reference": "paragraph 454R",
+      "effective": "2027-01-01",
+      "note": "A field-possession rule, not a call script."
+    },
+    {
+      "topic": "TRAI commercial-communication rules",
+      "doc_id": "rbi-cb-rbc-amend-4-2026",
+      "reference": "paragraph 454AB",
+      "effective": "2027-01-01",
+      "note": "The amendment points at TRAI TCCCPR, 2018. That instrument is not an RBI or MeitY document, so it is not in this corpus."
+    }
+  ],
+  "not_stored": [
+    {
+      "instrument": "DBOD.No.Leg.BC.75/09.07.005/2007-08, 24 April 2008, Recovery Agents engaged by banks",
+      "reason": "Consolidated into the Responsible Business Conduct Directions, 2025. Not operative on its own."
+    },
+    {
+      "instrument": "RBI/2022-23/108, 12 August 2022, Responsibilities of regulated entities employing Recovery Agents",
+      "reason": "Its harassment and calling-hours text is now paragraph 445 of the commercial-bank directions and paragraph 100 of the NBFC directions."
+    },
+    {
+      "instrument": "Guidelines on Digital Lending, 2 September 2022",
+      "reason": "Repealed by Annex III of the Digital Lending Directions, 2025."
+    },
+    {
+      "instrument": "Reserve Bank of India (Housing Finance Companies) Directions, 2025, Chapter X, paragraph 170",
+      "reason": "This is the in-force HFC recovery paragraph. The 6 August 2026 HFC amendment, which is stored, deletes paragraph 170 on 1 January 2027 and points HFCs to the NBFC paragraphs. The current paragraph 170 itself is the one gap if the lender is an HFC."
+    }
+  ]
+}

@@ -1,0 +1,1572 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+    <title>Notifications | Official Website of Reserve Bank of India </title>
+    <meta name="description" content="Notifications - Reserve Bank of India" />
+    <meta name="keyword" content="RBI Notifications" />
+
+    <meta name="author " content="Reserve Bank of India" />
+    <meta name="viewport" content="width=device-width" />
+    <script type="text/javascript" src="/js/libs/modernizr-2.5.3.min.js"></script>
+
+</head>
+<body onload="SetTreeStyles()">
+    <form method="post" action="./NotificationUser.aspx?Id=12848&amp;Mode=0" id="form1">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUKLTkyNjU3NzAzN2RkQgmRo0318k5Gfq5w5ECYQ/xrQnCXX1ezt/NyS1ZhOjA=" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="B1534F13" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="/wEdAAz0n+dkB8EzeBIbNmzUJUV2lK+XrsQEVyjeDxQ0A4GYXFBwzdjZXczwplb2HKGyLlrNyH2BRDHW7ZJm+s8yUnNgi6wX7g7V+51d5y/uZ409MaU74zTCJ05u4w6h9ODXzwxkOnLtYme9ze2BdjTwJgskP6t93AkC4GhUEhJREhdaXBugERoe+4YdP6+Dm7i9UwLINzYr5zRLekLCkqLwgivbfcX9ZaEV78oETjPwNTvjRyaLpyghhgB3dOM81YQT2c/gumm1K6hTqwRBA59047MMjBc6ytv97yCmsAnJv+j67A==" />
+</div>
+        <input type="hidden" name="hdnYear" id="hdnYear" />
+        <input type="hidden" name="hdnMonth" id="hdnMonth" value="0" />
+        
+<link href="/JQuery/css/jquery-ui-1.8.18.custom2.css" rel="stylesheet" type="text/css" />
+<link href="/includes/print.css" rel="stylesheet" media="print" type="text/css" />
+
+<link href="/Styles/960.css?v=1.0" rel="stylesheet" type="text/css" />
+<link href="/Includes1/rbi.css?v=5.0" rel="Stylesheet" type="text/css" />
+<script type="text/javascript" src="/js/libs/jquery.min.js"></script>
+<script type="text/javascript" src="/JQuery/ui/jquery.ui.revampRBI.js"></script>
+<script type="text/javascript" src="/js/ImgSaveDisable.js"></script>
+
+<script type="text/javascript">
+  
+//Redirect to mobile site start
+    function detectmob() {
+        if (screen.width <= 599 || screen.Height <= 975) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    if (detectmob()) {
+       window.location.href = "https://m.rbi.org.in" + window.location.pathname;
+		
+       
+    }
+
+	//Redirect to mobile site End
+    $(document).ready(function () {
+        Search();
+	SearchLastUpdateDate(); //Fetch Last Date Page
+    });
+
+
+
+  // Fetch Last Date Page
+
+    function SearchLastUpdateDate() {
+        var strFilterComments = new RegExp("^[a-zA-Z0-9 =_:.&?'%,()-–]+$");
+	var url=window.location.href;
+	if(url.indexOf("WSSViewDetail.aspx")>0 || url.indexOf("PublicationReportDetails.aspx")>0)
+	{
+		url=url.substring(url,url.indexOf("?"));
+	}
+        var param = { keyWord1: url.slice(url.lastIndexOf('/') + 1) };
+	param.keyWord1=param.keyWord1.replaceAll("%20"," ");
+	if(param.keyWord1.indexOf("#")>0)
+	{
+		param.keyWord1=param.keyWord1.substring(param.keyWord1,param.keyWord1.indexOf("#"));
+	}
+        if (!strFilterComments.test(param.keyWord1)) {            
+            return false;
+        }
+        else {
+            $.ajax({
+                url: "/Home.aspx/GetLastUpdateDate_new",
+                data: JSON.stringify(param),
+                dataType: "json",
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                dataFilter: function (data) { return data; },
+                success: function (data) {
+                    if (data.d.length > 0) {
+                        $('#lblGetLastUpdateDate').text(data.d);
+                    }
+                    else {
+                        response([{ label: "No results found", value: ""}]);
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                }
+            });
+
+        }
+    }
+    // Fetch Last Date Page
+
+
+
+    function Search() {
+        highlightTextAutocomplete();
+        $(".autoSuggest").autocomplete({
+
+
+            source: function (request, response) {
+                var param = { keyWord: document.getElementById('txtSearch').value };
+
+                $.ajax({
+                    url: "/Home.aspx/GetKeywords",
+                    data: JSON.stringify(param),
+                    dataType: "json",
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    dataFilter: function (data) { return data; },
+                    success: function (data) {
+
+                        if (data.d.length > 0) {
+                            response($.map(data.d, function (item) {
+                                return {
+                                    value: RemoveSpecialChars(item)
+
+                                }
+                            }))
+                        }
+                        else {
+                            response([{ label: "No results found", value: ""}]);
+                        }
+                    },
+                    error: function (XMLHttpRequest, textStatus, errorThrown) {
+                        alert(textStatus);
+                    }
+                });
+            },
+
+            
+            minLength: 3
+
+        });
+    }
+
+    function highlightTextAutocomplete() {
+
+        var oldFn = $.ui.autocomplete.prototype._renderItem;
+
+        $.ui.autocomplete.prototype._renderItem = function (ul, item) {
+
+            var t = String(item.value).replace(
+                new RegExp(this.term, "gi"),
+                "<span class='ui-state-highlight'>$&</span>");
+            if (item.value != "") {
+                return $("<li class='borderAutocomplete'></li>")
+                  .data("item.autocomplete", item)
+                  .append("<a role='link'>" + t + "</a>")
+                  .appendTo(ul);
+            }
+
+            else {
+                return $("<li></li>")
+                  .data("item.autocomplete", item)
+                  .append("")
+                  .appendTo(ul);
+            }
+        };
+    }
+
+
+    function RemoveSpecialChars(inputText) {
+        var filteredString = inputText.replace(/[\*\^\'\!\@\$\.\#\(\)\-\?\<\>\;\"\&\+\{\}\:]/g, '');
+        
+        return filteredString;
+    }
+    
+
+    function LoadSearchData(id, key) {
+        if (id == "txtSearch") {
+            if (key == 13) {
+                validateSearchText();
+                return false;
+            }
+        }
+        else validateSearchText();
+        return true;
+    }
+    function validateSearchText() {
+        if (validation()) {
+            var strloc = new String(document.location.href.toString());
+            if (strloc.indexOf("SearchResults.aspx") == -1) {//             
+                window.open("/scripts/SearchResults.aspx?search=" + document.getElementById("txtSearch").value,"_self");
+            }
+            else window.open("/scripts/SearchResults.aspx?search=" + document.getElementById("txtSearch").value,"_self");
+        }
+    }
+    function validation() {
+        strSearch = trim(document.getElementById('txtSearch').value);
+        if (strSearch == "") { alert('Please enter the search text'); return false; }
+        else {
+           
+            var strFilterChars = new RegExp("^[0-9a-zA-Z ]*$");
+            if (!strFilterChars.test(strSearch)) { alert("Please remove special characters from search text"); return false; }
+        }
+        return true;
+    }
+    function trim(value) {
+        value = value.replace(/^\s+/, '');
+        value = value.replace(/\s+$/, '');
+        return value;
+    }
+
+</script>
+
+    <style type="text/css">
+    .blink_msm1 
+{
+    -webkit-animation-name: blinker;
+    -webkit-animation-duration: 3s;
+    -webkit-animation-timing-function: linear;
+    -webkit-animation-iteration-count: infinite;
+
+    -moz-animation-name: blinker;
+    -moz-animation-duration: 3s;
+    -moz-animation-timing-function: linear;
+    -moz-animation-iteration-count: infinite;
+
+    animation-name: blinker;
+    animation-duration: 3s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+@-moz-keyframes blinker {  
+    0% { opacity: 1.0; }
+    50% { opacity: 0.0; }
+    100% { opacity: 1.0; }
+}
+
+@-webkit-keyframes blinker {  
+    0% { opacity: 1.0; }
+    50% { opacity: 0.0; }
+    100% { opacity: 1.0; }
+}
+
+@keyframes blinker {  
+    0% { opacity: 1.0; }
+    50% { opacity: 0.0; }
+    100% { opacity: 1.0; }
+}
+
+.blink_NewWebsite {
+        animation:blinker 1.5s linear 3;
+        color:blue;
+        font-size:1.5em;
+        margin-bottom:0px;
+        }
+    @keyframes blinker
+    {
+        50%{
+            opacity:0;
+        }
+    }
+
+.sr-only {
+position: absolute;
+left: -9999px;
+}
+</style>
+<div class="top_setting">
+    <div class="container_12">
+        <div class="grid_5 top_settings">
+            <a href="#mainsection">Skip to main content </a>
+        </div>
+        <div id="UsrFontCntr_tblThemes" style="float: right" class="grid_4 prefix_3 top_settings">
+            <ul style="margin:0px; padding:0px;">
+               <li class="fonts"> 
+                <a id="UsrFontCntr_LinkBtnSpace" role="button" title="Increase Letter Spacing" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnSpace&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/letspace.png" alt="Increase Letter Spacing" />
+                                <span id="UsrFontCntr_spanBtnSpace" class="sr-only">Not Pressed</span></a>                                
+            </li>
+
+            <li class="fonts">
+                <a id="UsrFontCntr_LinkBtnFontIncrease" role="button" title="Increase Font Size" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnFontIncrease&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/font-increase.gif" alt="Increase Font Size" />
+                    <span id="UsrFontCntr_spanFontIncrease" class="sr-only">Not Pressed</span></a>
+            </li>
+            <li class="fonts">
+                <a id="UsrFontCntr_LinkBtnFontRegular" role="button" title="Regular Font Size" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnFontRegular&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/font-reset.gif" alt="Regular Font Size" />
+                    <span id="UsrFontCntr_spanFontRegular" class="sr-only">Pressed</span></a>
+            </li>
+            <li class="fonts">
+                <a id="UsrFontCntr_LinkBtnFontDecrease" role="button" title="Decrease Font Size" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnFontDecrease&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/font-decrease.gif" alt="Decrease Font Size" />
+                    <span id="UsrFontCntr_spanFontDecrease" class="sr-only">Not Pressed</span></a>
+            </li></ul>
+		<ul style="margin:0px;padding:0px;">
+            <li class="black">
+                <a id="UsrFontCntr_LinkBtnAccessibilty" role="button" title="Apply Dark Theme" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnAccessibilty&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/dark-theme.gif" alt="Apply Dark Theme" />
+                    <span id="UsrFontCntr_spanAccessibilty" class="sr-only">Not Pressed</span></a>
+            </li>
+            <li class="white">
+                <a id="UsrFontCntr_LinkBtnUndoAccessibilty" role="button" title="Apply Normal Theme" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnUndoAccessibilty&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/bright-theme.gif" alt="Apply Normal Theme" />
+                     <span id="UsrFontCntr_spanUndoAccessibilty" class="sr-only">Pressed</span></a>
+            </li>
+            <li class="white">
+            <a id="UsrFontCntr_LinkBtnGreyScale" role="button" title="Apply Grey Theme" href="javascript:__doPostBack(&#39;UsrFontCntr$LinkBtnGreyScale&#39;,&#39;&#39;)" style="text-decoration:none;"><img src="/images/graytheme.gif" alt="Apply Grey Theme" />
+                                <span id="UsrFontCntr_spanGreyScale" class="sr-only">Not Pressed</span></a></li>
+
+            </ul>
+		<div>
+		     <a href="#" onclick="javascript:window.print();" id="A1" title="Print This Page" style="text-decoration:none;" >
+                <img src="/images/print-icon.png" alt="Print this page" class="print" />
+		</a></div>
+            <div style="float: right">
+                <label style="margin-right: 6px;">
+                    Change Language</label>
+			
+			<a href="#" onclick="SetLink();" class="link1" title="Website in Hindi">हिंदी</a>
+			</div>
+                   
+        </div>
+        <div class="clearfix">
+        </div>
+    </div>
+   
+</div>
+<div class="container_12">
+    <div class="grid_4" role="banner">
+        <div class="logo">
+            <a href="/home.aspx" title="Official website of Reserve Bank of India">
+                <img src="/images/rbi-company-logo.jpg" alt="Logo of Official website of Reserve Bank of India" title="Official website of Reserve Bank of India" /></a></div>
+    </div>
+    <div class="grid_5" align="right" role="search" style="float: right">
+        <label for="searchbox" class="search_label">
+            Search the Website</label>
+        <input name="UsrFontCntr$txtSearch" type="text" maxlength="103" id="txtSearch" class="search_box autoSuggest" title="Search the Website" aria-label="Search the Website" onkeydown="return LoadSearchData(&#39;txtSearch&#39;,event.keyCode);" placeHolder="Search" />
+        <button id="btnSearch" onclick="return LoadSearchData('btnSearch',event.keyCode);"
+            type="button" class="search_button">
+            Search</button>
+    </div>
+	<div class="grid_2" align="CENTER" role="" style="float: right">
+        <div class="logo" >
+           
+            <img src="../images/BBBP_Logo_4.png" alt="Beti Bachao Beti Padhao Logo" style="width:47%;">
+        </div>
+    	</div>
+    <div class="clearfix">
+    </div>
+</div>
+<!--  NAVIGATION START-->
+<nav role="navigation" aria-label="Main">
+       <div class="menu"><div class="centermenu">
+<ul class="menu">
+  <li><a href="https://rbi.org.in/home.aspx">Home</a></li>
+<li><a href="#" aria-expanded="false" role="button" aria-controls="Ab-Sub1">About Us ▼</a>
+ <ul class="submenu1" id="Ab-Sub1" >
+	 <li><a href="/scripts/AboutUsDisplay.aspx">About Us</a></li>
+     <li><a href="#" aria-expanded="false" role="button" aria-controls="Ab-org">Organisation & Functions <span aria-hidden="true">▶</span></a>
+		 <ul class="submenu1" id="Ab-org">             
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=OrganizationStructure.htm">Organisation Structure</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=Depts.htm">Departments</a></li>
+            <li><a href="Regionaloffices.aspx">Offices</a></li>
+			<li><a href="#" aria-expanded="false" role="button" aria-controls="Ab-tra">Training Establishment <span aria-hidden="true">▶</span></a>                
+				<ul class="submenu1" id="Ab-tra">
+                    <li ><a href="https://cab.rbi.org.in" target="_blank" id="CBOverview">College of Agricultural Banking</a></li>
+                    <li ><a href="/scripts/rbsc.aspx" id="CBNotifications">Reserve Bank Staff College</a></li>
+					<li ><a href="https://cos.rbi.org.in/" id="CBSupervisors">College of Supervisors</a></li>
+                </ul>
+            </li>
+            <li><a href="/scripts/OccasionalPublications.aspx?head=RBI%27s%20Functions%20and%20Working">RBI's Functions and Working</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=PastGovernors.htm">Governors</a></li>
+			<li><a href="/scripts/AboutUsDisplay.aspx?pg=deputygovernors.htm">Deputy Governors</a></li>
+			<li><a href="/scripts/AboutUsDisplay.aspx?pg=ExecutiveDirectors.htm">Executive Directors</a></li>
+        </ul>		
+	 </li>
+<li><a href="AboutUsDisplay.aspx?pg=MediaKit.htm">Media Kit</a></li>
+	 <li><a href="CommunicationPolicy.aspx">Communication Policy of RBI</a></li>
+	
+     <li>
+        <a href="#" aria-expanded="false" role="button" aria-controls="Ab-soi">Sources of Information <span aria-hidden="true">▶</span></a>
+        <ul class="submenu1" id="Ab-soi">
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#AP">Annual Publications</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#HP">Half-yearly Publications</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#QP">Quarterly Publications</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#MP">Monthly Publications</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#WP">Weekly Publications</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#OP">Occasional Publications</a></li>
+            <li><a href="/scripts/SDDSview.aspx">SDDS</a></li>
+            <li><a href="/scripts/BS_NSDPDisplay.aspx">NSDP</a></li>
+            <li><a href="/scripts/Statistics.aspx">Data Releases</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#PS">Publications available on Subscription</a></li>
+            <li><a href="/scripts/AboutUsDisplay.aspx?pg=AllPublications.htm#GI">General Information</a></li>	  
+        </ul>
+     </li>  
+	 <li><a href="/scripts/Project1.aspx">RBI History</a></li>
+	 <li><a href="#" aria-expanded="false" role="button" aria-controls="Ab-mus">Museum <span aria-hidden="true">▶</span></a>
+		<ul class="submenu1" id="Ab-mus">
+			<li><a href="https://therbimuseum.rbi.org.in/">The RBI Museum</a></li>
+			<li><a href="/scripts/ic_museum.aspx">RBI Monetary Museum</a></li>
+         </ul>
+	 </li>
+</ul>
+</li>
+  <li>
+    <a href="#" aria-expanded="false" role="button" aria-controls="No-Sub1">Notification ▼</a>
+    <ul class="submenu1" id="No-Sub1">
+      <li><a href="/scripts/NotificationUser.aspx">Notifications </a></li>
+             <li><a href="/scripts/BS_ViewMasterDirections.aspx">Master Directions </a></li>
+             <li><a href="/scripts/BS_ViewMasterCirculardetails.aspx">Master Circulars </a></li> 
+	     <li><a href="/scripts/Fs_AmendmentDirections.aspx">Amendment Directions </a></li> 
+	     <li><a href="#" aria-expanded="false" role="button" aria-controls="No-draft">Draft Notifications/Guidelines <span aria-hidden="true">▶</span></a>
+		<ul class="submenu1" id="No-draft">
+			<li><a href="/scripts/DraftNotificationsGuildelines.aspx">Draft Notifications/Guidelines</a></li>
+			<li><a href="/scripts/BS_ViewREwiseDraftDirections.aspx">Draft Directions (RE-wise)</a></li> 
+         	</ul>
+	     </li>
+
+            
+             <li><a href="/scripts/BS_CircularIndexDisplay.aspx">Index To RBI Circulars </a></li> 
+             <li><a href="/scripts/BS_ViewListofstandalonecirculars.aspx">Standalone Circulars </a></li>
+             <li><a href="/scripts/NotificationUserWithdrawnCircular.aspx">Circulars Withdrawn </a></li>
+
+      
+    </ul>
+  </li>
+
+  <li><a href="/scripts/BS_PressReleaseDisplay.aspx">Press Releases</a></li>
+  <li><a href="#" aria-expanded="false" role="button" aria-controls="Sp-Sub1">Speeches & Media Interactions ▼</a>
+	<ul class="submenu1" id="Sp-Sub1">
+	  <li><a href="/scripts/BS_ViewSpeeches.aspx">Speeches</a></li>
+      <li><a href="/scripts/BS_ViewInterviews.aspx">Media Interactions</a></li>
+      <li><a href="/scripts/Lectures.aspx">Memorial Lectures</a></li>
+      <li><a href="/scripts/BS_ViewPodcast.aspx">Podcasts</a></li>
+	</ul>
+  </li>
+  <li><a href="#"  aria-expanded="false" role="button" aria-controls="Pu-Sub1">Publications ▼</a>
+		<ul class="submenu1" id="Pu-Sub1">
+			<li><a href="/scripts/Publications.aspx?publication=Biennial">Biennial</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=Annual">Annual</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=HalfYearly">Half-Yearly</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=Quarterly">Quarterly</a></li>
+		    <li><a href="/scripts/Publications.aspx?publication=Bimonthly">Bi-monthly</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=Monthly">Monthly</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=Weekly">Weekly</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=Occasional">Occasional</a></li>
+            <li><a href="/scripts/Publications.aspx?publication=Reports">Reports</a></li>
+		    <li><a href="/scripts/OccasionalPublications.aspx?head=Working Papers">Working Papers</a></li>
+		</ul>
+	</li>				  
+  <li><a href="#" aria-expanded="false" role="button" aria-controls="Le-Sub1">Legal Framework ▼</a>
+	<ul class="submenu1" id="Le-Sub1">
+	   <li><a href="/scripts/Act.aspx">Act </a></li>
+       <li><a href="/scripts/Rules.aspx">Rules </a></li>
+       <li><a href="/scripts/Regulations.aspx">Regulations </a></li> 
+       <li class="last"><a href="/scripts/Schemes.aspx">Schemes </a></li>
+	   </ul>
+  </li>
+  <li><a href="#" aria-expanded="false" role="button" aria-controls="Re-Sub1">Research ▼</a>
+		<ul class="submenu1" id="Re-Sub1">
+			<li><a href="/Scripts/ExternalResearchSchemes.aspx">External Research Schemes</a></li>
+			<li><a href="/Scripts/OccasionalPapers.aspx">RBI Occasional Papers</a></li>
+			<li><a href="/Scripts/OccasionalPublications.aspx?head=Working%20Papers">Working Papers</a></li>
+			<li><a href="/Scripts/BS_ViewBulletin.aspx">RBI Bulletin</a></li>
+			<li><a href="/Scripts/Project1.aspx">History</a></li>
+			<li><a href="/Scripts/Occas_DRG_Studies.aspx">DRG Studies</a></li>
+			<li><a href="/Scripts/KLEMS.aspx">KLEMS</a></li>
+			<li class="last"><a href="/Scripts/StateStatisticsFinances.aspx">State Statistics and Finances</a></li>
+        </ul>
+  </li>
+  <li><a href="#" aria-expanded="false" role="button" aria-controls="St-Sub1">Statistics ▼</a>
+		<ul class="submenu1" id="St-Sub1">
+		  <li><a href="/scripts/Statistics.aspx">Data Releases</a></li>
+          <li><a href="https://data.rbi.org.in" target="_blank">Database on Indian Economy</a></li>
+          <li><a href="/scripts/FS_PDS.aspx">Public Debt Statistics</a></li>
+		</ul> 
+  </li>
+  <li><a href="#" aria-expanded="false" role="button" aria-controls="St-Sub1">Regulatory Reporting ▼</a>
+		<ul class="submenu1">
+			<li><a href="/scripts/BS_Listofallreturns.aspx">List of Returns</a></li>
+			<li><a href="/scripts/DataDefinition.aspx">Data Definition</a></li>
+			<li><a href="/scripts/ValidationRules.aspx">Validation rules/ Taxonomy</a></li>
+			<li><a href="/scripts/ReportingPlaform.aspx">List of RBI Reporting Portals</a></li>
+			<li class="last"><a href="/scripts/ReportingFAQ.aspx">FAQs of RBI Reporting Portals</a></li>
+		</ul>
+   </li>
+</ul>
+</div></div>
+</nav>
+<div class="container_12" >
+    <section>
+        <div class="grid_12" >
+            <div id="dialogAlert" title="" tabindex="-1"  style="text-align: center; display: none;">
+                <p id="AM_Message" tabindex="-1" style="color: #444; font-size: 15px; margin: 20px 0; min-height: 40px;"></p>
+            </div>
+        </div>
+    </section>
+</div>
+<!--  NAVIGATION END-->
+<!--HEADER END-->
+<input type="submit" name="UsrFontCntr$btn" value="" id="btn" style="visibility: hidden; height: 0px; width: 0px;" />
+
+<script type="text/javascript">
+    function SetLink() {
+        //a.href = "https://www.rbi.org.in/hindi/Home.aspx";
+        var txt="This will lead you to Hindi (हिन्दी) language website. Are you sure you want to switch to this language?"
+        if(window.confirm(txt)==true){
+            //document.cookie = 'preferLang' + '=;secure; expires=Thu, 01-Jan-70 00:00:01 GMT;path=/;';
+            window.location.replace("https://www.rbi.org.in/hindi/");
+        }
+        else return false;
+        
+    }
+
+
+
+
+	const allMenuItems = document.querySelectorAll("nav ul li");
+	
+	allMenuItems.forEach(item => {
+		item.addEventListener("focusin", (event) => {	
+			const MenuText =event.target.textContent;
+			const allMenuItems1 = document.querySelectorAll(".hasSubmenu");
+			allMenuItems1.forEach(item1 => {
+				if (MenuText === 'Press Releases')
+				{	
+					
+					item1.classList.remove('focused');
+					rollback(item1)
+					item1.classList.remove('open');
+				}
+			});
+			
+		});
+	});
+
+
+const menuItems = document.querySelectorAll(".hasSubmenu");
+menuItems.forEach(item => {
+	item.addEventListener("mouseenter", (event) => {
+		item.className="hasSubmenu open focused"
+		expandThis(item);
+	});
+	item.addEventListener("mouseleave", (event) => {		
+		rollback(item)
+		item.className="hasSubmenu"
+	});
+	item.addEventListener("focusin", (event) => {		
+		const allMenuItems = document.querySelectorAll("nav ul li");
+		allMenuItems.forEach(item1 => {
+			item1.classList.remove('focused');
+			if(item!==item1)
+			rollback(item1)
+			item1.classList.remove('open');	
+		});							
+		item.classList.add('focused');
+	});
+	item.addEventListener("focusout", (event) => {
+		
+		if(!item.className.includes('focused')){
+		
+		rollback(item)
+		item.className="hasSubmenu"
+		}
+		item.classList.remove('focused');
+		item.classList.remove('open');
+	});
+
+    item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+		if(item.className.includes("hasSubmenu open")){
+			rollback(item)
+			item.className="hasSubmenu"
+		}
+		else{
+          	item.className="hasSubmenu open focused"
+		var ele=item.querySelectorAll("a")[0];
+		
+		expandThis(item);	
+		}
+				
+        }
+	
+    });
+	
+});
+function expandThis(menu){
+ var $targetul = $(menu).children("ul:eq(0)")
+				    if ($targetul.queue().length <= 1) 
+				        if (this.istopheader)
+					$targetul.css({ left: $(this).children('a').eq(0).position().left, top: $mainmenu.position().top + this._dimensions.h - 2 })
+				            
+				    if (document.all && !window.XMLHttpRequest) 
+				        $mainmenu.find('ul').css({ overflow: (this.istopheader) ? 'hidden' : 'visible' })
+					
+					
+				    $targetul.dequeue().stop(true, true).slideDown(droplinemenu.animateduration.over)
+}
+const menuItemsf = document.querySelectorAll("nav .midmenu ul li");
+
+menuItemsf.forEach(item => {
+    item.addEventListener("keydown", (event) => {
+	
+	if(item.className.includes("last") ){
+		 if (pressedKeys['shift'] && event.key === "Tab"){}else{
+		var lastItem = document.getElementsByClassName('hasSubmenu open');
+		rollback(lastItem[0])
+		lastItem[0].className="hasSubmenu";
+		}
+	}
+	
+	});
+	
+	});
+	
+
+function rollback(menu){
+ var $targetul = $(menu).children("ul:eq(0)")
+$targetul.dequeue().stop(true, true).slideUp(droplinemenu.animateduration.out);
+}
+ 
+
+function setLetterSpace(val) {
+    
+	
+    if (false) {
+                    document.body.setAttribute("style", "letter-spacing:1px; line-height:20px; word-spacing:2px;");
+       
+    }
+    else {
+                    document.body.removeAttribute("style");
+    }
+    return false;
+
+    
+    }
+   
+
+// Toggle submenu
+    document.querySelectorAll('.menu li > a').forEach(link => {
+        link.addEventListener('click', function (e) {
+            const submenu = this.nextElementSibling;
+
+            if (submenu && submenu.classList.contains('submenu1')) {linkMessage();
+                e.preventDefault();
+                e.stopPropagation();
+
+                const parentLi = this.parentElement;
+
+                // Close sibling menus ONLY (not entire menu)
+                closeSiblings(parentLi);   
+ 
+
+               
+ 
+                const isExpanded=link.getAttribute('aria-expanded') ==='true';
+                link.setAttribute('aria-expanded',!isExpanded);
+                submenu.hidden=isExpanded;
+                
+                submenu.setAttribute('aria-hidden', isExpanded);
+                setTimeout(()=>{
+                    // Toggle current submenu
+                    submenu.classList.toggle('show', !isExpanded);
+            },50);
+
+        }
+        });
+    });
+
+    //  Close only sibling menus (important fix)
+    function closeSiblings(currentLi) {
+        const siblings = currentLi.parentElement.children;
+
+        Array.from(siblings).forEach(li => {
+            if (li !== currentLi) {
+            const submenus = li.querySelectorAll('.submenu1');
+        submenus.forEach(menu => menu.classList.remove('show'));
+    }
+    });
+    }
+
+    //  Click outside → close all
+    document.addEventListener('click', function () {
+		
+        document.querySelectorAll('.menu li > a').forEach(menu => {
+		if(menu.hasAttribute('aria-expanded')){
+            menu.setAttribute('aria-expanded','false');
+	}
+	
+    });
+
+    document.querySelectorAll('.submenu1').forEach(menu => {
+        menu.setAttribute('aria-hidden','true');
+    menu.classList.remove('show');
+	
+
+    });
+    });
+
+    //  Prevent closing when clicking inside menu
+    document.querySelector('.menu').addEventListener('click', function (e) {linkMessage();
+        e.stopPropagation();
+    });
+
+
+    //  Keyboard support
+    document.querySelectorAll('.menu li > a').forEach(link => {
+        link.addEventListener('keydown', function (e) {
+            const submenu = this.nextElementSibling;
+
+            if ((e.key === 'Enter' || e.key === ' ') && submenu) {
+                e.preventDefault();
+
+                const parentLi = this.parentElement;
+                closeSiblings(parentLi);
+
+
+                const isExpanded=link.getAttribute('aria-expanded') ==='true';
+                link.setAttribute('aria-expanded',!isExpanded);
+                submenu.hidden=isExpanded;
+                submenu.setAttribute('aria-hidden', isExpanded);
+                setTimeout(()=>{
+                    // Toggle current submenu
+                    submenu.classList.toggle('show', !isExpanded);
+            },50);
+
+
+           
+        }
+
+          if (e.key === 'Escape') {
+        document.querySelectorAll('.submenu').forEach(menu => {
+            menu.classList.remove('show');
+    });
+    this.blur();
+    }
+    });
+    });
+    // When focusing main menu items → close other submenus
+    document.querySelectorAll('.menu > li > a').forEach(item => {
+        item.addEventListener('focus', function() {
+
+            document.querySelectorAll('.submenu1').forEach(menu => {
+                
+                if (menu !== this.nextElementSibling) {
+              
+
+            document.querySelectorAll('.menu li > a').forEach(menu => {
+                if(menu.hasAttribute('aria-expanded'))
+                menu.setAttribute('aria-expanded','false');
+		
+            document.querySelectorAll('.submenu1').forEach(menu => {
+                menu.setAttribute('aria-hidden','true');
+            
+            menu.classList.remove('show');
+            
+
+
+        });
+
+	
+    });
+
+    }
+    });
+
+    });
+    });
+
+    //  Close submenu when focus leaves it (TAB navigation)
+    document.querySelectorAll('.menu li').forEach(li => {
+        li.addEventListener('focusout', function (e) {
+            // Check if focus is still inside this <li>
+            if (!li.contains(e.relatedTarget)) {
+                const submenu = li.querySelector('.submenu1');
+                if (submenu) {
+                    submenu.classList.remove('show');
+                    if(li.querySelector('a').hasAttribute('aria-expanded'))
+                        li.querySelector('a').setAttribute('aria-expanded','false');
+	
+
+                    submenu.setAttribute('aria-hidden','true');
+                }
+            }
+        });
+    });
+</script>
+        <div>
+            <div role="main" class="container_12">
+                <a id="mainsection" name="mainsection"></a>
+
+                <nav aria-label="Breadcrumb" class="grid_12 breadcrumbs">
+                    <ul>
+                        <li><a href="../Home.aspx">Home</a></li>
+                        <span id="lblNav"><li><a href="NotificationUser.aspx">Notifications</a></li></span>
+                    </ul>
+
+                </nav>
+                <div class="clear">
+                </div>
+                
+                <div id="pnlDetails" class="grid_11 omega right_blue_border">
+	
+                    <div>
+                        <div id="NotificationUser" class="text1">
+
+
+                            <h1 class="page_title">Notifications</h1>
+                            <div id="example-min">
+                                <div id="doublescroll">
+                                    <table width="100%" border="0" align="center" cellpadding="0" cellspacing="0">
+                                        
+                                        <table class="tablebg" width="100%"><tr><td class="tableheader"><a id='APDF_36NT8C402BE7C2A349E0BFFF3C526668CD7A' target="_blank" href="https://rbidocs.rbi.org.in/rdocs/notification/PDFs/36NT8C402BE7C2A349E0BFFF3C526668CD7A.PDF" aria-labelledby='APDF_36NT8C402BE7C2A349E0BFFF3C526668CD7A SPDF_36NT8C402BE7C2A349E0BFFF3C526668CD7A'>
+   <img alt='PDF - Reserve Bank of India (Digital Lending) Directions, 2025' style='padding: 8px;' src="../Images/pdf.gif" border="0" align="absmiddle"></a> (<span id='SPDF_36NT8C402BE7C2A349E0BFFF3C526668CD7A' aria-hidden="true">1094 kb</span>)</td></tr><tr><td align="center" class="tableheader"><b>Reserve Bank of India (Digital Lending) Directions, 2025</b></td></tr><tr class="tablecontent2"><td><table width="100%" border="0" align="center" class="td" style="background: url(https://www.rbi.org.in/scripts/images/Withdrawn04122025.jpg);background-repeat: no-repeat;background-position: top;"><tr><td><p>RBI/2025-26/36<br>  DOR.STR.REC.19/21.07.001/2025-26</p>  <p align="right">May 8, 2025</p>  <p align="center" class="head">Reserve Bank of India (Digital Lending) Directions, 2025 </p>  <table width="75%" border="0" align="center" cellpadding="0" cellspacing="1" class="tablebg">    <tr>    <td colspan="2" align="center" class="head">Index</td>    </tr>  <tr>    <td colspan="2"><a href="#C1" class="links">Chapter I: Preliminary </a></td>    </tr>  <tr>    <td width="9%" align="center">1.</td>    <td width="91%"> <a href="#1" class="links">Preamble</a></td>  </tr>  <tr>    <td align="center">2.</td>    <td><a href="#2" class="links">Short title and commencement</a></td>  </tr>  <tr>    <td align="center">3.</td>    <td><a href="#3" class="links">Applicability</a></td>  </tr>  <tr>    <td align="center">4.</td>    <td><a href="#4" class="links">Definitions</a></td>  </tr>  <tr>    <td colspan="2"><a href="#C2" class="links">Chapter II: General Requirements for RE-LSP Arrangements</a></td>    </tr>  <tr>    <td align="center">5.</td>    <td><a href="#5" class="links">Due diligence requirements with respect to LSPs</a></td>  </tr>  <tr>    <td align="center">6.</td>    <td><a href="#6" class="links">RE-LSP arrangements involving multiple lenders</a></td>  </tr>  <tr>    <td colspan="2"><a href="#C3" class="links">Chapter III: Conduct and Customer Protection Requirements</a></td>    </tr>  <tr>    <td align="center">7.</td>    <td><a href="#7" class="links">Assessing the borrower’s creditworthiness</a></td>  </tr>  <tr>    <td align="center">8.</td>    <td><a href="#8" class="links">Disclosures to borrowers</a></td>  </tr>  <tr>    <td align="center">9.</td>    <td><a href="#9" class="links">Loan disbursal, servicing and repayment</a></td>  </tr>  <tr>    <td align="center">10.</td>    <td><a href="#10" class="links">Cooling-off period</a></td>  </tr>  <tr>    <td align="center">11.</td>    <td><a href="#11" class="links">Grievance redressal</a></td>  </tr>  <tr>    <td colspan="2"><a href="#C4" class="links">Chapter IV: Technology and Data Requirement</a></td>    </tr>  <tr>    <td align="center">12.</td>    <td><a href="#12" class="links">Collection, usage and sharing of data with third parties</a></td>  </tr>  <tr>    <td align="center">13.</td>    <td><a href="#13" class="links">Storage of data</a></td>  </tr>  <tr>    <td align="center">14.</td>    <td><a href="#14" class="links">Comprehensive privacy policy</a></td>  </tr>  <tr>    <td align="center">15.</td>    <td><a href="#15" class="links">Technology standards</a></td>  </tr>  <tr>    <td colspan="2"><a href="#C5" class="links">Chapter V: Reporting of Credit Information and DLAs</a></td>    </tr>  <tr>    <td align="center">16.</td>    <td><a href="#16" class="links">Reporting to Credit Information Companies (CICs)</a></td>  </tr>  <tr>    <td align="center">17.</td>    <td><a href="#17" class="links">Reporting of DLAs to RBI</a></td>  </tr>  <tr>    <td colspan="2"><a href="#C6" class="links">Chapter VI: Loss sharing arrangement in case of default</a></td>    </tr>  <tr>    <td align="center">18.</td>    <td><a href="#18" class="links">Eligibility as DLG provider</a></td>  </tr>  <tr>    <td align="center">19.</td>    <td><a href="#19" class="links">Due diligence and other requirements with respect to DLG provider</a></td>  </tr>  <tr>    <td align="center">20.</td>    <td><a href="#20" class="links">Restrictions on entering into DLG arrangements</a></td>  </tr>  <tr>    <td align="center">21.</td>    <td><a href="#21" class="links">Structure of DLG arrangements</a></td>  </tr>  <tr>    <td align="center">22.</td>    <td><a href="#22" class="links">Forms of DLG</a></td>  </tr>  <tr>    <td align="center">23.</td>    <td><a href="#23" class="links">Cap on DLG</a></td>  </tr>  <tr>    <td align="center">24.</td>    <td><a href="#24" class="links">Recognition of NPA</a></td>  </tr>  <tr>    <td align="center">25.</td>    <td><a href="#25" class="links">Treatment of DLG for regulatory capital</a></td>  </tr>  <tr>    <td align="center">26.</td>    <td><a href="#26" class="links">Invocation and tenor of DLG</a></td>  </tr>  <tr>    <td align="center">27.</td>    <td class="links"><a href="#27" class="links">Disclosure requirements</a></td>  </tr>  <tr>    <td align="center">28.</td>    <td><a href="#28" class="links">Exceptions</a></td>  </tr>  <tr>    <td colspan="2"><a href="#C7" class="links">Chapter VII: General and Repeal Provisions</a></td>    </tr>  <tr>    <td align="center">29.</td>    <td><a href="#29" class="links">General provisions</a></td>  </tr>  <tr>    <td align="center">30.</td>    <td><a href="#30" class="links">Repeal provisions</a></td>  </tr>  <tr>    <td align="center"> </td>    <td><a href="#AN1" class="links">Annex I: Data to be submitted on the CIMS portal</a></td>  </tr>  <tr>    <td> </td>    <td><a href="#AN2" class="links">Annex II: Illustrations</a></td>  </tr>  <tr>    <td> </td>    <td><a href="#AN3" class="links">Annex III: List of circulars to be repealed with the issuance of these Directions</a></td>  </tr></table><p align="center" class="head"><a id="C1"></a>Chapter I: Preliminary</p><p class="head"><a id="1"></a>1. Preamble</p><p>Reserve Bank is statutorily mandated to operate the credit system of the country to its advantage. In this endeavour, Reserve Bank encourages innovation in the financial systems, products and credit delivery methods while ensuring orderly growth, financial stability and protection of depositors’ and borrowers’ interest. Certain concerns had emerged around the methods of designing, delivering and servicing digital credit products, which if not mitigated, may impact the borrower’s confidence in the digital lending ecosystem. The concerns primarily relate to unbridled engagement of third parties, mis-selling, breach of data privacy, unfair business conduct, charging of exorbitant interest rates, and unethical recovery practices. To address these concerns, pursuant to the recommendations made by the “Working Group on Digital Lending”, the Reserve Bank has, from time to time, issued guidelines to its regulated entities on digital lending. These Directions consolidate the earlier instructions along with certain new measures for arrangements involving Lending Service Providers partnering with multiple regulated entities as mentioned under para 6, and for creation of a directory of digital lending apps as mentioned under para 17 of these Directions.</p><p>Accordingly, in exercise of powers conferred by sections 21, 35A and 56 of the Banking Regulation Act, 1949, sections 45JA, 45L and 45M of the Reserve Bank of India Act, 1934, sections 30A and 32 of the National Housing Bank Act, 1987, section 6 of the Factoring Regulation Act, 2011 and section 11 of the Credit Information Companies (Regulation) Act, 2005, the Reserve Bank of India being satisfied that it is necessary and expedient in the public interest to do so, hereby issues these Directions hereinafter specified.</p><p class="head"><a id="2"></a>2. Short title and commencement</p><p>i. These Directions shall be called the Reserve Bank of India (Digital Lending) Directions, 2025.</p><p>ii. These Directions shall come into force immediately except for para 6, which shall come into effect from November 1, 2025, and para 17, which shall come into effect from June 15, 2025.</p><p class="head"><a id="3"></a>3. Applicability</p><p>These Directions shall be applicable to all digital lending activities of the following entities, hereinafter referred to as a Regulated Entity (RE) and collectively as Regulated Entities (REs), as the context may require:</p><p>i. All Commercial Banks,</p><p>ii. All Primary (Urban) Co-operative Banks, State Co-operative Banks, Central Co-operative Banks,</p><p>iii. All Non-Banking Financial Companies (including Housing Finance Companies), and</p><p>  iv. All All-India Financial Institutions.</p><p class="head"><a id="4"></a>4. Definitions</p><p>For the purpose of these Directions, unless the context otherwise requires, the terms herein shall bear the meaning assigned to them below:</p><p>i. <span class="head">Annual Percentage Rate (APR):</span> APR as defined under <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12663&Mode=0" target="_blank" class="links">Circular No. DOR.STR.REC.13/13.03.00/2024-25 on ‘Key Facts Statement (KFS) for Loans & Advances’ dated April 15, 2024</a>, as amended from time to time.</p><p>ii. <span class="head">Default Loss Guarantee (DLG):</span> A contractual arrangement, called by whatever name, between the RE and another entity, under which the latter guarantees to compensate the RE, for the loss due to default up to a certain percentage of the loan portfolio of the RE, specified upfront. Any other implicit guarantee of similar nature, linked to the performance of the loan portfolio of the RE and specified upfront, shall also be covered under the definition of DLG.</p><p>iii. <span class="head">Digital Lending:</span> A remote and automated lending process, largely by use of seamless digital technologies for customer acquisition, credit assessment, loan approval, disbursement, recovery, and associated customer service.</p><p>iv. <span class="head">Digital Lending Apps/ Platforms (DLAs):</span> Mobile and/or web-based applications, on a standalone basis or as a part of suite of functions of an application with user interface that facilitate digital lending services. DLAs shall include applications of the RE as well as those operated by Lending Service Provider (LSP) engaged by RE for extending any credit facilitation services in conformity with extant outsourcing guidelines issued by the Reserve Bank.</p><p>v. <span class="head">Lending Service Provider (LSP):</span> An agent of a RE (including another RE) who carries out one or more of RE’s digital lending functions, or part thereof, in customer acquisition, services incidental to underwriting and pricing, servicing, monitoring, recovery of specific loan or loan portfolio on behalf of RE in conformity with extant outsourcing guidelines issued by the Reserve Bank.<sup data-toggle="tooltip" title="While entities offering only Payment Aggregator (PA) services in terms of the extant instructions issued by RBI shall remain out of the ambit of these Directions, any PA also performing the role of an LSP shall comply with these Directions."><a href="#FN1" class="links">1</a></sup></p><p align="center" class="head"><a id="C2"></a>Chapter II: General Requirements for RE-LSP Arrangements</p><p class="head"><a id="5"></a>5. Due diligence requirements with respect to LSPs</p><p>i. Digital lending by a RE involving a LSP, shall be carried out under a contractual agreement between the RE and the LSP, which clearly defines the respective roles, rights, and obligations of each party thereto.</p><p>ii. RE shall conduct enhanced due diligence before they enter into an agreement with a LSP for digital lending, taking into account LSP’s technical capabilities, robustness of data privacy policies and storage systems, fairness in conduct with borrowers, past records of conduct and ability to comply with all applicable regulations and statutes.</p><p>iii. RE shall carry out periodic review of the conduct of the LSP vis-à-vis the terms of the contractual agreement and shall take appropriate action in the event of any deviation therefrom.</p><p>iv. RE shall lay down, as part of its policy, suitable monitoring mechanisms for the loan portfolios originated with the support of LSPs.</p><p>v. RE shall impart necessary guidance to LSP acting as a recovery agent, to discharge their duties responsibly and ensure that LSP complies with the applicable instructions<sup data-toggle="tooltip" title="Circular DOR.ORG.REC.65/21.04.158/2022-23 on ‘Outsourcing of Financial Services - Responsibilities of regulated entities employing Recovery Agents’ dated August 12, 2022, and other relevant instructions as issued from time to time."><a href="#FN2" class="links">2</a></sup> in this regard.</p><p>vi. RE shall continue to conform to the extant guidelines on outsourcing<sup data-toggle="tooltip" title="Para 2.6 of the Master Circular on “Loans and Advances – Statutory and Other restrictions” dated July 01, 2015; Guidelines on Managing Risks and Code of Conduct in Outsourcing of Financial Services by Banks issued vide Circular dated November 03, 2006 as amended from time to time; Para 48 of Master Direction – Reserve Bank of India (Non-Banking Financial Company – Scale Based Regulation) Directions, 2023 dated October 19, 2023, as amended from time to time; ‘Guidelines for Managing Risk in Outsourcing of Financial Services by Co-operative Banks’, dated June 28, 2021; Circular on ‘Outsourcing of Financial Services - Responsibilities of regulated entities employing Recovery Agents’ dated August 12, 2022, and other related instructions issued by the Reserve Bank from time to time."><a href="#FN3" class="links">3</a></sup> and shall ensure that the LSPs engaged by them and the DLAs (either of the RE or of the LSPs engaged by the RE) comply with these Directions.</p><p>  vii. As an overarching principle, any outsourcing agreement entered into by the RE with an LSP shall in no manner dilute or absolve the RE of its obligations under any statutory or regulatory provision, and the RE shall remain fully responsible and liable for all acts and omissions of the LSP. </p><p class="head"><a id="6"></a>6. RE-LSP arrangements involving multiple lenders</p><p>In cases where a LSP has agreements with multiple REs for digital lending, each RE shall ensure the following:</p><p>i. LSP shall provide a digital view of all the loan offers matching the borrower’s request on the DLA which meets the requirement of the borrower. The name of the unmatched lenders shall also be disclosed in the digital view.</p><p>ii. While the LSP may adopt any mechanism to match the request of borrowers with the lender (s) to offer a loan, it shall follow a consistent approach for similarly placed borrowers and products. The mechanism adopted by the LSP and any subsequent changes to this mechanism shall be properly documented.</p><p>iii. The digital view of loan offers from matching lenders shall include the name (s) of the RE (s) extending the loan offer, amount and tenor of loan, APR, monthly repayment obligation and penal charges (if applicable), in a way which enables the borrower to make a fair comparison between various offers. A link to the KFS shall also be provided in respect of each of the RE.</p><p>  iv. The content displayed by the LSP shall be unbiased, objective and shall not directly/ indirectly promote or push a product of a particular RE, including the use of dark patterns/deceptive patterns<sup data-toggle="tooltip" title="As defined under section 2(e) of the ‘Guidelines for Prevention and Regulation of Dark Patterns, 2023’ dated November 30, 2023, issued by Central Consumer Protection Authority, as amended from time to time."><a href="#FN4" class="links">4</a></sup> designed to mislead borrowers into choosing a particular loan offer. However, ranking of loan offers based on a publicly pre-disclosed metric for such ranking shall not be construed as promoting a particular product. </p><p align="center" class="head"><a id="C3"></a>Chapter III: Conduct and Customer Protection Requirements</p><p class="head"><a id="7"></a>7. Assessing the borrower’s creditworthiness</p><p>i. RE shall obtain the necessary information relating to economic profile of the borrower with a view to assessing the borrower’s creditworthiness before extending any loan, including, at a minimum, age, occupation and income details. The same shall be kept on record for audit purposes.</p><p>  ii. RE shall ensure that there is no automatic increase in credit limit unless an explicit request is received, evaluated and kept on record from the borrower for such increase.</p><p class="head"><a id="8"></a>8. Disclosures to borrowers</p><p>i. RE shall provide a Key Fact Statement (KFS), as per instructions contained in <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12663&Mode=0" target="_blank" class="links">circular no. DOR.STR.REC.13/13.03.00/2024-25 on ‘Key Facts Statement (KFS) for Loans & Advances’ dated April 15, 2024</a>, as amended from time to time.</p><p>ii. As regards penal charges, RE shall be guided by <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12527&Mode=0" target="_blank" class="links">circular no. DoR.MCS.REC.28/01.01.001/2023-24 on ‘Fair Lending Practice - Penal Charges in Loan Accounts’ dated August 18, 2023</a>, as amended from time to time.</p><p>iii. RE shall ensure that digitally signed documents<sup data-toggle="tooltip" title="As per the provisions of the Information Technology Act, 2000, as amended from time to time."><a href="#FN5" class="links">5</a></sup> (on the letter head of the RE) viz., KFS, summary of loan product, sanction letter, terms and conditions, account statements, privacy policies of the RE / LSP with respect to storage and usage of borrowers’ data, etc. shall automatically flow to the borrower on the registered and verified email/ SMS upon execution of the loan contract/ transactions.</p><p>iv. RE shall maintain a website of their own in public domain, which shall be kept up to date, inter-alia, with the following details at a prominent single place on the website for ease of accessibility:</p><ol type="a">  <li>    <p>Details of all of its digital lending products and its DLAs;</p>  </li>  <li>    <p>Details of LSPs and the DLAs of the LSPs along with the details of the activities for which they have been engaged for;</p>  </li>  <li>    <p>Particulars of RE’s customer care and internal grievance redressal mechanism;</p>  </li>  <li>    <p>Link to RBI’s Complaint Management System (CMS) and Sachet Portal;</p>  </li>  <li>    <p>Privacy policies and other details as required under extant guidelines of the Reserve Bank.</p>  </li>  </ol><p>RE shall ensure that DLAs / LSPs have links to the above website of the RE.</p><p>v. In case of a loan default, when a recovery agent is assigned for recovery or there is a change in the recovery agent already assigned, the particulars of such recovery agent authorised to approach the borrower for recovery shall be communicated to the borrower through email/ SMS before the recovery agent contacts the borrower for recovery.</p><p class="head"><a id="9"></a>9. Loan disbursal, servicing and repayment</p><p>i. Disbursement of loan by the RE shall always be made into the bank account of the borrower except for disbursals covered exclusively under statutory or regulatory mandate (of RBI or of any other regulator), flow of money between REs for co-lending transactions<sup data-toggle="tooltip" title="Co-lending arrangements shall be governed by the extant instructions, as amended from time to time. This shall also cover co-lending arrangements between REs for non-PSL loans subject to the condition that no third party other than the REs in a co-lending transaction shall have direct or indirect control over the flow of funds at any point of time."><a href="#FN6" class="links">6</a></sup> and disbursals for specific end use, provided the loan is disbursed directly into the bank account of the end-beneficiary<sup data-toggle="tooltip" title="Advances against salary, where the loan is disbursed directly to the bank account of the borrower but the repayment is from the corporate employer, can be allowed subject to the condition that the loan is repaid by the corporate employer by deducting the amount from the borrower’s salary. It must, however, be ensured that LSPs do not have any control over the flow of funds directly or indirectly in such transactions and that repayment is directly from the bank account of the employer to the RE."><a href="#FN7" class="links">7</a></sup>. RE shall ensure that in no case, disbursal is made to a third-party account, including the accounts of LSP, except as provided for in these Directions.</p><p>ii. RE shall ensure that all loan servicing, repayment, etc. is executed by the borrower directly in the RE’s bank account without any pass-through account/ pool account of any third party, including the accounts of LSP.</p><p>iii. The flow of funds between the bank accounts of the borrower and the RE shall not be controlled either directly or indirectly by a third-party, including the LSP.</p><p>iv. RE shall ensure that any fees, charges, reimbursements, etc. payable to LSP are paid directly by the RE and are not charged to or collected from the borrowers separately by LSP.</p><p>v. In case of delinquent loans, RE may deploy physical interface to recover loans in cash, wherever necessary. In order to afford operational flexibility to RE, such transactions are exempted from the requirement of direct repayment of loan in the RE’s bank account. However, any recovery by cash shall be duly reflected in full in the borrower’s account on the same day and RE shall ensure that any fees, charges, etc., payable to LSPs for such recovery are paid directly by the RE and are not charged by LSP to the borrower either directly or indirectly from the recovery proceeds.</p><p class="head"><a id="10"></a>10. Cooling-off period</p><p>i. The borrower shall be given an explicit option to exit a digital loan by paying the principal and the proportionate APR without any penalty during an initial “cooling-off period”. The cooling off period shall be determined by the Board of the RE as laid down in their loan policy, subject to the period so determined not being less than one day. For borrower continuing with the loan even after cooling-off period, pre-payment shall continue to be allowed as per applicable RBI guidelines<sup data-toggle="tooltip" title="In terms of Circular DBR.Dir.BC.No.08/13.03.00/2019-20 “Levy of Foreclosure Charges /Pre-payment Penalty on Floating Rate Term Loans” dated August 02, 2019 for banks and Master Direction – Reserve Bank of India (Non-Banking Financial Company – Scale Based Regulation) Directions, 2023 dated October 19, 2023 for NBFCs, as amended from time to time, and other relevant instructions as issued from time to time."><a href="#FN8" class="links">8</a></sup>.</p><p>ii. RE may retain a reasonable one-time processing fee, if the customer exits the loan during the cooling-off period. This, if applicable, shall be disclosed to the customer upfront in KFS.</p><p class="head"><a id="11"></a>11. Grievance redressal</p><p>i. The RE, and the LSP which has an interface with the borrower, shall designate nodal grievance redressal officers to deal with digital lending related complaints/ issues raised by the borrower.</p><p>ii. Contact details of the nodal grievance redressal officers shall be prominently displayed on the websites of the RE, its LSP and on the DLA, as well as in the KFS provided to the borrower.</p><p>iii. The facility of lodging complaint shall also be made available on the DLA and on the website as stated above. It is reiterated that responsibility of grievance redressal shall continue to remain with the RE.</p><p>iv. If any complaint lodged by the borrower against the RE or the LSP engaged by the RE is rejected wholly or partly by the RE, or the borrower is not satisfied with the reply; or the borrower has not received any reply within 30 days of receipt of complaint by the RE, the said borrower can lodge a complaint over the Complaint Management System (CMS)<sup data-toggle="tooltip" title="https://cms.rbi.org.in/"><a href="#FN9" class="links">9</a></sup> portal under the Reserve Bank-Integrated Ombudsman Scheme (RB-IOS)<sup data-toggle="tooltip" title="Issued vide Notification CEPD. PRD. No.S873/13.01.001/2021-22 dated November 12, 2021"><a href="#FN10" class="links">10</a></sup> or send a physical complaint to “Centralised Receipt and Processing Centre, 4th Floor, Reserve Bank of India, Sector-17, Central Vista, Chandigarh - 160017” as per the grievance redressal mechanism prescribed by the Reserve Bank. This information shall be suitably conveyed to the borrower.</p><p align="center" class="head"><a id="C4"></a>Chapter IV: Technology and Data Requirement</p><p class="head"><a id="12"></a>12. Collection, usage and sharing of data with third parties</p><p>i. RE shall ensure that any collection of data by their DLA and DLA of their LSP is need-based and with prior and explicit consent of the borrower having audit trail. In any case, RE shall also ensure that DLA of RE/LSP desist from accessing mobile phone resources like file and media, contact list, call logs, telephony functions, etc. A one-time access can be taken for camera, microphone, location or any other facility necessary for the purpose of on-boarding/ KYC requirements only, with the explicit consent of the borrower.</p><p>ii. The borrower shall be provided with an option to give or deny consent for use of specific data, restrict disclosure to third parties, data retention, revoke consent already granted to collect personal data and if required, make the RE/LSP delete/ forget the data.</p><p>iii. The purpose of obtaining borrowers’ consent needs to be disclosed at each stage of interface with the borrowers.</p><p>iv. Explicit consent of the borrower shall be taken before sharing personal information with any third party, except for cases where such sharing is required as per statutory or regulatory requirement.</p><p class="head"><a id="13"></a>13. Storage of data</p><p>i. RE shall ensure that LSP engaged by them do not store personal information of borrower except some basic minimal data (viz., name, address, contact details of the customer, etc.) that may be required to carry out their operations or service within the scope of the RE-LSP agreement. Responsibility regarding data privacy and security of the customer’s personal information on an ongoing basis shall be that of the RE.</p><p>ii. RE shall ensure that clear policy guidelines regarding the storage of customer data including the type of data that can be stored, the length of time for which data can be stored, restrictions on the use of data, data destruction protocol, standards for handling security breach, etc., are put in place and also disclosed by the RE and the LSP engaged by the RE prominently on their website and DLA at all times.</p><p>iii. RE shall ensure that no biometric data is stored/ collected by the RE and LSP, unless allowed under extant statutory guidelines.</p><p>iv. RE shall ensure that all data is stored only in servers located within India, while ensuring compliance with statutory obligations/ regulatory instructions. Further, in case the data is processed outside India, the same shall be deleted from servers outside India and brought back to India within 24 hours of processing.</p><p class="head"><a id="14"></a>14. Comprehensive privacy policy</p><p>i. RE and LSPs engaged by RE shall have a comprehensive privacy policy compliant with applicable laws, associated regulations and RBI guidelines which shall be made available publicly on the website of RE and LSP, as the case may be.</p><p>ii. Details of third parties (where applicable) allowed to collect personal information through the DLA shall also be disclosed in the privacy policy.</p><p class="head"><a id="15"></a>15. Technology standards</p><p>i. RE shall ensure that they and the LSPs engaged by them comply with various technology standards/ requirements on cybersecurity stipulated by RBI and other relevant agencies, or as may be specified from time to time, for undertaking digital lending.</p><p align="center" class="head"><a id="C5"></a>Chapter V: Reporting of Credit Information and DLAs</p><p class="head"><a id="16"></a>16. Reporting to Credit Information Companies (CICs)</p><p>i. As per the provisions of the Credit Information Companies (CIC) (Regulation) Act, 2005; CIC Rules, 2006; CIC Regulations, 2006 and related guidelines issued by RBI from time to time, RE shall ensure that any lending done through their DLAs and/ or DLAs of LSPs is reported by them to CICs irrespective of its nature/ tenor.</p><p>ii. Extension of structured digital lending products by RE and/or LSPs engaged by RE over a merchant platform involving short term, unsecured/ secured credits or deferred payments, need to be reported to CICs by the RE. RE shall ensure that LSPs, if any, associated with such deferred payment credit products shall abide by the extant outsourcing guidelines issued by the Reserve Bank and be guided by these Directions.</p><p class="head"><a id="17"></a>17. Reporting of DLAs to RBI</p><p>i. RE shall report all DLAs deployed/ joined by them, whether their own or those of the LSPs, either exclusively or as a platform participant, on the Centralised Information Management System (CIMS) portal of RBI in the requisite format as given in the <a href="#AN1" class="links">Annex-I</a> to these Directions.</p><p>ii. RE shall update the aforesaid list as and when additional DLA (s) are deployed or the engagement with the existing DLA (s) ceases to exist by filing the updated data in the CIMS portal.</p><p>iii. The Chief Compliance Officer of the RE or any other official designated by the Board of the RE for the purpose shall certify that the data on DLAs submitted by them on the CIMS portal is correct and the DLAs are compliant with all the extant regulatory instructions, including the provisions of these Directions, as updated from time to time.</p><p>iv. Without prejudice to the generality of the above, the Chief Compliance Officer/ other official designated by the Board of the RE shall certify the following aspects:</p><ol type="a">  <li>    <p>DLAs have link to RE’s website where further information about the loan products, the lender, the LSP, particulars of customer care, link to Sachet Portal, privacy policies, etc. can be accessed by the borrower.</p>  </li>  <li>    <p>DLAs (in case owned by LSP), have appointed a suitable nodal grievance redressal officer to deal with digital lending related complaints/ issues raised by the borrower, details of which are prominently available on the respective DLA.</p>  </li>  <li>    <p>Data collection and storage by DLAs is in compliance with para 12 and 13 of these Directions and other statutory and regulatory requirements, as applicable from time to time.</p>  </li>  <li>    <p>The DLA’s particulars submitted by the RE are also suitably disclosed on the RE’s website as required under para 8(iv) of these Directions.</p>  </li>  </ol><p>v. RE shall ensure the correctness and timeliness of information regarding DLAs, as the data, as submitted by the RE on CIMS, shall be published on the website of RBI in an automated manner and RBI shall not verify/ validate the data submitted on CIMS. All issues and grievances of customers concerning DLAs shall be addressed and dealt with by the RE directly.</p><p>vi. RE shall ensure that the inclusion of any third party DLAs deployed by them as part of above reporting, shall not be construed by the DLAs or any associated entity as conferring any form of registration, authorization, or endorsement by the Reserve Bank. RE shall also ensure that such inclusion is not misrepresented in any marketing, promotional, or other materials issued by or on behalf of the DLAs.</p><p>vii. RE shall ensure that the reporting in respect of all DLAs on the CIMS portal is completed by June 15, 2025.</p><p align="center" class="head"><a id="C6"></a>Chapter VI: Loss sharing arrangement in case of default</p><p class="head"><a id="18"></a>18. Eligibility as DLG provider</p><p>i. RE may enter into DLG arrangements only with a LSP/ other RE engaged as a LSP. Further, the LSP providing DLG shall be incorporated as a company under the Companies Act, 2013.</p><p class="head"><a id="19"></a>19. Due diligence and other requirements with respect to DLG provider</p><p>i. RE, including a RE acting as DLG provider, shall put in place a Board approved policy before entering into any DLG arrangement. Such policy shall include, at a minimum, the eligibility criteria for DLG provider, nature and extent of DLG cover, process of monitoring and reviewing the DLG arrangement, and the details of the fees, if any, payable to/ received by the DLG provider, as the case may be.</p><p>ii. RE shall ensure that any DLG arrangement does not act as a substitute for credit appraisal requirements and robust credit underwriting standards need to be put in place irrespective of the DLG cover.</p><p>iii. Every time a RE enters into or renews a DLG arrangement, it shall obtain adequate information to satisfy itself that the entity extending DLG would be able to honour it. Such information shall, at a minimum, include a declaration from the DLG provider, certified by the statutory auditor of the DLG provider, on the aggregate DLG amount outstanding, the number of RE and the respective number of portfolios against which DLG has been provided. The declaration shall also contain past default rates on similar portfolios.</p><p>iv. It is clarified that the due-diligence requirements specified herein are in addition to the general requirements applicable to RE-LSP arrangements as set out in para 5 of these Directions.</p><p class="head"><a id="20"></a>20. Restrictions on entering into DLG arrangements</p><p>i. RE shall not enter into DLG arrangements for revolving credit facilities offered through digital lending channel and credit cards as defined under <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12300" target="_blank" class="links">Master Direction – Credit Card and Debit Card – Issuance and Conduct Directions, 2022 dated April 21, 2022</a>.</p><p>ii. RE shall not enter into DLG arrangements on the loans which are covered by the credit guarantee schemes administered by trust funds as specified under para 2 of <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12384&Mode=0" target="_blank" class="links">Review of Prudential Norms – Risk Weights for Exposures guaranteed by Credit Guarantee Schemes (CGS) dated September 07, 2022</a>, as amended from time to time.</p><p>iii. NBFC – P2P shall not enter into DLG arrangements for the loans facilitated over its platform and be guided by para 6(1)(iv) of <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=11137" target="_blank" class="links">Master Direction - Non-Banking Financial Company – Peer to Peer Lending Platform (Reserve Bank) Directions, 2017 dated October 04, 2017</a>, as amended from time to time.</p><p class="head"><a id="21"></a>21. Structure of DLG arrangements</p><p>i. DLG arrangements shall be backed by an explicit and legally enforceable contract between the RE and the DLG provider. Such contract, among other things, shall contain the following details:</p><ol type="a">  <li>    <p>Extent of DLG cover;</p>  </li>  <li>    <p>Form in which DLG cover is to be maintained with the RE;</p>  </li>  <li>    <p>Timeline for DLG invocation;</p>  </li>  <li>    <p>Disclosure requirements as under para 27 of these Directions.</p>  </li>  </ol><p class="head"><a id="22"></a>22. Forms of DLG</p><p>i. RE shall accept DLG only in one or more of the following forms:</p><ol type="a">  <li>    <p>Cash deposited with the RE;</p>  </li>  <li>    <p>Fixed Deposit maintained with a Scheduled Commercial Bank with a lien marked in favour of the RE;</p>  </li>  <li>    <p>Bank Guarantee in favour of the RE.</p>  </li>  </ol><p class="head"><a id="23"></a>23. Cap on DLG</p><p>i. RE shall ensure that the total amount of DLG cover on any outstanding portfolio which is specified upfront shall not exceed five per cent of the total amount disbursed out of that loan portfolio at any given time. In case of implicit guarantee arrangements, the DLG Provider shall not bear performance risk of more than the equivalent amount of five per cent of the underlying loan portfolio.</p><p>ii. The portfolio over which DLG can be offered shall consist of identifiable and measurable loan assets which have been sanctioned (the ‘DLG set’). This portfolio shall remain fixed for the purpose of DLG cover and is not meant to be dynamic. Refer to Illustrations given in <a href="#AN2" class="links">Annex – II</a>.</p><p class="head"><a id="24"></a>24. Recognition of NPA</p><p>i. Recognition of individual loan assets in the portfolio as Non-Performing Asset (NPA) and consequent provisioning shall be the responsibility of the RE as per the extant asset classification and provisioning norms irrespective of any DLG cover available at the portfolio level.</p><p>ii. The amount of DLG invoked shall not be set off against the underlying individual loans, i.e. the liability of the borrowers in respect of the underlying loan shall remain unaffected.</p><p>iii. Recovery by the RE, if any, from the loans on which DLG has been invoked and realised, can be shared with the DLG provider in terms of the contractual arrangement.</p><p>iv. DLG amount once invoked by the RE shall not be reinstated, including through loan recovery.</p><p class="head"><a id="25"></a>25. Treatment of DLG for regulatory capital</p><p>i. Capital computation, i.e., computation of exposure and application of Credit Risk Mitigation benefits on individual loan assets in the portfolio shall continue to be governed by the extant norms<sup data-toggle="tooltip" title="Para 7 of the ‘Master Circular on Basel III Capital Regulations’ dated April 01, 2025, as amended from time to time, Master Direction – Reserve Bank of India (Non-Banking Financial Company – Scale Based Regulation) Directions, 2023 dated October 19, 2023 (as updated from time to time), Master Circular on ‘Prudential Norms on Capital Adequacy - Primary (Urban) Co-operative Banks (UCBs)’ dated April 01, 2025 as amended from time to time, Circular on ‘Operating Guidelines for Small Finance Banks’ dated October 06, 2016 and Master Direction - Reserve Bank of India (Prudential Regulations on Basel III Capital Framework, Exposure Norms, Significant Investments, Classification, Valuation and Operation of Investment Portfolio Norms and Resource Raising Norms for All India Financial Institutions) Directions, 2023 dated September 21, 2023 (as amended from time to time)."><a href="#FN11" class="links">11</a></sup>.</p><p>ii. In case, DLG provider is an RE, it shall deduct full amount of the DLG which is outstanding from its capital.</p><p class="head"><a id="26"></a>26. Invocation and tenor of DLG</p><p>i. RE shall invoke DLG within a maximum overdue period of 120 days, unless the loan dues are made good by the borrower before that.</p><p>ii. The period for which the DLG agreement remains in force shall not be less than the longest tenor of the loan in the underlying loan portfolio.</p><p class="head"><a id="27"></a>27. Disclosure requirements</p><p>i. RE shall put in place a mechanism to ensure that LSPs with whom they have a DLG arrangement shall publish on their website the total number of portfolios and the respective amount of each portfolio on which DLG has been offered. The name of the RE may or may not be disclosed as part of disclosure under this provision.</p><p>ii. Disclosure under para (i) above shall be made on a monthly basis, with the disclosure for any given month to be provided no later than seven (7) working days following the conclusion of that month.</p><p class="head"><a id="28"></a>28. Exceptions</p><p>Guarantees covered under the following schemes/ entities shall not be covered within the definition of DLG:</p><p>i. Guarantee schemes of Credit Guarantee Fund Trust for Micro and Small Enterprises (CGTMSE), Credit Risk Guarantee Fund Trust for Low Income Housing (CRGFTLIH) and individual schemes under National Credit Guarantee Trustee Company Ltd (NCGTC).</p><p>ii. Credit guarantee provided by Bank for International Settlements (BIS), International Monetary Fund (IMF) as well as Multilateral Development Banks as referred to in para 5.5 of <a href="https://www.rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12815" target="_blank" class="links">RBI Master Circular on Basel III Capital Regulation dated April 01, 2025</a>, as amended from time to time.</p><p align="center" class="head"><a id="C7"></a>Chapter VII: General and Repeal Provisions</p><p class="head"><a id="29"></a>29. General provisions</p><p>i. EMI programmes on Credit Card are governed specifically by Para 6(b)(iii)<sup data-toggle="tooltip" title="Card-issuers shall ensure complete transparency in the conversion of credit card transactions to Equated Monthly Instalments (EMIs) by clearly indicating the principal, interest and upfront discount provided by the merchant/card-issuer (to make it no cost), prior to the conversion. The same shall also be separately indicated in the credit card bill/statement. EMI conversion with interest component shall not be camouflaged as zero-interest/no-cost EMI."><a href="#FN12" class="links">12</a></sup> of the <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12300" target="_blank" class="links">Master Direction on Credit Card and Debit Card – Issuance and Conduct, 2022 dated April 21, 2022</a>. Such transactions shall not be covered under these Directions. However other loan products offered on Credit Cards which are not covered/ envisaged under the aforesaid para of the Master Direction shall be governed by the stipulations laid down under these Directions. Further, these Directions shall also be applicable to all loans offered on Debit Card, including EMI programmes.</p><p>ii. DLG arrangements entered between RE and LSP conforming to the instructions laid down in Chapter VI of these Directions shall not be treated as synthetic securitisation as defined under para 6(c) of <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12165" target="_blank" class="links">Master Direction – Reserve Bank of India (Securitisation of Standard Assets) Directions, 2021 dated September 24, 2021</a> and shall also not attract the provisions of ‘loan participation’ as defined under Para 9(e) of the <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12166" target="_blank" class="links">Reserve Bank of India (Transfer of Loan Exposures) Directions, 2021 dated September 24, 2021</a>.</p><p>iii. These Directions are without prejudice to any other extant regulatory norms or statutory provisions as applicable to the RE's activities, from time to time.</p><p class="head"><a id="30"></a>30. Repeal provisions</p><p>i. With the issuance of these Directions, the instructions/guidelines contained in the circulars mentioned in the <a href="#AN3" class="links">Annex - III</a> issued by RBI stand repealed.</p><p>ii. Notwithstanding the repeal under sub-para (i), anything done or any action taken or purported to have been done or taken, or any direction given or any proceeding taken or any penalty or fine imposed under the repealed enactments shall, insofar as it is not inconsistent with the provisions of these Directions, be deemed to have been done or taken under the corresponding provisions of these Directions.</p><hr><p align="center" class="head"><a id="AN1"></a>Annex I: Data to be submitted on the CIMS portal</p><table width="90%" border="0" align="center" cellpadding="0" cellspacing="1" class="tablebg">  <tr class="head">    <td width="4%" align="center">Sl. No.</td>    <td width="7%" align="center">Name of the DLA</td>    <td width="17%" align="center">Name of the owner of DLA (Self-owned/ name of LSP in case DLA is of LSP)</td>    <td width="12%" align="center">Available on (Website/ Name of app store)</td>    <td width="9%" align="center">Link to DLA#</td>    <td width="11%" align="center">Name of Grievance Redressal Officer</td>    <td width="10%" align="center">Email id of Grievance Redressal Officer</td>    <td width="12%" align="center">Telephone number of Grievance Redressal Officer</td>    <td width="9%" align="center">Mobile number of Grievance Redressal Officer</td>    <td width="9%" align="center">Website of RE</td>  </tr>  <tr>    <td> </td>    <td> </td>    <td> </td>    <td> </td>    <td> </td>    <td> </td>    <td> </td>    <td> </td>    <td> </td>    <td> </td>  </tr>  <tr>    <td colspan="10" valign="bottom">*Each DLA to be reported as a separate line item. In case any DLA is available on multiple app stores, each entry is required to be reported separately with specific links to the DLA on the app store<br>      <br>      # In case DLA is a website, provide link to the website, or in case DLA is an app hosted on one of the app-stores, provide the link of the DLA on the app-store</td>  </tr></table><hr><p align="center" class="head"><a id="AN2"></a>Annex II: Illustrations</p><p>Note: Illustrations are provided for ease of understanding and are merely indicative and not exhaustive.</p><p><u>Illustration 1 </u></p><p>Assume that as on April 1, 2024 the RE earmarks a portfolio of ₹40 crore (out of the total <span class="head">sanctioned</span> loans) under a DLG arrangement (DLG set). This portfolio shall remain "frozen" for the purpose of the specific DLG arrangement - meaning that no loan assets can be added or removed from it, except through loan repayment/ write-off. The RE can have such multiple DLG sets.</p><p>The ceiling for DLG cover on such portfolio shall be fixed at ₹2 crore (5% of ₹40 crore), which shall get activated proportionately as and when the loans are <span class="head">disbursed</span>.</p><p><u>Illustration 2 </u></p><p>Assume that out of the above DLG set, loans amounting to ₹10 crore are disbursed immediately. Then as on April 1, 2024, the DLG cover available for the portfolio shall be ₹0.5 crore (5% of disbursed).</p><p>Subsequently, if loans of ₹10 crore are further disbursed on April 15, 2024, the DLG cover shall proportionately increase to ₹1 crore effective April 15, 2024.</p><p>(Refer table below also for summary of each case)</p><p><span class="head">Case 1:</span> As on June 30, 2024, loans worth ₹5 crore mature without any default. In this case, the outstanding portfolio in the books of the RE would be ₹15 crore and the DLG cover shall remain at ₹1 crore.</p><p><span class="head">Case 2:</span> Subsequently, there is a default of ₹2 crore during Q2-2024 and consequently the RE invokes the entire DLG (₹1 crore<sup data-toggle="tooltip" title="It has been assumed that till date zero principal/interest have been received towards these loans."><a href="#FN13" class="links">13</a></sup>). In this case, as of Sept 30, 2024 the outstanding portfolio in the books of the RE shall be ₹15 crore (₹20 crore original portfolio less ₹5 crore loans matured without default) but no headroom for DLG will be available as the maximum permissible DLG cover of ₹1 crore (5% of disbursed) has been exhausted.</p><p><span class="head">Case 3:</span> Going further, let’s assume that recovery worth ₹1 crore is made by the RE during October 2024 on the defaulted loans of ₹2 crore. In such a case, the amount of the outstanding portfolio in the books of the RE as on October 31, 2024 shall come down to ₹14 crore (₹20 crore original portfolio less ₹5 crore loans matured without any default less ₹1 crore loans which were in default and recovered). However, the recovery amount of ₹1 crore cannot be added to reinstate the DLG cover.</p><table width="90%" border="0" align="center" cellpadding="0" cellspacing="1" class="tablebg">  <tr>    <td colspan="8" align="right">(figures in ₹ crore)</td>  </tr>  <tr class="head">    <td width="16%" align="center">Period</td>    <td width="12%" align="center">Disbursed</td>    <td width="12%" align="center">Loan maturing without default</td>    <td width="12%" align="center">Default Amount </td>    <td width="12%" align="center">DLG Invoked</td>    <td width="12%" align="center">Recovery/ Write-off</td>    <td width="12%" align="center">Outstanding Portfolio</td>    <td width="12%" align="center">Available DLG Cover</td>  </tr>  <tr>    <td height="24">Initial Position</td>    <td align="center">10</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">10</td>    <td align="center">0.5</td>  </tr>  <tr>    <td>Further disbursement</td>    <td align="center">10</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">20</td>    <td align="center">1</td>  </tr>  <tr>    <td>Case 1</td>    <td align="center">20</td>    <td align="center">5</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">-</td>    <td align="center">15</td>    <td align="center">1</td>  </tr>  <tr>    <td>Case 2</td>    <td align="center">20</td>    <td align="center">5</td>    <td align="center">2</td>    <td align="center">1</td>    <td align="center">-</td>    <td align="center">15</td>    <td align="center">0</td>  </tr>  <tr>    <td>Case 3</td>    <td align="center">20</td>    <td align="center">5</td>    <td align="center">2</td>    <td align="center">1</td>    <td align="center">1</td>    <td align="center">14</td>    <td align="center">0</td>  </tr></table><hr><p align="center" class="head"><a id="AN3"></a>Annex III: List of circulars to be repealed with the issuance of these Directions</p><table width="90%" border="0" align="center" cellpadding="0" cellspacing="1" class="tablebg">  <tr class="head">    <td width="4%" align="center">S.No.</td>    <td width="29%" align="center">Circular No.</td>    <td width="10%" align="center">Date</td>    <td width="57%" align="center">Subject</td>  </tr>  <tr>    <td align="center" valign="top">1.</td>    <td valign="top"><a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=11920&Mode=0" target="_blank" class="links">RBI/2019-20/258<br>                DOR(NBFC)(PD) CC.No.112/03.10.001/2019-20</a></td>    <td align="center" valign="top">24.06.2020</td>    <td valign="top">Loans Sourced by Banks and NBFCs over Digital Lending Platforms: Adherence to Fair Practices Code and Outsourcing Guidelines</td>  </tr>  <tr>    <td align="center" valign="top">2.</td>    <td valign="top"><a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12382&Mode=0" target="_blank" class="links">RBI/2022-23/111<br>            DOR.CRE.REC .66/21.07.001/2022-23</a></td>    <td align="center" valign="top">02.09.2022</td>    <td valign="top">Guidelines on Digital Lending</td>  </tr>  <tr>    <td align="center" valign="top">3.</td>    <td valign="top"><a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12514&Mode=0" target="_blank" class="links">RBI/2023-24/41<br>            DOR.CRE.REC .21/21.07.001/2023-24</a></td>    <td align="center" valign="top">08.06.2023</td>    <td valign="top">Guidelines on Default Loss Guarantee (DLG) in Digital Lending</td>  </tr></table><hr><p class="footnote"><sup><a id="FN1"></a>1</sup> While entities offering only Payment Aggregator (PA) services in terms of the extant instructions issued by RBI shall remain out of the ambit of these Directions, any PA also performing the role of an LSP shall comply with these Directions.</p><p class="footnote"><sup><a id="FN2"></a>2</sup> <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12378&Mode=0" target="_blank" class="links">Circular DOR.ORG.REC.65/21.04.158/2022-23 on ‘Outsourcing of Financial Services - Responsibilities of regulated entities employing Recovery Agents’ dated August 12, 2022</a>, and other relevant instructions as issued from time to time.</p><p class="footnote"><sup><a id="FN3"></a>3</sup> Para 2.6 of the <a href="https://rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=9902" target="_blank" class="links">Master Circular on “Loans and Advances – Statutory and Other restrictions” dated July 01, 2015</a>; Guidelines on Managing Risks and Code of Conduct in Outsourcing of Financial Services by Banks issued vide <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=3148&Mode=0" target="_blank" class="links">Circular dated November 03, 2006</a> as amended from time to time; Para 48 of <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12550" target="_blank" class="links">Master Direction – Reserve Bank of India (Non-Banking Financial Company – Scale Based Regulation) Directions, 2023 dated October 19, 2023</a>, as amended from time to time; <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12123&Mode=0" target="_blank" class="links">‘Guidelines for Managing Risk in Outsourcing of Financial Services by Co-operative Banks’, dated June 28, 2021</a>; <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=12378&Mode=0" target="_blank" class="links">Circular on ‘Outsourcing of Financial Services - Responsibilities of regulated entities employing Recovery Agents’ dated August 12, 2022</a>, and other related instructions issued by the Reserve Bank from time to time.</p><p class="footnote"><sup><a id="FN4"></a>4</sup> As defined under section 2(e) of the ‘Guidelines for Prevention and Regulation of Dark Patterns, 2023’ dated November 30, 2023, issued by Central Consumer Protection Authority, as amended from time to time.</p><p class="footnote"><sup><a id="FN5"></a>5</sup> As per the provisions of the Information Technology Act, 2000, as amended from time to time.</p><p class="footnote"><sup><a id="FN6"></a>6</sup> Co-lending arrangements shall be governed by the extant instructions, as amended from time to time. This shall also cover co-lending arrangements between REs for non-PSL loans subject to the condition that no third party other than the REs in a co-lending transaction shall have direct or indirect control over the flow of funds at any point of time.</p><p class="footnote"><sup><a id="FN7"></a>7</sup> Advances against salary, where the loan is disbursed directly to the bank account of the borrower but the repayment is from the corporate employer, can be allowed subject to the condition that the loan is repaid by the corporate employer by deducting the amount from the borrower’s salary. It must, however, be ensured that LSPs do not have any control over the flow of funds directly or indirectly in such transactions and that repayment is directly from the bank account of the employer to the RE.</p><p class="footnote"><sup><a id="FN8"></a>8</sup> In terms of <a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=11646&Mode=0" target="_blank" class="links">Circular DBR.Dir.BC.No.08/13.03.00/2019-20 “Levy of Foreclosure Charges /Pre-payment Penalty on Floating Rate Term Loans” dated August 02, 2019</a> for banks and <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12550" target="_blank" class="links">Master Direction – Reserve Bank of India (Non-Banking Financial Company – Scale Based Regulation) Directions, 2023 dated October 19, 2023</a> for NBFCs, as amended from time to time, and other relevant instructions as issued from time to time.</p><p class="footnote"><sup><a id="FN9"></a>9</sup> <a href="https://cms.rbi.org.in/" target="_blank" class="links">https://cms.rbi.org.in/</a></p><p class="footnote"><sup><a id="FN10"></a>10</sup> Issued vide <a href="https://www.rbi.org.in/Scripts/NotificationUser.aspx?Id=12192&Mode=0" target="_blank" class="links">Notification CEPD. PRD. No.S873/13.01.001/2021-22 dated November 12, 2021</a></p><p class="footnote"><sup><a id="FN11"></a>11</sup> Para 7 of the <a href="https://rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12815" target="_blank" class="links">‘Master Circular on Basel III Capital Regulations’ dated April 01, 2025</a>, as amended from time to time, <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12550" target="_blank" class="links">Master Direction – Reserve Bank of India (Non-Banking Financial Company – Scale Based Regulation) Directions, 2023 dated October 19, 2023</a> (as updated from time to time), <a href="https://rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx?id=12816" target="_blank" class="links">Master Circular on ‘Prudential Norms on Capital Adequacy - Primary (Urban) Co-operative Banks (UCBs)’ dated April 01, 2025</a> as amended from time to time, Circular on ‘<a href="https://rbi.org.in/Scripts/NotificationUser.aspx?Id=10636&Mode=0" target="_blank" class="links">Operating Guidelines for Small Finance Banks’ dated October 06, 2016</a> and <a href="https://rbi.org.in/Scripts/BS_ViewMasDirections.aspx?id=12538" target="_blank" class="links">Master Direction - Reserve Bank of India (Prudential Regulations on Basel III Capital Framework, Exposure Norms, Significant Investments, Classification, Valuation and Operation of Investment Portfolio Norms and Resource Raising Norms for All India Financial Institutions) Directions, 2023 dated September 21, 2023</a> (as amended from time to time).</p><p class="footnote"><sup><a id="FN12"></a>12</sup> Card-issuers shall ensure complete transparency in the conversion of credit card transactions to Equated Monthly Instalments (EMIs) by clearly indicating the principal, interest and upfront discount provided by the merchant/card-issuer (to make it no cost), prior to the conversion. The same shall also be separately indicated in the credit card bill/statement. EMI conversion with interest component shall not be camouflaged as zero-interest/no-cost EMI.</p><p class="footnote"><sup><a id="FN13"></a>13</sup> It has been assumed that till date zero principal/interest have been received towards these loans.</p></td></tr></table></td></tr></table>
+                                    </table>
+                                </div>
+                                <br />
+                                <div align="right">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                
+</div>
+                <div class="grid_1 archives alpha">
+                    <span id="DateSettree_lbltree"><div class="grid_subtree archives alpha" id="treeYearMonth_PR"><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2026">2026</a></h2><div class="accordionContent month" id="2026"><ul class="accordionlist"><li><a href="#" id="20260" onclick='GetYearMonth("2026","0")'>All Months</a></li><li><a href="#" id="20261" onclick='GetYearMonth("2026","1")'>January</a></li><li><a href="#" id="20262" onclick='GetYearMonth("2026","2")'>February</a></li><li><a href="#" id="20263" onclick='GetYearMonth("2026","3")'>March</a></li><li><a href="#" id="20264" onclick='GetYearMonth("2026","4")'>April</a></li><li><a href="#" id="20265" onclick='GetYearMonth("2026","5")'>May</a></li><li><a href="#" id="20266" onclick='GetYearMonth("2026","6")'>June</a></li><li><a href="#" id="20267" onclick='GetYearMonth("2026","7")'>July</a></li><li><a href="#" id="20268" onclick='GetYearMonth("2026","8")'>August</a></li><li><a href="#" id="20269" onclick='GetYearMonth("2026","9")'>September</a></li><li><a href="#" id="202610" onclick='GetYearMonth("2026","10")'>October</a></li><li><a href="#" id="202611" onclick='GetYearMonth("2026","11")'>November</a></li><li><a href="#" id="202612" onclick='GetYearMonth("2026","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2025">2025</a></h2><div class="accordionContent month" id="2025"><ul class="accordionlist"><li><a href="#" id="20250" onclick='GetYearMonth("2025","0")'>All Months</a></li><li><a href="#" id="20251" onclick='GetYearMonth("2025","1")'>January</a></li><li><a href="#" id="20252" onclick='GetYearMonth("2025","2")'>February</a></li><li><a href="#" id="20253" onclick='GetYearMonth("2025","3")'>March</a></li><li><a href="#" id="20254" onclick='GetYearMonth("2025","4")'>April</a></li><li><a href="#" id="20255" onclick='GetYearMonth("2025","5")'>May</a></li><li><a href="#" id="20256" onclick='GetYearMonth("2025","6")'>June</a></li><li><a href="#" id="20257" onclick='GetYearMonth("2025","7")'>July</a></li><li><a href="#" id="20258" onclick='GetYearMonth("2025","8")'>August</a></li><li><a href="#" id="20259" onclick='GetYearMonth("2025","9")'>September</a></li><li><a href="#" id="202510" onclick='GetYearMonth("2025","10")'>October</a></li><li><a href="#" id="202511" onclick='GetYearMonth("2025","11")'>November</a></li><li><a href="#" id="202512" onclick='GetYearMonth("2025","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2024">2024</a></h2><div class="accordionContent month" id="2024"><ul class="accordionlist"><li><a href="#" id="20240" onclick='GetYearMonth("2024","0")'>All Months</a></li><li><a href="#" id="20241" onclick='GetYearMonth("2024","1")'>January</a></li><li><a href="#" id="20242" onclick='GetYearMonth("2024","2")'>February</a></li><li><a href="#" id="20243" onclick='GetYearMonth("2024","3")'>March</a></li><li><a href="#" id="20244" onclick='GetYearMonth("2024","4")'>April</a></li><li><a href="#" id="20245" onclick='GetYearMonth("2024","5")'>May</a></li><li><a href="#" id="20246" onclick='GetYearMonth("2024","6")'>June</a></li><li><a href="#" id="20247" onclick='GetYearMonth("2024","7")'>July</a></li><li><a href="#" id="20248" onclick='GetYearMonth("2024","8")'>August</a></li><li><a href="#" id="20249" onclick='GetYearMonth("2024","9")'>September</a></li><li><a href="#" id="202410" onclick='GetYearMonth("2024","10")'>October</a></li><li><a href="#" id="202411" onclick='GetYearMonth("2024","11")'>November</a></li><li><a href="#" id="202412" onclick='GetYearMonth("2024","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2023">2023</a></h2><div class="accordionContent month" id="2023"><ul class="accordionlist"><li><a href="#" id="20230" onclick='GetYearMonth("2023","0")'>All Months</a></li><li><a href="#" id="20231" onclick='GetYearMonth("2023","1")'>January</a></li><li><a href="#" id="20232" onclick='GetYearMonth("2023","2")'>February</a></li><li><a href="#" id="20233" onclick='GetYearMonth("2023","3")'>March</a></li><li><a href="#" id="20234" onclick='GetYearMonth("2023","4")'>April</a></li><li><a href="#" id="20235" onclick='GetYearMonth("2023","5")'>May</a></li><li><a href="#" id="20236" onclick='GetYearMonth("2023","6")'>June</a></li><li><a href="#" id="20237" onclick='GetYearMonth("2023","7")'>July</a></li><li><a href="#" id="20238" onclick='GetYearMonth("2023","8")'>August</a></li><li><a href="#" id="20239" onclick='GetYearMonth("2023","9")'>September</a></li><li><a href="#" id="202310" onclick='GetYearMonth("2023","10")'>October</a></li><li><a href="#" id="202311" onclick='GetYearMonth("2023","11")'>November</a></li><li><a href="#" id="202312" onclick='GetYearMonth("2023","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2022">2022</a></h2><div class="accordionContent month" id="2022"><ul class="accordionlist"><li><a href="#" id="20220" onclick='GetYearMonth("2022","0")'>All Months</a></li><li><a href="#" id="20221" onclick='GetYearMonth("2022","1")'>January</a></li><li><a href="#" id="20222" onclick='GetYearMonth("2022","2")'>February</a></li><li><a href="#" id="20223" onclick='GetYearMonth("2022","3")'>March</a></li><li><a href="#" id="20224" onclick='GetYearMonth("2022","4")'>April</a></li><li><a href="#" id="20225" onclick='GetYearMonth("2022","5")'>May</a></li><li><a href="#" id="20226" onclick='GetYearMonth("2022","6")'>June</a></li><li><a href="#" id="20227" onclick='GetYearMonth("2022","7")'>July</a></li><li><a href="#" id="20228" onclick='GetYearMonth("2022","8")'>August</a></li><li><a href="#" id="20229" onclick='GetYearMonth("2022","9")'>September</a></li><li><a href="#" id="202210" onclick='GetYearMonth("2022","10")'>October</a></li><li><a href="#" id="202211" onclick='GetYearMonth("2022","11")'>November</a></li><li><a href="#" id="202212" onclick='GetYearMonth("2022","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2021">2021</a></h2><div class="accordionContent month" id="2021"><ul class="accordionlist"><li><a href="#" id="20210" onclick='GetYearMonth("2021","0")'>All Months</a></li><li><a href="#" id="20211" onclick='GetYearMonth("2021","1")'>January</a></li><li><a href="#" id="20212" onclick='GetYearMonth("2021","2")'>February</a></li><li><a href="#" id="20213" onclick='GetYearMonth("2021","3")'>March</a></li><li><a href="#" id="20214" onclick='GetYearMonth("2021","4")'>April</a></li><li><a href="#" id="20215" onclick='GetYearMonth("2021","5")'>May</a></li><li><a href="#" id="20216" onclick='GetYearMonth("2021","6")'>June</a></li><li><a href="#" id="20217" onclick='GetYearMonth("2021","7")'>July</a></li><li><a href="#" id="20218" onclick='GetYearMonth("2021","8")'>August</a></li><li><a href="#" id="20219" onclick='GetYearMonth("2021","9")'>September</a></li><li><a href="#" id="202110" onclick='GetYearMonth("2021","10")'>October</a></li><li><a href="#" id="202111" onclick='GetYearMonth("2021","11")'>November</a></li><li><a href="#" id="202112" onclick='GetYearMonth("2021","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2020">2020</a></h2><div class="accordionContent month" id="2020"><ul class="accordionlist"><li><a href="#" id="20200" onclick='GetYearMonth("2020","0")'>All Months</a></li><li><a href="#" id="20201" onclick='GetYearMonth("2020","1")'>January</a></li><li><a href="#" id="20202" onclick='GetYearMonth("2020","2")'>February</a></li><li><a href="#" id="20203" onclick='GetYearMonth("2020","3")'>March</a></li><li><a href="#" id="20204" onclick='GetYearMonth("2020","4")'>April</a></li><li><a href="#" id="20205" onclick='GetYearMonth("2020","5")'>May</a></li><li><a href="#" id="20206" onclick='GetYearMonth("2020","6")'>June</a></li><li><a href="#" id="20207" onclick='GetYearMonth("2020","7")'>July</a></li><li><a href="#" id="20208" onclick='GetYearMonth("2020","8")'>August</a></li><li><a href="#" id="20209" onclick='GetYearMonth("2020","9")'>September</a></li><li><a href="#" id="202010" onclick='GetYearMonth("2020","10")'>October</a></li><li><a href="#" id="202011" onclick='GetYearMonth("2020","11")'>November</a></li><li><a href="#" id="202012" onclick='GetYearMonth("2020","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2019">2019</a></h2><div class="accordionContent month" id="2019"><ul class="accordionlist"><li><a href="#" id="20190" onclick='GetYearMonth("2019","0")'>All Months</a></li><li><a href="#" id="20191" onclick='GetYearMonth("2019","1")'>January</a></li><li><a href="#" id="20192" onclick='GetYearMonth("2019","2")'>February</a></li><li><a href="#" id="20193" onclick='GetYearMonth("2019","3")'>March</a></li><li><a href="#" id="20194" onclick='GetYearMonth("2019","4")'>April</a></li><li><a href="#" id="20195" onclick='GetYearMonth("2019","5")'>May</a></li><li><a href="#" id="20196" onclick='GetYearMonth("2019","6")'>June</a></li><li><a href="#" id="20197" onclick='GetYearMonth("2019","7")'>July</a></li><li><a href="#" id="20198" onclick='GetYearMonth("2019","8")'>August</a></li><li><a href="#" id="20199" onclick='GetYearMonth("2019","9")'>September</a></li><li><a href="#" id="201910" onclick='GetYearMonth("2019","10")'>October</a></li><li><a href="#" id="201911" onclick='GetYearMonth("2019","11")'>November</a></li><li><a href="#" id="201912" onclick='GetYearMonth("2019","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2018">2018</a></h2><div class="accordionContent month" id="2018"><ul class="accordionlist"><li><a href="#" id="20180" onclick='GetYearMonth("2018","0")'>All Months</a></li><li><a href="#" id="20181" onclick='GetYearMonth("2018","1")'>January</a></li><li><a href="#" id="20182" onclick='GetYearMonth("2018","2")'>February</a></li><li><a href="#" id="20183" onclick='GetYearMonth("2018","3")'>March</a></li><li><a href="#" id="20184" onclick='GetYearMonth("2018","4")'>April</a></li><li><a href="#" id="20185" onclick='GetYearMonth("2018","5")'>May</a></li><li><a href="#" id="20186" onclick='GetYearMonth("2018","6")'>June</a></li><li><a href="#" id="20187" onclick='GetYearMonth("2018","7")'>July</a></li><li><a href="#" id="20188" onclick='GetYearMonth("2018","8")'>August</a></li><li><a href="#" id="20189" onclick='GetYearMonth("2018","9")'>September</a></li><li><a href="#" id="201810" onclick='GetYearMonth("2018","10")'>October</a></li><li><a href="#" id="201811" onclick='GetYearMonth("2018","11")'>November</a></li><li><a href="#" id="201812" onclick='GetYearMonth("2018","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2017">2017</a></h2><div class="accordionContent month" id="2017"><ul class="accordionlist"><li><a href="#" id="20170" onclick='GetYearMonth("2017","0")'>All Months</a></li><li><a href="#" id="20171" onclick='GetYearMonth("2017","1")'>January</a></li><li><a href="#" id="20172" onclick='GetYearMonth("2017","2")'>February</a></li><li><a href="#" id="20173" onclick='GetYearMonth("2017","3")'>March</a></li><li><a href="#" id="20174" onclick='GetYearMonth("2017","4")'>April</a></li><li><a href="#" id="20175" onclick='GetYearMonth("2017","5")'>May</a></li><li><a href="#" id="20176" onclick='GetYearMonth("2017","6")'>June</a></li><li><a href="#" id="20177" onclick='GetYearMonth("2017","7")'>July</a></li><li><a href="#" id="20178" onclick='GetYearMonth("2017","8")'>August</a></li><li><a href="#" id="20179" onclick='GetYearMonth("2017","9")'>September</a></li><li><a href="#" id="201710" onclick='GetYearMonth("2017","10")'>October</a></li><li><a href="#" id="201711" onclick='GetYearMonth("2017","11")'>November</a></li><li><a href="#" id="201712" onclick='GetYearMonth("2017","12")'>December</a></li></ul></div><h2 class="year"><a href="javascript:void(0);" style="text-decoration:none;" id="divArchiveMain"  onclick="hideshow('divArchiveSub');" style="cursor: pointer;">Archives</a></h2><div  id="divArchiveSub" style="display: none;"><div class="grid_subtree archives alpha" id="treeYearMonth_PR"><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2016">2016</a></h2><div class="accordionContent month" id="2016"><ul class="accordionlist"><li><a href="#" id="20160" onclick='GetYearMonth("2016","0")'>All Months</a></li><li><a href="#" id="20161" onclick='GetYearMonth("2016","1")'>January</a></li><li><a href="#" id="20162" onclick='GetYearMonth("2016","2")'>February</a></li><li><a href="#" id="20163" onclick='GetYearMonth("2016","3")'>March</a></li><li><a href="#" id="20164" onclick='GetYearMonth("2016","4")'>April</a></li><li><a href="#" id="20165" onclick='GetYearMonth("2016","5")'>May</a></li><li><a href="#" id="20166" onclick='GetYearMonth("2016","6")'>June</a></li><li><a href="#" id="20167" onclick='GetYearMonth("2016","7")'>July</a></li><li><a href="#" id="20168" onclick='GetYearMonth("2016","8")'>August</a></li><li><a href="#" id="20169" onclick='GetYearMonth("2016","9")'>September</a></li><li><a href="#" id="201610" onclick='GetYearMonth("2016","10")'>October</a></li><li><a href="#" id="201611" onclick='GetYearMonth("2016","11")'>November</a></li><li><a href="#" id="201612" onclick='GetYearMonth("2016","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2015">2015</a></h2><div class="accordionContent month" id="2015"><ul class="accordionlist"><li><a href="#" id="20150" onclick='GetYearMonth("2015","0")'>All Months</a></li><li><a href="#" id="20151" onclick='GetYearMonth("2015","1")'>January</a></li><li><a href="#" id="20152" onclick='GetYearMonth("2015","2")'>February</a></li><li><a href="#" id="20153" onclick='GetYearMonth("2015","3")'>March</a></li><li><a href="#" id="20154" onclick='GetYearMonth("2015","4")'>April</a></li><li><a href="#" id="20155" onclick='GetYearMonth("2015","5")'>May</a></li><li><a href="#" id="20156" onclick='GetYearMonth("2015","6")'>June</a></li><li><a href="#" id="20157" onclick='GetYearMonth("2015","7")'>July</a></li><li><a href="#" id="20158" onclick='GetYearMonth("2015","8")'>August</a></li><li><a href="#" id="20159" onclick='GetYearMonth("2015","9")'>September</a></li><li><a href="#" id="201510" onclick='GetYearMonth("2015","10")'>October</a></li><li><a href="#" id="201511" onclick='GetYearMonth("2015","11")'>November</a></li><li><a href="#" id="201512" onclick='GetYearMonth("2015","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2014">2014</a></h2><div class="accordionContent month" id="2014"><ul class="accordionlist"><li><a href="#" id="20140" onclick='GetYearMonth("2014","0")'>All Months</a></li><li><a href="#" id="20141" onclick='GetYearMonth("2014","1")'>January</a></li><li><a href="#" id="20142" onclick='GetYearMonth("2014","2")'>February</a></li><li><a href="#" id="20143" onclick='GetYearMonth("2014","3")'>March</a></li><li><a href="#" id="20144" onclick='GetYearMonth("2014","4")'>April</a></li><li><a href="#" id="20145" onclick='GetYearMonth("2014","5")'>May</a></li><li><a href="#" id="20146" onclick='GetYearMonth("2014","6")'>June</a></li><li><a href="#" id="20147" onclick='GetYearMonth("2014","7")'>July</a></li><li><a href="#" id="20148" onclick='GetYearMonth("2014","8")'>August</a></li><li><a href="#" id="20149" onclick='GetYearMonth("2014","9")'>September</a></li><li><a href="#" id="201410" onclick='GetYearMonth("2014","10")'>October</a></li><li><a href="#" id="201411" onclick='GetYearMonth("2014","11")'>November</a></li><li><a href="#" id="201412" onclick='GetYearMonth("2014","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2013">2013</a></h2><div class="accordionContent month" id="2013"><ul class="accordionlist"><li><a href="#" id="20130" onclick='GetYearMonth("2013","0")'>All Months</a></li><li><a href="#" id="20131" onclick='GetYearMonth("2013","1")'>January</a></li><li><a href="#" id="20132" onclick='GetYearMonth("2013","2")'>February</a></li><li><a href="#" id="20133" onclick='GetYearMonth("2013","3")'>March</a></li><li><a href="#" id="20134" onclick='GetYearMonth("2013","4")'>April</a></li><li><a href="#" id="20135" onclick='GetYearMonth("2013","5")'>May</a></li><li><a href="#" id="20136" onclick='GetYearMonth("2013","6")'>June</a></li><li><a href="#" id="20137" onclick='GetYearMonth("2013","7")'>July</a></li><li><a href="#" id="20138" onclick='GetYearMonth("2013","8")'>August</a></li><li><a href="#" id="20139" onclick='GetYearMonth("2013","9")'>September</a></li><li><a href="#" id="201310" onclick='GetYearMonth("2013","10")'>October</a></li><li><a href="#" id="201311" onclick='GetYearMonth("2013","11")'>November</a></li><li><a href="#" id="201312" onclick='GetYearMonth("2013","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2012">2012</a></h2><div class="accordionContent month" id="2012"><ul class="accordionlist"><li><a href="#" id="20120" onclick='GetYearMonth("2012","0")'>All Months</a></li><li><a href="#" id="20121" onclick='GetYearMonth("2012","1")'>January</a></li><li><a href="#" id="20122" onclick='GetYearMonth("2012","2")'>February</a></li><li><a href="#" id="20123" onclick='GetYearMonth("2012","3")'>March</a></li><li><a href="#" id="20124" onclick='GetYearMonth("2012","4")'>April</a></li><li><a href="#" id="20125" onclick='GetYearMonth("2012","5")'>May</a></li><li><a href="#" id="20126" onclick='GetYearMonth("2012","6")'>June</a></li><li><a href="#" id="20127" onclick='GetYearMonth("2012","7")'>July</a></li><li><a href="#" id="20128" onclick='GetYearMonth("2012","8")'>August</a></li><li><a href="#" id="20129" onclick='GetYearMonth("2012","9")'>September</a></li><li><a href="#" id="201210" onclick='GetYearMonth("2012","10")'>October</a></li><li><a href="#" id="201211" onclick='GetYearMonth("2012","11")'>November</a></li><li><a href="#" id="201212" onclick='GetYearMonth("2012","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2011">2011</a></h2><div class="accordionContent month" id="2011"><ul class="accordionlist"><li><a href="#" id="20110" onclick='GetYearMonth("2011","0")'>All Months</a></li><li><a href="#" id="20111" onclick='GetYearMonth("2011","1")'>January</a></li><li><a href="#" id="20112" onclick='GetYearMonth("2011","2")'>February</a></li><li><a href="#" id="20113" onclick='GetYearMonth("2011","3")'>March</a></li><li><a href="#" id="20114" onclick='GetYearMonth("2011","4")'>April</a></li><li><a href="#" id="20115" onclick='GetYearMonth("2011","5")'>May</a></li><li><a href="#" id="20116" onclick='GetYearMonth("2011","6")'>June</a></li><li><a href="#" id="20117" onclick='GetYearMonth("2011","7")'>July</a></li><li><a href="#" id="20118" onclick='GetYearMonth("2011","8")'>August</a></li><li><a href="#" id="20119" onclick='GetYearMonth("2011","9")'>September</a></li><li><a href="#" id="201110" onclick='GetYearMonth("2011","10")'>October</a></li><li><a href="#" id="201111" onclick='GetYearMonth("2011","11")'>November</a></li><li><a href="#" id="201112" onclick='GetYearMonth("2011","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2010">2010</a></h2><div class="accordionContent month" id="2010"><ul class="accordionlist"><li><a href="#" id="20100" onclick='GetYearMonth("2010","0")'>All Months</a></li><li><a href="#" id="20101" onclick='GetYearMonth("2010","1")'>January</a></li><li><a href="#" id="20102" onclick='GetYearMonth("2010","2")'>February</a></li><li><a href="#" id="20103" onclick='GetYearMonth("2010","3")'>March</a></li><li><a href="#" id="20104" onclick='GetYearMonth("2010","4")'>April</a></li><li><a href="#" id="20105" onclick='GetYearMonth("2010","5")'>May</a></li><li><a href="#" id="20106" onclick='GetYearMonth("2010","6")'>June</a></li><li><a href="#" id="20107" onclick='GetYearMonth("2010","7")'>July</a></li><li><a href="#" id="20108" onclick='GetYearMonth("2010","8")'>August</a></li><li><a href="#" id="20109" onclick='GetYearMonth("2010","9")'>September</a></li><li><a href="#" id="201010" onclick='GetYearMonth("2010","10")'>October</a></li><li><a href="#" id="201011" onclick='GetYearMonth("2010","11")'>November</a></li><li><a href="#" id="201012" onclick='GetYearMonth("2010","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2009">2009</a></h2><div class="accordionContent month" id="2009"><ul class="accordionlist"><li><a href="#" id="20090" onclick='GetYearMonth("2009","0")'>All Months</a></li><li><a href="#" id="20091" onclick='GetYearMonth("2009","1")'>January</a></li><li><a href="#" id="20092" onclick='GetYearMonth("2009","2")'>February</a></li><li><a href="#" id="20093" onclick='GetYearMonth("2009","3")'>March</a></li><li><a href="#" id="20094" onclick='GetYearMonth("2009","4")'>April</a></li><li><a href="#" id="20095" onclick='GetYearMonth("2009","5")'>May</a></li><li><a href="#" id="20096" onclick='GetYearMonth("2009","6")'>June</a></li><li><a href="#" id="20097" onclick='GetYearMonth("2009","7")'>July</a></li><li><a href="#" id="20098" onclick='GetYearMonth("2009","8")'>August</a></li><li><a href="#" id="20099" onclick='GetYearMonth("2009","9")'>September</a></li><li><a href="#" id="200910" onclick='GetYearMonth("2009","10")'>October</a></li><li><a href="#" id="200911" onclick='GetYearMonth("2009","11")'>November</a></li><li><a href="#" id="200912" onclick='GetYearMonth("2009","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2008">2008</a></h2><div class="accordionContent month" id="2008"><ul class="accordionlist"><li><a href="#" id="20080" onclick='GetYearMonth("2008","0")'>All Months</a></li><li><a href="#" id="20081" onclick='GetYearMonth("2008","1")'>January</a></li><li><a href="#" id="20082" onclick='GetYearMonth("2008","2")'>February</a></li><li><a href="#" id="20083" onclick='GetYearMonth("2008","3")'>March</a></li><li><a href="#" id="20084" onclick='GetYearMonth("2008","4")'>April</a></li><li><a href="#" id="20085" onclick='GetYearMonth("2008","5")'>May</a></li><li><a href="#" id="20086" onclick='GetYearMonth("2008","6")'>June</a></li><li><a href="#" id="20087" onclick='GetYearMonth("2008","7")'>July</a></li><li><a href="#" id="20088" onclick='GetYearMonth("2008","8")'>August</a></li><li><a href="#" id="20089" onclick='GetYearMonth("2008","9")'>September</a></li><li><a href="#" id="200810" onclick='GetYearMonth("2008","10")'>October</a></li><li><a href="#" id="200811" onclick='GetYearMonth("2008","11")'>November</a></li><li><a href="#" id="200812" onclick='GetYearMonth("2008","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2007">2007</a></h2><div class="accordionContent month" id="2007"><ul class="accordionlist"><li><a href="#" id="20070" onclick='GetYearMonth("2007","0")'>All Months</a></li><li><a href="#" id="20071" onclick='GetYearMonth("2007","1")'>January</a></li><li><a href="#" id="20072" onclick='GetYearMonth("2007","2")'>February</a></li><li><a href="#" id="20073" onclick='GetYearMonth("2007","3")'>March</a></li><li><a href="#" id="20074" onclick='GetYearMonth("2007","4")'>April</a></li><li><a href="#" id="20075" onclick='GetYearMonth("2007","5")'>May</a></li><li><a href="#" id="20076" onclick='GetYearMonth("2007","6")'>June</a></li><li><a href="#" id="20077" onclick='GetYearMonth("2007","7")'>July</a></li><li><a href="#" id="20078" onclick='GetYearMonth("2007","8")'>August</a></li><li><a href="#" id="20079" onclick='GetYearMonth("2007","9")'>September</a></li><li><a href="#" id="200710" onclick='GetYearMonth("2007","10")'>October</a></li><li><a href="#" id="200711" onclick='GetYearMonth("2007","11")'>November</a></li><li><a href="#" id="200712" onclick='GetYearMonth("2007","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2006">2006</a></h2><div class="accordionContent month" id="2006"><ul class="accordionlist"><li><a href="#" id="20060" onclick='GetYearMonth("2006","0")'>All Months</a></li><li><a href="#" id="20061" onclick='GetYearMonth("2006","1")'>January</a></li><li><a href="#" id="20062" onclick='GetYearMonth("2006","2")'>February</a></li><li><a href="#" id="20063" onclick='GetYearMonth("2006","3")'>March</a></li><li><a href="#" id="20064" onclick='GetYearMonth("2006","4")'>April</a></li><li><a href="#" id="20065" onclick='GetYearMonth("2006","5")'>May</a></li><li><a href="#" id="20066" onclick='GetYearMonth("2006","6")'>June</a></li><li><a href="#" id="20067" onclick='GetYearMonth("2006","7")'>July</a></li><li><a href="#" id="20068" onclick='GetYearMonth("2006","8")'>August</a></li><li><a href="#" id="20069" onclick='GetYearMonth("2006","9")'>September</a></li><li><a href="#" id="200610" onclick='GetYearMonth("2006","10")'>October</a></li><li><a href="#" id="200611" onclick='GetYearMonth("2006","11")'>November</a></li><li><a href="#" id="200612" onclick='GetYearMonth("2006","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2005">2005</a></h2><div class="accordionContent month" id="2005"><ul class="accordionlist"><li><a href="#" id="20050" onclick='GetYearMonth("2005","0")'>All Months</a></li><li><a href="#" id="20051" onclick='GetYearMonth("2005","1")'>January</a></li><li><a href="#" id="20052" onclick='GetYearMonth("2005","2")'>February</a></li><li><a href="#" id="20053" onclick='GetYearMonth("2005","3")'>March</a></li><li><a href="#" id="20054" onclick='GetYearMonth("2005","4")'>April</a></li><li><a href="#" id="20055" onclick='GetYearMonth("2005","5")'>May</a></li><li><a href="#" id="20056" onclick='GetYearMonth("2005","6")'>June</a></li><li><a href="#" id="20057" onclick='GetYearMonth("2005","7")'>July</a></li><li><a href="#" id="20058" onclick='GetYearMonth("2005","8")'>August</a></li><li><a href="#" id="20059" onclick='GetYearMonth("2005","9")'>September</a></li><li><a href="#" id="200510" onclick='GetYearMonth("2005","10")'>October</a></li><li><a href="#" id="200511" onclick='GetYearMonth("2005","11")'>November</a></li><li><a href="#" id="200512" onclick='GetYearMonth("2005","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2004">2004</a></h2><div class="accordionContent month" id="2004"><ul class="accordionlist"><li><a href="#" id="20040" onclick='GetYearMonth("2004","0")'>All Months</a></li><li><a href="#" id="20041" onclick='GetYearMonth("2004","1")'>January</a></li><li><a href="#" id="20042" onclick='GetYearMonth("2004","2")'>February</a></li><li><a href="#" id="20043" onclick='GetYearMonth("2004","3")'>March</a></li><li><a href="#" id="20044" onclick='GetYearMonth("2004","4")'>April</a></li><li><a href="#" id="20045" onclick='GetYearMonth("2004","5")'>May</a></li><li><a href="#" id="20046" onclick='GetYearMonth("2004","6")'>June</a></li><li><a href="#" id="20047" onclick='GetYearMonth("2004","7")'>July</a></li><li><a href="#" id="20048" onclick='GetYearMonth("2004","8")'>August</a></li><li><a href="#" id="20049" onclick='GetYearMonth("2004","9")'>September</a></li><li><a href="#" id="200410" onclick='GetYearMonth("2004","10")'>October</a></li><li><a href="#" id="200411" onclick='GetYearMonth("2004","11")'>November</a></li><li><a href="#" id="200412" onclick='GetYearMonth("2004","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2003">2003</a></h2><div class="accordionContent month" id="2003"><ul class="accordionlist"><li><a href="#" id="20030" onclick='GetYearMonth("2003","0")'>All Months</a></li><li><a href="#" id="20031" onclick='GetYearMonth("2003","1")'>January</a></li><li><a href="#" id="20032" onclick='GetYearMonth("2003","2")'>February</a></li><li><a href="#" id="20033" onclick='GetYearMonth("2003","3")'>March</a></li><li><a href="#" id="20034" onclick='GetYearMonth("2003","4")'>April</a></li><li><a href="#" id="20035" onclick='GetYearMonth("2003","5")'>May</a></li><li><a href="#" id="20036" onclick='GetYearMonth("2003","6")'>June</a></li><li><a href="#" id="20037" onclick='GetYearMonth("2003","7")'>July</a></li><li><a href="#" id="20038" onclick='GetYearMonth("2003","8")'>August</a></li><li><a href="#" id="20039" onclick='GetYearMonth("2003","9")'>September</a></li><li><a href="#" id="200310" onclick='GetYearMonth("2003","10")'>October</a></li><li><a href="#" id="200311" onclick='GetYearMonth("2003","11")'>November</a></li><li><a href="#" id="200312" onclick='GetYearMonth("2003","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2002">2002</a></h2><div class="accordionContent month" id="2002"><ul class="accordionlist"><li><a href="#" id="20020" onclick='GetYearMonth("2002","0")'>All Months</a></li><li><a href="#" id="20021" onclick='GetYearMonth("2002","1")'>January</a></li><li><a href="#" id="20022" onclick='GetYearMonth("2002","2")'>February</a></li><li><a href="#" id="20023" onclick='GetYearMonth("2002","3")'>March</a></li><li><a href="#" id="20024" onclick='GetYearMonth("2002","4")'>April</a></li><li><a href="#" id="20025" onclick='GetYearMonth("2002","5")'>May</a></li><li><a href="#" id="20026" onclick='GetYearMonth("2002","6")'>June</a></li><li><a href="#" id="20027" onclick='GetYearMonth("2002","7")'>July</a></li><li><a href="#" id="20028" onclick='GetYearMonth("2002","8")'>August</a></li><li><a href="#" id="20029" onclick='GetYearMonth("2002","9")'>September</a></li><li><a href="#" id="200210" onclick='GetYearMonth("2002","10")'>October</a></li><li><a href="#" id="200211" onclick='GetYearMonth("2002","11")'>November</a></li><li><a href="#" id="200212" onclick='GetYearMonth("2002","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2001">2001</a></h2><div class="accordionContent month" id="2001"><ul class="accordionlist"><li><a href="#" id="20010" onclick='GetYearMonth("2001","0")'>All Months</a></li><li><a href="#" id="20011" onclick='GetYearMonth("2001","1")'>January</a></li><li><a href="#" id="20012" onclick='GetYearMonth("2001","2")'>February</a></li><li><a href="#" id="20013" onclick='GetYearMonth("2001","3")'>March</a></li><li><a href="#" id="20014" onclick='GetYearMonth("2001","4")'>April</a></li><li><a href="#" id="20015" onclick='GetYearMonth("2001","5")'>May</a></li><li><a href="#" id="20016" onclick='GetYearMonth("2001","6")'>June</a></li><li><a href="#" id="20017" onclick='GetYearMonth("2001","7")'>July</a></li><li><a href="#" id="20018" onclick='GetYearMonth("2001","8")'>August</a></li><li><a href="#" id="20019" onclick='GetYearMonth("2001","9")'>September</a></li><li><a href="#" id="200110" onclick='GetYearMonth("2001","10")'>October</a></li><li><a href="#" id="200111" onclick='GetYearMonth("2001","11")'>November</a></li><li><a href="#" id="200112" onclick='GetYearMonth("2001","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn2000">2000</a></h2><div class="accordionContent month" id="2000"><ul class="accordionlist"><li><a href="#" id="20000" onclick='GetYearMonth("2000","0")'>All Months</a></li><li><a href="#" id="20001" onclick='GetYearMonth("2000","1")'>January</a></li><li><a href="#" id="20002" onclick='GetYearMonth("2000","2")'>February</a></li><li><a href="#" id="20003" onclick='GetYearMonth("2000","3")'>March</a></li><li><a href="#" id="20004" onclick='GetYearMonth("2000","4")'>April</a></li><li><a href="#" id="20005" onclick='GetYearMonth("2000","5")'>May</a></li><li><a href="#" id="20006" onclick='GetYearMonth("2000","6")'>June</a></li><li><a href="#" id="20007" onclick='GetYearMonth("2000","7")'>July</a></li><li><a href="#" id="20008" onclick='GetYearMonth("2000","8")'>August</a></li><li><a href="#" id="20009" onclick='GetYearMonth("2000","9")'>September</a></li><li><a href="#" id="200010" onclick='GetYearMonth("2000","10")'>October</a></li><li><a href="#" id="200011" onclick='GetYearMonth("2000","11")'>November</a></li><li><a href="#" id="200012" onclick='GetYearMonth("2000","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1999">1999</a></h2><div class="accordionContent month" id="1999"><ul class="accordionlist"><li><a href="#" id="19990" onclick='GetYearMonth("1999","0")'>All Months</a></li><li><a href="#" id="19991" onclick='GetYearMonth("1999","1")'>January</a></li><li><a href="#" id="19992" onclick='GetYearMonth("1999","2")'>February</a></li><li><a href="#" id="19993" onclick='GetYearMonth("1999","3")'>March</a></li><li><a href="#" id="19994" onclick='GetYearMonth("1999","4")'>April</a></li><li><a href="#" id="19995" onclick='GetYearMonth("1999","5")'>May</a></li><li><a href="#" id="19996" onclick='GetYearMonth("1999","6")'>June</a></li><li><a href="#" id="19997" onclick='GetYearMonth("1999","7")'>July</a></li><li><a href="#" id="19998" onclick='GetYearMonth("1999","8")'>August</a></li><li><a href="#" id="19999" onclick='GetYearMonth("1999","9")'>September</a></li><li><a href="#" id="199910" onclick='GetYearMonth("1999","10")'>October</a></li><li><a href="#" id="199911" onclick='GetYearMonth("1999","11")'>November</a></li><li><a href="#" id="199912" onclick='GetYearMonth("1999","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1998">1998</a></h2><div class="accordionContent month" id="1998"><ul class="accordionlist"><li><a href="#" id="19980" onclick='GetYearMonth("1998","0")'>All Months</a></li><li><a href="#" id="19981" onclick='GetYearMonth("1998","1")'>January</a></li><li><a href="#" id="19982" onclick='GetYearMonth("1998","2")'>February</a></li><li><a href="#" id="19983" onclick='GetYearMonth("1998","3")'>March</a></li><li><a href="#" id="19984" onclick='GetYearMonth("1998","4")'>April</a></li><li><a href="#" id="19985" onclick='GetYearMonth("1998","5")'>May</a></li><li><a href="#" id="19986" onclick='GetYearMonth("1998","6")'>June</a></li><li><a href="#" id="19987" onclick='GetYearMonth("1998","7")'>July</a></li><li><a href="#" id="19988" onclick='GetYearMonth("1998","8")'>August</a></li><li><a href="#" id="19989" onclick='GetYearMonth("1998","9")'>September</a></li><li><a href="#" id="199810" onclick='GetYearMonth("1998","10")'>October</a></li><li><a href="#" id="199811" onclick='GetYearMonth("1998","11")'>November</a></li><li><a href="#" id="199812" onclick='GetYearMonth("1998","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1997">1997</a></h2><div class="accordionContent month" id="1997"><ul class="accordionlist"><li><a href="#" id="19970" onclick='GetYearMonth("1997","0")'>All Months</a></li><li><a href="#" id="19971" onclick='GetYearMonth("1997","1")'>January</a></li><li><a href="#" id="19972" onclick='GetYearMonth("1997","2")'>February</a></li><li><a href="#" id="19973" onclick='GetYearMonth("1997","3")'>March</a></li><li><a href="#" id="19974" onclick='GetYearMonth("1997","4")'>April</a></li><li><a href="#" id="19975" onclick='GetYearMonth("1997","5")'>May</a></li><li><a href="#" id="19976" onclick='GetYearMonth("1997","6")'>June</a></li><li><a href="#" id="19977" onclick='GetYearMonth("1997","7")'>July</a></li><li><a href="#" id="19978" onclick='GetYearMonth("1997","8")'>August</a></li><li><a href="#" id="19979" onclick='GetYearMonth("1997","9")'>September</a></li><li><a href="#" id="199710" onclick='GetYearMonth("1997","10")'>October</a></li><li><a href="#" id="199711" onclick='GetYearMonth("1997","11")'>November</a></li><li><a href="#" id="199712" onclick='GetYearMonth("1997","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1996">1996</a></h2><div class="accordionContent month" id="1996"><ul class="accordionlist"><li><a href="#" id="19960" onclick='GetYearMonth("1996","0")'>All Months</a></li><li><a href="#" id="19961" onclick='GetYearMonth("1996","1")'>January</a></li><li><a href="#" id="19962" onclick='GetYearMonth("1996","2")'>February</a></li><li><a href="#" id="19963" onclick='GetYearMonth("1996","3")'>March</a></li><li><a href="#" id="19964" onclick='GetYearMonth("1996","4")'>April</a></li><li><a href="#" id="19965" onclick='GetYearMonth("1996","5")'>May</a></li><li><a href="#" id="19966" onclick='GetYearMonth("1996","6")'>June</a></li><li><a href="#" id="19967" onclick='GetYearMonth("1996","7")'>July</a></li><li><a href="#" id="19968" onclick='GetYearMonth("1996","8")'>August</a></li><li><a href="#" id="19969" onclick='GetYearMonth("1996","9")'>September</a></li><li><a href="#" id="199610" onclick='GetYearMonth("1996","10")'>October</a></li><li><a href="#" id="199611" onclick='GetYearMonth("1996","11")'>November</a></li><li><a href="#" id="199612" onclick='GetYearMonth("1996","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1995">1995</a></h2><div class="accordionContent month" id="1995"><ul class="accordionlist"><li><a href="#" id="19950" onclick='GetYearMonth("1995","0")'>All Months</a></li><li><a href="#" id="19951" onclick='GetYearMonth("1995","1")'>January</a></li><li><a href="#" id="19952" onclick='GetYearMonth("1995","2")'>February</a></li><li><a href="#" id="19953" onclick='GetYearMonth("1995","3")'>March</a></li><li><a href="#" id="19954" onclick='GetYearMonth("1995","4")'>April</a></li><li><a href="#" id="19955" onclick='GetYearMonth("1995","5")'>May</a></li><li><a href="#" id="19956" onclick='GetYearMonth("1995","6")'>June</a></li><li><a href="#" id="19957" onclick='GetYearMonth("1995","7")'>July</a></li><li><a href="#" id="19958" onclick='GetYearMonth("1995","8")'>August</a></li><li><a href="#" id="19959" onclick='GetYearMonth("1995","9")'>September</a></li><li><a href="#" id="199510" onclick='GetYearMonth("1995","10")'>October</a></li><li><a href="#" id="199511" onclick='GetYearMonth("1995","11")'>November</a></li><li><a href="#" id="199512" onclick='GetYearMonth("1995","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1994">1994</a></h2><div class="accordionContent month" id="1994"><ul class="accordionlist"><li><a href="#" id="19940" onclick='GetYearMonth("1994","0")'>All Months</a></li><li><a href="#" id="19941" onclick='GetYearMonth("1994","1")'>January</a></li><li><a href="#" id="19942" onclick='GetYearMonth("1994","2")'>February</a></li><li><a href="#" id="19943" onclick='GetYearMonth("1994","3")'>March</a></li><li><a href="#" id="19944" onclick='GetYearMonth("1994","4")'>April</a></li><li><a href="#" id="19945" onclick='GetYearMonth("1994","5")'>May</a></li><li><a href="#" id="19946" onclick='GetYearMonth("1994","6")'>June</a></li><li><a href="#" id="19947" onclick='GetYearMonth("1994","7")'>July</a></li><li><a href="#" id="19948" onclick='GetYearMonth("1994","8")'>August</a></li><li><a href="#" id="19949" onclick='GetYearMonth("1994","9")'>September</a></li><li><a href="#" id="199410" onclick='GetYearMonth("1994","10")'>October</a></li><li><a href="#" id="199411" onclick='GetYearMonth("1994","11")'>November</a></li><li><a href="#" id="199412" onclick='GetYearMonth("1994","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1993">1993</a></h2><div class="accordionContent month" id="1993"><ul class="accordionlist"><li><a href="#" id="19930" onclick='GetYearMonth("1993","0")'>All Months</a></li><li><a href="#" id="19931" onclick='GetYearMonth("1993","1")'>January</a></li><li><a href="#" id="19932" onclick='GetYearMonth("1993","2")'>February</a></li><li><a href="#" id="19933" onclick='GetYearMonth("1993","3")'>March</a></li><li><a href="#" id="19934" onclick='GetYearMonth("1993","4")'>April</a></li><li><a href="#" id="19935" onclick='GetYearMonth("1993","5")'>May</a></li><li><a href="#" id="19936" onclick='GetYearMonth("1993","6")'>June</a></li><li><a href="#" id="19937" onclick='GetYearMonth("1993","7")'>July</a></li><li><a href="#" id="19938" onclick='GetYearMonth("1993","8")'>August</a></li><li><a href="#" id="19939" onclick='GetYearMonth("1993","9")'>September</a></li><li><a href="#" id="199310" onclick='GetYearMonth("1993","10")'>October</a></li><li><a href="#" id="199311" onclick='GetYearMonth("1993","11")'>November</a></li><li><a href="#" id="199312" onclick='GetYearMonth("1993","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1992">1992</a></h2><div class="accordionContent month" id="1992"><ul class="accordionlist"><li><a href="#" id="19920" onclick='GetYearMonth("1992","0")'>All Months</a></li><li><a href="#" id="19921" onclick='GetYearMonth("1992","1")'>January</a></li><li><a href="#" id="19922" onclick='GetYearMonth("1992","2")'>February</a></li><li><a href="#" id="19923" onclick='GetYearMonth("1992","3")'>March</a></li><li><a href="#" id="19924" onclick='GetYearMonth("1992","4")'>April</a></li><li><a href="#" id="19925" onclick='GetYearMonth("1992","5")'>May</a></li><li><a href="#" id="19926" onclick='GetYearMonth("1992","6")'>June</a></li><li><a href="#" id="19927" onclick='GetYearMonth("1992","7")'>July</a></li><li><a href="#" id="19928" onclick='GetYearMonth("1992","8")'>August</a></li><li><a href="#" id="19929" onclick='GetYearMonth("1992","9")'>September</a></li><li><a href="#" id="199210" onclick='GetYearMonth("1992","10")'>October</a></li><li><a href="#" id="199211" onclick='GetYearMonth("1992","11")'>November</a></li><li><a href="#" id="199212" onclick='GetYearMonth("1992","12")'>December</a></li></ul></div><h2 class="accordionButton year" ><a href="#" onclick="event.preventDefault()" style="text-decoration:none;" aria-expanded="false"  id="btn1991">1991</a></h2><div class="accordionContent month" id="1991"><ul class="accordionlist"><li><a href="#" id="19910" onclick='GetYearMonth("1991","0")'>All Months</a></li><li><a href="#" id="19911" onclick='GetYearMonth("1991","1")'>January</a></li><li><a href="#" id="19912" onclick='GetYearMonth("1991","2")'>February</a></li><li><a href="#" id="19913" onclick='GetYearMonth("1991","3")'>March</a></li><li><a href="#" id="19914" onclick='GetYearMonth("1991","4")'>April</a></li><li><a href="#" id="19915" onclick='GetYearMonth("1991","5")'>May</a></li><li><a href="#" id="19916" onclick='GetYearMonth("1991","6")'>June</a></li><li><a href="#" id="19917" onclick='GetYearMonth("1991","7")'>July</a></li><li><a href="#" id="19918" onclick='GetYearMonth("1991","8")'>August</a></li><li><a href="#" id="19919" onclick='GetYearMonth("1991","9")'>September</a></li><li><a href="#" id="199110" onclick='GetYearMonth("1991","10")'>October</a></li><li><a href="#" id="199111" onclick='GetYearMonth("1991","11")'>November</a></li><li><a href="#" id="199112" onclick='GetYearMonth("1991","12")'>December</a></li></ul></div></div></div></span>
+<style type="text/css"> /*added by ni*/
+.year a
+{
+    text-transform:none;
+    margin:0px;
+    /*color:Black;*/
+    font-size:12px;
+    text-decoration:none;
+    padding: 3px 4px 5px 2px;
+    }
+#DateSettree_lbltree h2
+{
+    margin-top:0px;
+}
+.month ul li a {
+    padding: 3px 4px 7px 2px;
+}
+
+.accordionContent ul.accordionlist li {
+    
+    min-height: 24px;
+}
+</style>
+
+
+
+                </div>
+            </div>
+        </div>
+        <div class="clearfix">
+        </div>
+        <div>
+            <a href="#top" class="scrollToTop" id="backToTop">Top</a>
+<div id="backDiv" style=" text-align:center;" >
+<a href="javascript:history.back()" class="paraheader">Back to previous page</a><br/>
+<span id="lblGetLastUpdateDate" class="paraheader"></span>
+</div>
+<footer class="footer">
+
+<div class="footer">
+  <div class="container_12">    
+      <div class="grid_9" style="width: 833px !important; ">
+          
+          <h2><span class="blue">More</span> Links :</h2>
+          
+		<ul class="footerlist" style="column-count:4">
+                  <li ><a href="/Scripts/HolidayMatrixDisplay.aspx">Bank Holidays</a></li>
+                  <li ><a href="https://shabdavali.rbi.org.in/">Banking Glossary</a></li>
+                  <li ><a href="/Scripts/CitiChart.aspx">Citizen's Charter</a></li>
+                  <li ><a href="/Scripts/Complaints.aspx">Complaints</a></li>
+                  <li ><a href="/Scripts/contactus.aspx">Contact Us</a></li>
+  		<li ><a href="https://www.rbi.org.in/scripts/bs_viewcontent.aspx?Id=3894">COVID-19 Measures</a></li>
+                  <li ><a target="_blank" href="https://ncfe.org.in/e-lms">E-LMS</a></li>
+                  <li ><a href="/Scripts/EventsDisplay.aspx">Events</a></li>
+                  <li ><a href="/Scripts/FAQDisplay.aspx">FAQs</a></li>
+                  <li ><a target="_blank" href="https://www.rbi.org.in/FinancialEducation/">Financial Education</a></li>
+		<li ><a href="/Scripts/BS_ViewForms.aspx">Forms</a></li>
+                  <li ><a href="/Scripts/IFSCMICRDetails.aspx">IFSC/MICR Codes</a></li>
+                  <li><a href="/Scripts/OtherLinks.aspx">Important Websites</a></li>
+                  <li><a target="_blank" href="https://opportunities.rbi.org.in/scripts/index.aspx">Opportunities<span>@</span>RBI</a></li>
+                  <li><a href="/Scripts/rbi_clarification.aspx">RBI Clarifications</a></li>
+ 		<li><a target="_blank" href="https://rbikehtahai.rbi.org.in/">RBI Kehta Hai</a></li>
+                  <li><a href="https://rbidocs.rbi.org.in/rdocs/content/pdfs/Utkarsh202910042026.pdf" target="_blank">RBI’s Vision and Values <img src="../Images/pdf.gif" alt="PDF document" style="padding-bottom: 4px; width:12px; border:0; vertical-align:middle;"> (652 KB)</a></li>
+                  <li><a href="/Scripts/Righttoinfoact.aspx">Right to Information Act</a></li>
+                  <li><a href="/Scripts/BS_ViewTenders.aspx">Tenders</a></li>
+                  
+              </ul>
+      </div>
+
+    <div class="grid_3" style="width:197px !important">
+      
+        <h2><span class="blue">Follow</span> RBI</h2>
+      <ul class="footerlist">
+        
+
+          <li style="float: left;background: url(/images/footer_list_arrow.gif) left 8px no-repeat;"><a href="/Scripts/rss.aspx"><img src="/images/rss-icon.png" alt="RSS Icon" class="rss">RSS</a></li>
+
+        
+          <li>
+              <a href="https://twitter.com/RBI" target="_blank" class="twitter">
+                  <img src="/images/Twitter_New.png" alt="Twitter Icon" class="videos" style="padding-left: 18%; width:14px;">Twitter
+              </a>
+          </li>
+
+        
+
+          <li style="float: left;"><a href="https://www.youtube.com/channel/UCIfCOl43tunZVNYafeC4RQA" class="videos" target="_blank"><img src="/images/youtube.png" alt="YouTube Icon" class="videos">YouTube</a></li>
+
+          <li>
+              <a href="https://instagram.com/reservebankofindia" class="videos" target="_blank">
+                  <img src="/images/Instagram.jpg" alt="Instagram Icon" class="videos" style="padding-left: 5%; width:14px;">Instagram
+              </a>
+          </li>
+          <li style="float: left;"><a href="https://www.facebook.com/RBIsays" class="videos" target="_blank"><img src="/images/Facebook.jpg" style="width:14px;" alt="Facebook Icon" class="videos">Facebook</a></li>
+          <li>
+              <a href="https://www.linkedin.com/company/reservebankofindia" class="videos" target="_blank">
+                  <img src="/images/LinkedinIcon1.png" alt="LinkedIn Icon" class="" style="padding-left: 4%;width: 17px;background: bottom no-repeat;display: block;float: left;margin: 2px 3px 0 1px;">LinkedIn
+              </a>
+          </li>
+      </ul>
+	<a href="https://www.india.gov.in" class="videos" target="_blank">
+                  <img src="/images/indiaGov.png" alt="National Portal of India logo" class="">
+              </a>
+    </div>
+    <div class="clearfix"></div>
+  </div>
+  <div class="copyright">
+    <div class="container_12">
+     <div class="grid_6 pull_left">&copy; Reserve Bank of India. All Rights Reserved. </div>
+        <div class="grid_5 pull_right"><a href="/Scripts/sitemap.aspx">Sitemap</a> <span aria-hidden="true">|</span> <a href="/Scripts/Disclaimer.aspx">Disclaimer</a></div>
+        <div class="clearfix"></div>
+
+        <div class="grid_6 pull_left">Website owned and managed by Reserve Bank of India. Contact us on helpdoc[at]rbi[dot]org[dot]in</div>
+        <div class="grid_5 pull_right">Website last updated date: Sep 24, 2026</div>
+        <div class="clearfix"></div>
+	<div class="grid_6 pull_left"><a href="https://www.rbi.org.in/scripts/wim.aspx">Web Information Manager</a></div>
+	<div class="grid_5 pull_right"><a href="https://rbidocs.rbi.org.in/rdocs/content/pdfs/Accessibility20012026.pdf" target="_blank">Accessibility Statement
+	<img alt="PDF - Accessibility Statement" style="padding: 1px; width:16px; border:0; vertical-align:middle;" src="../Images/pdf.gif" > (133 KB)
+	</a><span aria-hidden="true"> |</span><a href="/scripts/ScreenReader.aspx" title="Information related to screen reader">Screen Reader and Accessibility Help</a></div>
+	<div class="clearfix"></div>
+        <div class="grid_12 pull_left">Supports: Google Chrome 147+ | Firefox 150+ | Microsoft Edge Version 147+ | Safari 17+</div>
+        
+        <div class="clearfix"></div>
+    </div>
+  </div>
+  
+
+
+
+</div>
+
+</footer>
+
+<script src="/js/ReplaceURL.js" ></script>
+<script >
+
+
+    //this is for floating TOP link
+    
+    $(document).ready(function () {
+
+        var offset = 230;
+        var duration = 500;
+
+
+        jQuery(window).scroll(function () {
+            if (jQuery(this).scrollTop() > offset) {
+                jQuery('.scrollToTop').fadeIn(duration);
+                
+            } else {
+                jQuery('.scrollToTop').fadeOut(duration);
+                
+            }
+        });
+
+        
+	$('.page_title').attr('tabindex','-1');
+        $('.scrollToTop').click(function () {
+            $('html, body').animate({ scrollTop: 0 }, 800);
+		$('.page_title').focus(); 
+            return false;
+        });
+	
+
+
+	if(!window.location.href.includes("Home.aspx") && !window.location.href.includes("home.aspx"))
+{ 
+if( window.location.href.includes(".aspx")){
+var div= document.getElementById('backDiv');
+	div.removeAttribute("hidden");}
+else{
+var div1= document.getElementById('backDiv');
+	div1.setAttribute("hidden","true");}
+}
+else{
+
+
+	var div1= document.getElementById('backDiv');
+	div1.setAttribute("hidden","true");}
+    });
+
+
+  
+    $(window).scroll(function () {
+
+        if ($('div.banner2').length) {
+
+            if ($(window).scrollTop() >= 265) {
+                $('#menubar').css("position", "fixed");
+                $('#menubar').css("width", "240px");
+                $('#menubar').css("margin-top", "-281px");
+                $('.content_area').css("margin-left", "252px");
+
+                $('.sidebar_nav').css("position", "fixed");
+                $('.sidebar_nav').css("margin-top", "-200px");
+                $('.sidebar_nav').css("width", "236px");
+
+
+             
+
+            }
+
+            else {
+                $('#menubar').css("position", "");
+                $('#menubar').css("width", "");
+                $('#menubar').css("margin-top", "");
+                $('.content_area').css("margin-left", "");
+
+                $('.sidebar_nav').css("position", "");
+                $('.sidebar_nav').css("margin-top", "");
+                $('.sidebar_nav').css("width", "");
+
+
+
+         
+            }
+
+        }
+
+        else if ($(window).scrollTop() >= 185) {
+            $('#menubar').css("position", "fixed");
+            $('#menubar').css("width", "240px");
+            $('#menubar').css("margin-top", "-200px");
+            $('.content_area').css("margin-left", "252px");
+
+            $('.sidebar_nav').css("position", "fixed");
+            $('.sidebar_nav').css("margin-top", "-200px");
+            $('.sidebar_nav').css("width", "236px");
+
+
+          
+		var treeheight=0;
+		if($('#treeYear').height()>0){treeheight=$('#treeYear').height();}
+	    	if($(window).scrollTop() >= $('#example-min').height()-treeheight)
+		{			 
+			$('#menubar').css("position", "absolute");
+            		
+			$('#menubar').css("margin-top", "");
+			$('#menubar').css("top", $('#example-min').height()+100-treeheight +"px");
+		}
+		else{$('#menubar').css("position", "fixed"); $('#menubar').css("top", "");}
+		
+        }
+
+        else {
+            $('#menubar').css("position", "");
+            $('#menubar').css("width", "");
+            $('#menubar').css("margin-top", "");
+            $('.content_area').css("margin-left", "");
+
+            $('.sidebar_nav').css("position", "");
+            $('.sidebar_nav').css("margin-top", "");
+            $('.sidebar_nav').css("width", "");
+
+
+       
+        }
+     
+
+       
+    });
+	
+      
+    $(document).ready(function () {
+	
+	
+		  $('.window .close').click(function (e) {
+            //Cancel the link behavior
+            e.preventDefault();
+            $.cookie('feedback_Cookie', 'Yes', { expires: 365, path: '/' });
+            $('#maskWN').hide();
+            $('.window').hide();
+            var scroll = $(window).scrollTop();
+            $("html").scrollTop(scroll);
+        });
+		
+		 $('#maskWN').click(function () {
+            $(this).hide();
+            $.cookie('feedback_Cookie', 'Yes', { expires: 365, path: '/' });
+            $('.window').hide();
+
+        });
+
+        
+
+        //if close button is clicked
+        $('.window .close').click(function (e) {
+            //Cancel the link behavior
+            e.preventDefault();
+            $.cookie('feedback_Cookie', 'Yes', { expires: 365, path: '/' });
+            $('#mask').hide();
+            $('.window').hide();
+            var scroll = $(window).scrollTop();
+            $("html").scrollTop(scroll);
+        });
+
+        //if mask is clicked
+        $('#mask').click(function () {
+            $(this).hide();
+            $('.window').hide();
+        });
+        $('#feedbackbtn').click(function () {
+            var id = '#dialog';
+
+            //Get the screen height and width
+            var maskHeight = $(document).height();
+            var maskWidth = $(window).width();
+
+            //Set heigth and width to mask to fill up the whole screen
+            
+            $('#mask').css({ 'width': '100%', 'height': '100%', 'position': 'fixed' });
+
+            //transition effect
+            $('#mask').fadeIn(500);
+            $('#mask').fadeTo("slow", 0.9);
+
+            //Get the window height and width
+            var winH = $(window).height();
+            var winW = $(window).width();
+
+            //Set the popup window to center
+            $(id).css('top', winH / 2 - $(id).height() / 2);
+            $(id).css('left', winW / 2 - $(id).width() / 2);
+
+            //transition effect
+            $(id).fadeIn(2000);
+        });
+
+        $('.submit').click(function () {
+            var Name = $("[id*=txtFeedbackName]").val();
+            var Email = $("[id*=txtFeedbackEmail]").val();
+            var Comments = $("[id*=txtFeedbackComments]").val();
+            if (Name == "") {
+
+                alert("Please enter your name");
+                $("[id*=txtFeedbackName]").focus();
+                return false;
+            }
+            else if (Email == "") {
+                alert("Please enter your email");
+                $("[id*=txtFeedbackEmail]").focus();
+                return false;
+            }
+            else if (Email != "" && !ValidateEmail(Email)) {
+                alert("Please enter a valid email address");
+                $("[id*=txtFeedbackEmail]").focus();
+                return false;
+            }
+
+            else if (Comments == "") {
+
+                alert("Please enter some comments");
+                $("[id*=txtFeedbackComments]").focus();
+                return false;
+            }
+
+            else {
+                $('[id*=Button1]').attr('disabled', 'disabled');
+
+                var param = { Name: Name, EmailID: Email, Comments: Comments };
+                $.ajax({
+                    type: "POST",
+                    url: "../Home.aspx/SaveFeedback",
+                    data: JSON.stringify(param),
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+
+                    success: function (response) {
+
+                        if (response.d == "0") {
+                            alert("Thank you for your feedback");
+                            $.cookie('feedback_Cookie', 'Yes', { expires: 365, path: '/' });
+                            $('#mask').hide();
+                            $('.window').hide();
+                            $('[id*=Button1]').removeAttr('disabled');
+                            $("[id*=txtFeedbackName]").val("");
+                            $("[id*=txtFeedbackEmail]").val("");
+                            $("[id*=txtFeedbackComments]").val("");
+                        }
+                        else {
+                            alert("Please try again");
+                            $('[id*=Button1]').removeAttr('disabled');
+
+
+                        }
+
+                    }
+                });
+            }
+
+        });
+
+        function ValidateEmail(email) {
+            var expr = /^([\w-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([\w-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)$/;
+            return expr.test(email);
+        };
+
+       
+
+        $('a.style1').each(function () {
+
+            var $this = $(this);
+            var aHref = $this.attr('class');
+            $this.attr('class', aHref.replace('style1', 'links'));
+        });
+
+		
+   });
+
+  function isExternal(url) {
+	if(url){url=url.toLowerCase();
+       if(url=='#' || url=='javascript:void(0);' || url.includes('javascript')||url=='' )
+	{ return false;} 
+	else{//return (url.indexOf("rbi.org.in")==-1)
+	
+	if(url.indexOf("www.rbi.org.in")==-1 || url.indexOf("https://rbi.org.in")==-1)
+		{	
+			if(url.indexOf("rbi.org.in")==-1)		
+    				return "external";
+			else if(url.indexOf("www.rbi.org.in")==-1 && url.indexOf(".rbi.org.in")>0 && url.indexOf("rbidocs.rbi.org.in")==-1)
+				{return "subdomain";}
+			else if(url.indexOf("financialeducation")>0 || url.indexOf("commonperson")>0 || url.indexOf("/rekyc/")>0 || url.indexOf("rbi90years")>0 ){
+				return "subsite";}
+			
+		}
+	
+	}}
+    }
+    document.addEventListener("click", function () {
+	linkMessage();
+        
+    });
+function linkMessage(){
+	if (event.target.tagName.toLowerCase() === "a") {
+            if (isExternal(event.target.href)=="external") {
+
+                if (confirm("You are being redirected to an external website that opens in a new tab. Please note that Reserve Bank of India will not be held responsible for external websites content in any manner.")) {
+
+                    return;
+                }
+                else {
+                   
+                    event.preventDefault();
+                    return;
+                }
+            }
+	    if (isExternal(event.target.href)=="subdomain") {
+	    	 if (confirm("You are being redirected to a subdomain that will open in a new browser tab. The subdomain may have a different header, footer, and navigation structure from the main website. Continue?")) {
+                    return;
+                }
+                else {
+                   
+                    event.preventDefault();
+                    return;
+                }
+	    }
+		if (isExternal(event.target.href)=="subsite") {
+	    	 if (confirm("You are being redirected to a subsite that will open in a new browser tab. The subsite may have a different header, footer, and navigation structure from the main website. Some design elements and links may vary from the primary site experience. Continue?")) {
+                    return;
+                }
+                else {
+                   
+                    event.preventDefault();
+                    return;
+                }
+	    }
+        }
+	else if (event.target.tagName.toLowerCase() === "img") {
+		$(event.target).preventDefault;		
+		if($(event.target).parent('a').length){
+			 if (isExternal($(event.target).parent('a').prop('href'))==="external") {
+                		if (confirm("You are being redirected to an external website that opens in a new tab. Please note that Reserve Bank of India will not be held responsible for external websites content in any manner.")) {
+                    		return;
+               		 }
+
+                	else {                   
+                    		event.preventDefault();
+                    		return;
+                	}}
+			if (isExternal($(event.target).parent('a').prop('href'))==="subdomain") {
+                		if (confirm("You are being redirected to a subdomain that will open in a new browser tab. The subdomain may have a different header, footer, and navigation structure from the main website. Continue?")) {
+                    		return;
+               		 	}
+
+                		else {                   
+                    		event.preventDefault();
+                    		return;
+                		}
+			}
+			if (isExternal(event.target.href)=="subsite") {
+	    	 	if (confirm("You are being redirected to a subsite that will open in a new browser tab. The subsite may have a different header, footer, and navigation structure from the main website. Some design elements and links may vary from the primary site experience. Continue?")) {
+                    	return;
+                	}
+                	else {
+                   
+                    		event.preventDefault();
+                    	return;
+                	}
+	    		}
+	}}
+	const link = event.target.closest('a[target="_blank"]');
+	if(link){ 
+		event.preventDefault();
+		if(confirm("This link will open in a new browser tab. Do you want to continue?")){
+			window.open(link.href,"_blank");
+		}
+	}
+		if (event.target.tagName.toLowerCase() === "button") {
+		if($(event.target).parent('a').length>0){
+			const link1 = event.target.closest('a[target="_blank"]');
+		if(link1){
+			event.preventDefault();
+			if(confirm("This link will open in a new browser tab. Do you want to continue?")){
+				window.open(link.href,"_blank");
+			}
+		}
+		}
+	}
+}
+
+</script>
+<script >
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-61369961-1', 'auto');
+  ga('send', 'pageview');
+
+document.querySelectorAll('table.tablebg').forEach(table => {
+    const anchors = table.querySelectorAll('a[href^="#"]:not([href="#"])');
+
+    const hasInPageAnchorsInThisTableOnly = Array.from(anchors).some(a => {
+        // Find the closest table ancestor of this anchor
+        const closestTable = a.closest('table');
+    
+        // Only count it if it belongs to the current table (not a nested one)
+        return closestTable === table;
+    });
+
+    if (!hasInPageAnchorsInThisTableOnly) {
+        table.setAttribute('role', 'presentation');
+    } else {
+        table.removeAttribute('role'); 
+    }
+});
+$('.brd-ptable1').attr('role','presentation');
+$('html').attr('lang', 'en');
+document.querySelectorAll('br').forEach(br => {br.setAttribute('aria-hidden','true');});
+$('#doublescroll').children('table').filter(':first').attr("role", "presentation");
+$('.page_title').nextAll('table').first().attr("role", "presentation");
+
+
+
+document.addEventListener('DOMContentLoaded', function(){
+$('.tableheader b').each(function () {
+		var curEle= $(this);
+           $(curEle).replaceWith("<h2 class='dop_header'>"+$(curEle).html()+"</h2>")
+        });
+ });
+
+//  tooltip 
+var TooltipManager = {
+    _tip: null, // Create the tooltip element once 
+init: function() {
+    if (!this._tip) {
+    
+        this._tip = $('<div id="js-custom-tooltip"></div>').css({
+            "position": "absolute", "background": '#ffffca', "color":"#000", "padding": "2px 5px", "border-radius": "0px", "font-size": "11px","font-family":"Sans-serif", "z-index": "10000", "pointer-events": "none","border":"1px solid #767676", "box-shadow":"2px 2px 3px rgba(0,0,0,0.2)","white-space":"nowrap"
+        }).appendTo('body');
+        
+    }
+}, 
+show: function(element, text) {
+    this.init(); 
+var $el = $(element); // Update text and position 
+    
+this._tip.text(text).show();
+var pos = $el.offset(); 
+this._tip.css({
+    top: pos.top + this._tip.outerHeight()  + "px", // Show above 
+    left: pos.left + ($el.outerWidth() / 2) - (this._tip.outerWidth() / 2) + "px"
+});
+    }, hide: function() { if (this._tip) this._tip.hide(); }
+}; // Apply to all elements that have a ToolTip (ToolTip renders as 'title') 
+$(document).ready(function() {
+   
+    $('body').on('focusin', 'input, button, a, select, textarea, img', function() {
+        var title = $(this).attr('title'); if (title) {
+    
+            
+      
+            TooltipManager.show(this, title);
+        }
+    }).on('focusout', 'input, button, a, select, textarea, img', function() { 
+       
+            TooltipManager.hide();
+       
+    }); // Dismiss on Escape key
+    $(document).keyup(function(e) { if (e.key === "Escape") TooltipManager.hide(); });
+});
+
+//breadcrumb current page announce
+$(document).ready(function(){
+
+const breadcrumbList = document.querySelector('.breadcrumbs');
+
+    if (breadcrumbList) {
+        const listItems = breadcrumbList.querySelectorAll('li');
+    
+        if (listItems.length > 0) {
+            
+            const lastItem = $('.breadcrumbs li').filter(function(){ return $.trim($(this).text())!=="";}).last().attr('aria-current', 'page');
+            $('.breadcrumbs li').filter(function(){ return $.trim($(this).text())==="" && $(this).children().length===0;}).attr('role','presentation');
+       		$('.breadcrumbs li').filter(function(){
+			if($(this).children().length!==0)
+			{
+				if($(this).children().text() ===""){}
+			}
+		});
+            const lastLink =lastItem.find('a');
+            if (lastLink) {
+                lastLink.attr('aria-current', 'page');               
+                
+            }
+		if($('.breadcrumbs li').last().find('a').length>0)
+		{			
+			const $a = $('.breadcrumbs li').last().find('a');
+			$('<span>',{class: $a.attr('class'), text: $a.text()}).replaceAll($a).attr('aria-current', 'page');
+		}
+		
+		if($('.breadcrumbs li').last().find('span').length>0)
+		{
+			
+			if($('.breadcrumbs li').last().find('span')[0].innerText==='')
+			{
+				$('.breadcrumbs li').last().find('span').removeAttr('aria-current');				
+			}
+			else{
+				$('.breadcrumbs li').last().find('span').filter(function(){ return $(this).attr('role')!=='presentation';}).last().attr('aria-current', 'page');					
+			}		
+		}
+		$('.breadcrumbs li').filter(function(){ return $.trim($(this).text())!=="";}).removeAttr('role','presentation');
+        }
+    }
+});
+
+//document.addEventListener("DOMContentLoaded", () => {
+//    document.querySelectorAll('img').forEach(img => {
+//      try {
+//        const url = new URL(img.src);
+//        img.crossOrigin = "anonymous";
+//        img.src = window.location.origin + url.pathname + url.search + url.hash;
+//      } catch (e) {}
+//    });
+//  });
+</script>
+        </div>
+        <style type="text/css">
+            .tablebg table, .tablebg table table {
+                background-color: transparent !important;
+                border-color: rgb(239, 209, 170) !important;
+                border-collapse: collapse;
+            }
+
+            table table table td {
+                background-color: transparent !important;
+            }
+
+            .table {
+                background-color: transparent !important;
+            }
+        </style>
+    
+
+<script type="text/javascript">
+//<![CDATA[
+setLetterSpace(false);//]]>
+</script>
+</form>
+</body>
+</html>
+<script type="text/javascript" src="/js/plugins.js"></script>
+<script type="text/javascript" src="/js/script.js"></script>
+<script type="text/javascript" src="/js/Scroll.js"></script>
+<script type="text/javascript" language="javascript">
+    DoubleScrollWithTree(document.getElementById('doublescroll'));
+
+function GetYearMonth(year, month) {
+    document.getElementById("hdnYear").value = year;
+    document.getElementById("hdnMonth").value = month;
+    document.getElementById("btn").click();
+}
+//Implemented onlick for 'archives' link in tree structure
+function hideshow(divArchive) {
+    if (!document.getElementById(divArchive))
+        return
+    if (document.getElementById(divArchive).style.display == "block")
+        document.getElementById(divArchive).style.display = "none"
+    else
+        document.getElementById(divArchive).style.display = "block"
+}
+function SetTreeStyles() {
+    var strYear = document.getElementById("hdnYear").value;
+    var strMonth = document.getElementById("hdnMonth").value
+    if (strYear != "") {
+        var toDay = new Date();
+        document.getElementById("btn" + strYear).setAttribute("class", "accordionButton year active_year");
+        document.getElementById(strYear).style.display = "block"
+        if (strMonth) document.getElementById(strYear + strMonth).setAttribute("class", "active");
+        if (toDay.getFullYear() - 9 > parseInt(strYear)) { document.getElementById("divArchiveSub").style.display = "block" }
+    }
+}
+
+$(document).ready(function() {
+    document.getElementById("2769").style.visibility = "hidden";
+});
+       
+</script>
+<script id="f5_cspm">(function(){var f5_cspm={f5_p:'NLCAFBNCHGEAIKIHGEEJOCPCHMDKKPBNEDOEOLPOMJHGHGCAIIPEMOKFNMOEDPPKLMCBCEFMAACFJCBGKPCADGPDAAHEGNJIPDAGKNBLPKLPIALMJGFMMNHGLIGOLBBF',setCharAt:function(str,index,chr){if(index>str.length-1)return str;return str.substr(0,index)+chr+str.substr(index+1);},get_byte:function(str,i){var s=(i/16)|0;i=(i&15);s=s*32;return((str.charCodeAt(i+16+s)-65)<<4)|(str.charCodeAt(i+s)-65);},set_byte:function(str,i,b){var s=(i/16)|0;i=(i&15);s=s*32;str=f5_cspm.setCharAt(str,(i+16+s),String.fromCharCode((b>>4)+65));str=f5_cspm.setCharAt(str,(i+s),String.fromCharCode((b&15)+65));return str;},set_latency:function(str,latency){latency=latency&0xffff;str=f5_cspm.set_byte(str,40,(latency>>8));str=f5_cspm.set_byte(str,41,(latency&0xff));str=f5_cspm.set_byte(str,35,2);return str;},wait_perf_data:function(){try{var wp=window.performance.timing;if(wp.loadEventEnd>0){var res=wp.loadEventEnd-wp.navigationStart;if(res<60001){var cookie_val=f5_cspm.set_latency(f5_cspm.f5_p,res);window.document.cookie='f5avr0863824298aaaaaaaaaaaaaaaa_cspm_='+encodeURIComponent(cookie_val)+';path=/;'+'';}
+return;}}
+catch(err){return;}
+setTimeout(f5_cspm.wait_perf_data,100);return;},go:function(){var chunk=window.document.cookie.split(/\s*;\s*/);for(var i=0;i<chunk.length;++i){var pair=chunk[i].split(/\s*=\s*/);if(pair[0]=='f5_cspm'&&pair[1]=='1234')
+{var d=new Date();d.setTime(d.getTime()-1000);window.document.cookie='f5_cspm=;expires='+d.toUTCString()+';path=/;'+';';setTimeout(f5_cspm.wait_perf_data,100);}}}}
+f5_cspm.go();}());</script>

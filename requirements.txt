@@ -2,3 +2,5 @@ pydantic
 pydantic-settings
 python-dotenv
 pytest
+fastapi
+uvicorn[standard]
