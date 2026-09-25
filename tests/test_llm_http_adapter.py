@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 
 import httpx2
 import pytest
@@ -614,6 +615,127 @@ def test_a_malformed_body_is_never_retried() -> None:
 def test_a_negative_retry_bound_is_rejected() -> None:
     with pytest.raises(ValueError):
         _service(_responder({}), max_retries=-1)
+
+
+def test_a_retry_bound_above_the_cap_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        _service(_responder({}), max_retries=4)
+
+
+@pytest.mark.parametrize("timeout_seconds", [0, -1, float("nan"), float("inf")])
+def test_a_non_positive_timeout_is_rejected(timeout_seconds: float) -> None:
+    with pytest.raises(ValueError):
+        _service(_responder({}), timeout_seconds=timeout_seconds)
+
+
+def test_a_non_positive_connect_timeout_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        _service(_responder({}), connect_timeout_seconds=0)
+
+
+def test_retries_wait_instead_of_firing_immediately() -> None:
+    stamps: list[float] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        stamps.append(time.monotonic())
+        return httpx2.Response(503, json={})
+
+    with pytest.raises(LlmUpstreamError):
+        _service(handler, max_retries=2, timeout_seconds=5.0).generate(_request())
+
+    assert len(stamps) == 3
+    assert stamps[1] - stamps[0] >= 0.05
+    assert stamps[2] - stamps[1] >= 0.10
+
+
+def test_retry_after_is_honored_when_it_fits_the_deadline() -> None:
+    stamps: list[float] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        stamps.append(time.monotonic())
+        if len(stamps) == 1:
+            return httpx2.Response(429, json={}, headers={"Retry-After": "0.2"})
+        return httpx2.Response(200, json=openai_text_completion("after the hint"))
+
+    text = _service(handler, max_retries=1, timeout_seconds=5.0).generate(_request()).text
+    assert text == "after the hint"
+    assert stamps[1] - stamps[0] >= 0.2
+
+
+def test_retry_after_beyond_the_deadline_fails_without_another_attempt() -> None:
+    attempts: list[int] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        attempts.append(1)
+        return httpx2.Response(503, json={}, headers={"Retry-After": "30"})
+
+    started = time.monotonic()
+    with pytest.raises(LlmUpstreamError):
+        _service(handler, max_retries=3, timeout_seconds=0.5).generate(_request())
+    assert len(attempts) == 1
+    assert time.monotonic() - started < 1.0
+
+
+def test_attempts_share_one_timeout_budget() -> None:
+    """Each request is capped by the time still left, not by a fresh full timeout."""
+    seen: list[float] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request.extensions["timeout"]["read"])
+        return httpx2.Response(503, json={})
+
+    started = time.monotonic()
+    with pytest.raises(LlmUpstreamError):
+        _service(handler, max_retries=2, timeout_seconds=2.0).generate(_request())
+    assert len(seen) == 3
+    assert seen[0] == pytest.approx(2.0, abs=0.05)
+    assert seen[1] < seen[0]
+    assert seen[2] < seen[1]
+    # Three attempts must not cost 2 s × 3. The waits are tens of milliseconds.
+    assert time.monotonic() - started < 2.0
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        httpx2.RemoteProtocolError("truncated"),
+        httpx2.ReadError("reset"),
+        httpx2.WriteError("reset"),
+        httpx2.WriteTimeout("slow"),
+    ],
+)
+def test_an_error_after_the_request_started_is_not_retried(exc: Exception) -> None:
+    attempts: list[int] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        attempts.append(1)
+        raise exc
+
+    with pytest.raises((LlmConnectionFailed, LlmTimeout)):
+        _service(handler, max_retries=3).generate(_request())
+    assert len(attempts) == 1
+
+
+def test_an_injected_client_cannot_disable_the_timeout() -> None:
+    """A client built with no timeout still stops at the service's budget."""
+    with FakeOpenAiServer(body=openai_text_completion("too late"), delay_seconds=2.0) as server:
+        client = httpx2.Client(timeout=None)
+        service = OpenAiCompatibleLlmService(
+            base_url=server.base_url,
+            model="m",
+            timeout_seconds=0.2,
+            max_retries=3,
+            client=client,
+        )
+        started = time.monotonic()
+        try:
+            with pytest.raises(LlmTimeout):
+                service.generate(_request())
+        finally:
+            service.close()
+            client.close()
+    assert len(server.requests) == 1
+    assert time.monotonic() - started < 1.0
 
 
 @pytest.mark.parametrize("kwargs", [{"base_url": ""}, {"model": ""}, {"model": "  "}])

@@ -37,14 +37,21 @@ customer's silence, so the default is to fail fast and let the orchestrator end
 the turn. When enabled, only clearly transient failures are retried - a
 connection that never opened, and the statuses a server uses to say "later"
 (408, 429, 500, 502, 503, 504). A 400 or a 401 is a bug or a credential problem
-and repeating it fixes neither.
+and repeating it fixes neither. A read timeout is not retried: the budget has
+already been spent waiting.
+
+The configured timeout is one budget for the whole call, shared by every
+attempt and by the wait between them. It is not a fresh budget per attempt.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import time
 import uuid
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -71,10 +78,61 @@ _logger = get_logger(__name__)
 #: other 4xx - is a request or credential defect that a retry cannot fix.
 _RETRYABLE_STATUSES: frozenset[int] = frozenset({408, 429, 500, 502, 503, 504})
 
+#: Matches ``Settings.model_max_retries``. A live call must not be allowed to
+#: retry without a bound the configuration layer also enforces.
+_MAX_RETRIES = 3
+
+#: Floor under which a further attempt cannot be issued. Also the shortest wait
+#: before a retry, so a failure is never followed by another request in the same
+#: instant.
+_MIN_ATTEMPT_SECONDS = 0.01
+_BACKOFF_BASE_SECONDS = 0.05
+_BACKOFF_CAP_SECONDS = 1.0
+
 #: The chat-completions path, appended to the configured base URL. The base URL
 #: is expected to carry the API version (``.../v1``), as every OpenAI-compatible
 #: server documents it.
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
+
+
+def _require_positive_seconds(name: str, value: float) -> float:
+    """Reject a timeout that is missing, non-numeric, non-finite or not positive."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a positive number")
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be positive")
+    return float(value)
+
+
+def _parse_retry_after(raw: str | None) -> float | None:
+    """Seconds to wait, from a ``Retry-After`` header. ``None`` if unusable.
+
+    Accepts a delay in seconds or an HTTP-date. Zero, a past date, and anything
+    that is not a delay are ignored so the caller falls back to its own backoff
+    instead of retrying immediately.
+    """
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        seconds = float(text)
+    except ValueError:
+        seconds = None
+    else:
+        if math.isfinite(seconds) and seconds > 0:
+            return seconds
+        return None
+    parsed = parsedate_to_datetime(text)
+    if parsed is None:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    delta = (parsed - datetime.now(timezone.utc)).total_seconds()
+    if not math.isfinite(delta) or delta <= 0:
+        return None
+    return delta
 
 
 def _endpoint_label(base_url: str) -> str:
@@ -117,14 +175,25 @@ class OpenAiCompatibleLlmService:
             raise ValueError("base_url is required")
         if not model or not model.strip():
             raise ValueError("model is required")
-        if max_retries < 0:
-            raise ValueError("max_retries must not be negative")
+        if isinstance(max_retries, bool) or not isinstance(max_retries, int):
+            raise ValueError("max_retries must be an integer")
+        if not 0 <= max_retries <= _MAX_RETRIES:
+            raise ValueError(f"max_retries must be between 0 and {_MAX_RETRIES}")
+        timeout_seconds = _require_positive_seconds("timeout_seconds", timeout_seconds)
+        if connect_timeout_seconds is not None:
+            connect_timeout_seconds = _require_positive_seconds(
+                "connect_timeout_seconds", connect_timeout_seconds
+            )
 
         self._base_url = base_url.strip().rstrip("/")
         self._model = model.strip()
         self._max_output_tokens = max_output_tokens
         self._temperature = temperature
         self._max_retries = max_retries
+        self._timeout_seconds = timeout_seconds
+        self._connect_timeout_seconds = (
+            connect_timeout_seconds if connect_timeout_seconds is not None else timeout_seconds
+        )
         self._provider = provider
         self._endpoint_label = _endpoint_label(self._base_url)
 
@@ -135,8 +204,8 @@ class OpenAiCompatibleLlmService:
             self._headers["Authorization"] = f"Bearer {api_key.strip()}"
 
         self._timeout = httpx2.Timeout(
-            timeout_seconds,
-            connect=connect_timeout_seconds if connect_timeout_seconds else timeout_seconds,
+            self._timeout_seconds,
+            connect=self._connect_timeout_seconds,
         )
         self._owns_client = client is None
         self._client = client or httpx2.Client(timeout=self._timeout)
@@ -168,22 +237,40 @@ class OpenAiCompatibleLlmService:
         url = f"{self._base_url}{_CHAT_COMPLETIONS_PATH}"
 
         started = time.perf_counter()
+        # One clock for the whole call. Attempts and the waits between them
+        # spend the same budget; a retry does not receive a fresh timeout.
+        deadline = time.monotonic() + self._timeout_seconds
         attempt = 0
         while True:
             attempt += 1
+            remaining = deadline - time.monotonic()
+            if remaining < _MIN_ATTEMPT_SECONDS:
+                self._log(
+                    correlation_id,
+                    attempt=attempt,
+                    outcome="failed",
+                    error_type=LlmTimeout.__name__,
+                    error_category=LlmTimeout.category,
+                    latency_ms=(time.perf_counter() - started) * 1000.0,
+                )
+                raise LlmTimeout("model server did not respond within the configured timeout")
             try:
-                generation = self._attempt(url, payload, started)
+                generation = self._attempt(url, payload, started, remaining)
             except (LlmTimeout, LlmConnectionFailed, LlmUpstreamError) as exc:
                 if self._retryable(exc) and attempt <= self._max_retries:
-                    self._log(
-                        correlation_id,
-                        attempt=attempt,
-                        outcome="retrying",
-                        error_type=type(exc).__name__,
-                        http_status=getattr(exc, "status_code", None),
-                        latency_ms=(time.perf_counter() - started) * 1000.0,
-                    )
-                    continue
+                    delay = self._retry_delay(exc, attempt)
+                    if delay < deadline - time.monotonic():
+                        self._log(
+                            correlation_id,
+                            attempt=attempt,
+                            outcome="retrying",
+                            error_type=type(exc).__name__,
+                            http_status=getattr(exc, "status_code", None),
+                            retry_in_ms=round(delay * 1000.0, 3),
+                            latency_ms=(time.perf_counter() - started) * 1000.0,
+                        )
+                        time.sleep(delay)
+                        continue
                 self._log(
                     correlation_id,
                     attempt=attempt,
@@ -225,18 +312,31 @@ class OpenAiCompatibleLlmService:
 
     # -- one HTTP exchange ---------------------------------------------------
 
-    def _attempt(self, url: str, payload: dict[str, Any], started: float) -> LlmGeneration:
+    def _attempt(
+        self, url: str, payload: dict[str, Any], started: float, remaining: float
+    ) -> LlmGeneration:
+        # Passed on the request, not taken from the client. An injected client
+        # may have been built with no timeout at all; this call still stops.
+        timeout = httpx2.Timeout(
+            min(self._timeout_seconds, remaining),
+            connect=min(self._connect_timeout_seconds, remaining),
+        )
         try:
-            response = self._client.post(url, json=payload, headers=self._headers)
+            response = self._client.post(
+                url, json=payload, headers=self._headers, timeout=timeout
+            )
         except httpx2.TimeoutException as exc:
             raise LlmTimeout("model server did not respond within the configured timeout") from exc
         except httpx2.RequestError as exc:
-            # Connect, DNS, TLS, proxy, protocol. `str(exc)` can contain the URL,
-            # so it is deliberately not propagated.
+            # `str(exc)` can contain the URL, so it is deliberately not propagated.
+            # Retry policy is decided separately and is narrower than this mapping.
             raise LlmConnectionFailed("model server could not be reached") from exc
 
         if response.status_code >= 400:
-            raise LlmUpstreamError(response.status_code)
+            raise LlmUpstreamError(
+                response.status_code,
+                retry_after_seconds=_parse_retry_after(response.headers.get("retry-after")),
+            )
 
         try:
             body = response.json()
@@ -249,20 +349,34 @@ class OpenAiCompatibleLlmService:
         )
 
     def _retryable(self, exc: Exception) -> bool:
-        """Only clearly transient failures.
+        """Only failures that happened before the request was sent.
 
-        A read timeout is *not* retried even though it looks transient: the turn
-        has already spent its whole latency budget waiting, and spending it twice
-        on a live call is worse than ending the turn.
+        A read timeout, a write timeout, a mid-body network error and a protocol
+        error are not retried. The request may already have reached the model,
+        and spending the rest of the turn repeating it is worse than ending it.
         """
         if isinstance(exc, LlmUpstreamError):
             return exc.status_code in _RETRYABLE_STATUSES
+        cause = exc.__cause__
         if isinstance(exc, LlmConnectionFailed):
-            return True
+            return isinstance(cause, (httpx2.ConnectError, httpx2.ProxyError))
         if isinstance(exc, LlmTimeout):
-            cause = exc.__cause__
             return isinstance(cause, (httpx2.ConnectTimeout, httpx2.PoolTimeout))
         return False
+
+    def _retry_delay(self, exc: Exception, attempt: int) -> float:
+        """How long to wait before the next attempt. Never zero.
+
+        ``Retry-After`` wins when the server sent a positive delay. Otherwise
+        the wait grows with the attempt and is capped, so a retry storm cannot
+        pause a live call for longer than a second between tries.
+        """
+        hinted = getattr(exc, "retry_after_seconds", None)
+        if isinstance(hinted, (int, float)) and not isinstance(hinted, bool):
+            if math.isfinite(hinted) and hinted > 0:
+                return float(hinted)
+        delay = _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
+        return min(max(delay, _MIN_ATTEMPT_SECONDS), _BACKOFF_CAP_SECONDS)
 
     # -- request translation -------------------------------------------------
 

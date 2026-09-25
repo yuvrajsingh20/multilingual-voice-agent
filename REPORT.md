@@ -1228,7 +1228,7 @@ the convention Stage 1 already established, so no new naming scheme was invented
 | `MODEL_BASE_URL` | *unset* | OpenAI-compatible base URL including the API version, e.g. `http://localhost:8000/v1`. Must be `http://` or `https://`. |
 | `MODEL_NAME` | *unset* | The model identifier exactly as the serving layer exposes it. |
 | `MODEL_API_KEY` | *unset* | Sent as `Authorization: Bearer`. A `SecretStr`. Blank sends no header at all. |
-| `MODEL_TIMEOUT_SECONDS` | `20` | Whole-request budget for one model call. |
+| `MODEL_TIMEOUT_SECONDS` | `20` | Total budget for one model call, shared across every attempt and the waits between them. |
 | `MODEL_CONNECT_TIMEOUT_SECONDS` | *unset* | Connection-establishment budget; falls back to `MODEL_TIMEOUT_SECONDS`. |
 | `MODEL_MAX_OUTPUT_TOKENS` | *unset* | Cap on generated tokens; unset leaves `LlmRequest`'s own default (512). |
 | `MODEL_TEMPERATURE` | *unset* | Sampling temperature; unset leaves `LlmRequest`'s own default (0.2). |
@@ -1353,14 +1353,21 @@ nothing on a live call is a defect, and an empty draft must not be handed to
 validation as though the model had chosen silence.
 
 **Retries are bounded and off by default.** A retry on a live call is spent out of
-the customer's silence, so the default is to fail fast and end the turn. When
-enabled, only clearly transient failures are retried: a connection that never
-opened, a connect/pool timeout, and 408/429/500/502/503/504. A 400, 401, 403, 404,
-409 or 422 is never retried — it is a bug or a credential problem, and repeating
-it fixes neither. A **read** timeout is not retried either: the turn has already
-spent its entire latency budget once. A malformed body is not retried: the same
-request would produce the same body. `max_retries=2` means exactly three attempts,
-and then it stops.
+the customer's silence, so the default is to fail fast and end the turn
+(`MODEL_MAX_RETRIES=0`). When enabled, only clearly transient failures are
+retried: a connection that never opened (`ConnectError`, `ProxyError`, connect
+or pool timeout), and 408/429/500/502/503/504. A read error, a write error, a
+protocol error, a 400/401/403/404/409/422, a malformed body and a **read**
+timeout are not retried. The constructor rejects a non-positive timeout and a
+`max_retries` outside 0..3, the same cap as configuration.
+
+**One deadline, shared.** `MODEL_TIMEOUT_SECONDS` is the budget for the whole
+call. Each attempt's HTTP timeout is the time still left, and it is set on the
+request itself, so an injected client cannot disable it. Before another attempt
+the adapter waits: `Retry-After` when the server sent a positive delay,
+otherwise a short exponential backoff (50 ms, 100 ms, 200 ms, capped at 1 s).
+If that wait does not fit in the time still left, the call fails with the error
+already in hand. It does not start a fresh 20 s clock per attempt.
 
 **Latency** is measured at the boundary with `time.perf_counter()` around the
 whole call, carried on `LlmGeneration.latency_ms`, logged as `model_latency_ms`,
@@ -1480,10 +1487,11 @@ service that did not create it.
 4. **One connection pool, no health checking.** There is no circuit breaker, no
    endpoint failover and no warm-up. A degrading endpoint is visible in the logs
    and fails turns; nothing reacts to it automatically.
-5. **Per-attempt timeouts.** With retries enabled, worst-case wall clock is
-   roughly `(max_retries + 1) × MODEL_TIMEOUT_SECONDS`. There is no total-budget
-   clock across attempts. The default of zero retries makes this moot unless an
-   operator changes it.
+5. **httpx phase timeouts are capped, not a single socket timer.** The shared
+   deadline caps each phase (connect, read, write, pool) at the time still left
+   and refuses another attempt once that time cannot hold the backoff. A single
+   attempt can still spend up to one phase-timeout per phase. The default of
+   zero retries means a normal call makes one attempt inside that budget.
 6. **`finish_reason` is recorded, not acted on.** A generation truncated by
    `max_tokens` arrives as ordinary text with `finish_reason="length"`. Validation
    and grounding still apply, so nothing unbacked can be spoken, but the turn is

@@ -49,7 +49,9 @@ class Settings(BaseSettings):
         default=None, description="Sent as `Authorization: Bearer`. Never logged."
     )
     model_timeout_seconds: float = Field(
-        default=20.0, gt=0, description="Whole-request budget for one model call."
+        default=20.0,
+        gt=0,
+        description="Total budget for one model call, shared across every attempt.",
     )
     model_connect_timeout_seconds: float | None = Field(
         default=None,

@@ -153,9 +153,12 @@ class LlmUpstreamError(LlmError):
 
     category = "llm_upstream_error"
 
-    def __init__(self, status_code: int) -> None:
+    def __init__(self, status_code: int, *, retry_after_seconds: float | None = None) -> None:
         super().__init__(f"model server returned HTTP {status_code}")
         self.status_code = status_code
+        # A parsed delay, never the raw header. Absent when the server sent none
+        # or sent one that could not be read as a positive wait.
+        self.retry_after_seconds = retry_after_seconds
 
     @property
     def detail(self) -> str:
