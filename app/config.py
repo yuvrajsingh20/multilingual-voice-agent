@@ -1,13 +1,14 @@
 """Environment-driven application settings.
 
-No secret has a default. ``MODEL_API_KEY`` is a ``SecretStr`` so it does not leak
-through ``repr`` or the settings dump used in logs.
+No secret has a default. ``MODEL_API_KEY`` and ``JEV_API_KEY`` are ``SecretStr``
+so they do not leak through ``repr`` or the settings dump used in logs.
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator
@@ -79,6 +80,47 @@ class Settings(BaseSettings):
         description="Log label only. Never affects request construction.",
     )
 
+    # --- Decision layer (optional, Stage 3A) ------------------------------
+    # A bounded semantic classifier consulted for three registered decisions
+    # (app.services.decisions.registry). Off by default: with the provider
+    # disabled no SDK is imported, no client is constructed and every caller
+    # takes the path it took before the layer existed. Turning it on takes two
+    # switches that must agree - DECISION_PROVIDER=jev *and* JEV_ENABLED=true -
+    # and a disagreement between them is rejected at startup, exactly as a
+    # half-configured model endpoint is.
+    #
+    # The decision layer is never a policy, identity or tool authority. See
+    # REPORT.md, "Stage 3A — Optional Decision Layer".
+    decision_provider: Literal["disabled", "jev"] = Field(
+        default="disabled", description="disabled | jev"
+    )
+    jev_enabled: bool = Field(default=False, description="Second, explicit opt-in for Jev.")
+    jev_api_key: SecretStr | None = Field(
+        default=None, description="TypeSafe (or gateway) API key. Never logged."
+    )
+    jev_model: str | None = Field(
+        default=None,
+        description="Model ID. Prefer a versioned ID: thresholds are tuned against one version.",
+    )
+    jev_base_url: str | None = Field(
+        default=None,
+        description="API root. Unset uses https://api.typesafe.ai; a gateway sets its own.",
+    )
+    jev_timeout_seconds: float = Field(
+        default=0.5,
+        gt=0,
+        le=10,
+        description="Deadline for one whole decision, retries included. Not measured yet.",
+    )
+    jev_max_retries: int = Field(default=0, ge=0, le=2)
+    # Confidence thresholds, one per decision because the cost of a wrong answer
+    # differs per decision. PROVISIONAL: chosen conservatively, not derived from
+    # evaluation data. Below its threshold a decision is UNCERTAIN and the
+    # caller's existing behaviour applies.
+    jev_backchannel_threshold: float = Field(default=0.85, gt=0, le=1)
+    jev_intent_threshold: float = Field(default=0.80, gt=0, le=1)
+    jev_escalation_threshold: float = Field(default=0.90, gt=0, le=1)
+
     # --- Policy -----------------------------------------------------------
     default_timezone: str = Field(
         default="Asia/Kolkata",
@@ -120,7 +162,16 @@ class Settings(BaseSettings):
             raise ValueError(f"unknown IANA timezone: {value!r}") from exc
         return value
 
-    @field_validator("model_base_url", "model_name", "model_api_key", mode="before")
+    @field_validator(
+        "model_base_url",
+        "model_name",
+        "model_api_key",
+        "model_connect_timeout_seconds",
+        "model_max_output_tokens",
+        "model_temperature",
+        "max_recovery_calls_per_day",
+        mode="before",
+    )
     @classmethod
     def _blank_is_unset(cls, value: object) -> object:
         """Treat an empty environment variable as absent.
@@ -129,6 +180,13 @@ class Settings(BaseSettings):
         `MODEL_BASE_URL=` is how a template ships. Carrying an empty string
         forward would build an adapter with an unusable URL or send
         `Authorization: Bearer `.
+
+        The same holds for the optional numbers, whose default is "unset":
+        `MODEL_TEMPERATURE=` in .env.example means "leave LlmRequest's default
+        in force", exactly as its comment says, not "parse '' as a float". Only
+        fields that are optional are listed. A blank value for a field with a
+        real default (a timeout, a retry bound) is still rejected, and any
+        non-blank value still has to pass its numeric bounds.
         """
         if isinstance(value, str) and not value.strip():
             return None
@@ -148,6 +206,30 @@ class Settings(BaseSettings):
         if not stripped.startswith(("http://", "https://")):
             raise ValueError("model_base_url must start with http:// or https://")
         return stripped.rstrip("/")
+
+    @field_validator("decision_provider", mode="before")
+    @classmethod
+    def _provider_is_case_insensitive(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower() or "disabled"
+        return value
+
+    @field_validator("jev_api_key", "jev_model", "jev_base_url", mode="before")
+    @classmethod
+    def _blank_jev_value_is_unset(cls, value: object) -> object:
+        """``JEV_API_KEY=`` in a template means "no key", not an empty key."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("jev_base_url")
+    @classmethod
+    def _jev_base_url_is_http(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not value.startswith(("http://", "https://")):
+            raise ValueError("jev_base_url must start with http:// or https://")
+        return value.rstrip("/")
 
     @field_validator("log_level")
     @classmethod

@@ -26,7 +26,7 @@ from pydantic import BaseModel, ValidationError
 from app.models.enums import ToolStatus
 from app.models.tools import ToolRequest, ToolResult
 from app.observability import get_logger, log_event
-from app.services.llm import LlmToolSpec
+from app.services.llm import LlmToolSpec, contains_non_finite_number
 
 _logger = get_logger(__name__)
 
@@ -87,6 +87,18 @@ class ToolRegistry:
                 ToolStatus.NOT_FOUND,
                 error=f"unknown tool: {request.tool_name}",
                 error_type="UnknownTool",
+            )
+
+        # Checked here as well as at the model boundary, because not every
+        # LlmService parses JSON, and a tool whose schema has a float or a
+        # free-form field would otherwise take NaN or Infinity as a value.
+        if contains_non_finite_number(request.arguments):
+            return self._finish(
+                request,
+                started,
+                ToolStatus.INVALID_REQUEST,
+                error="invalid arguments: a number JSON cannot represent (NaN or Infinity)",
+                error_type="NonFiniteArgument",
             )
 
         try:

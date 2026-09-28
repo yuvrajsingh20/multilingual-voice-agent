@@ -9,6 +9,7 @@ Nothing in :mod:`app.core`, :mod:`app.services`, :mod:`app.models` or
 :mod:`app.tools` imports this package; the dependency runs one way only.
 """
 
+from app.orchestrator.decisions import DecisionCoordinator
 from app.orchestrator.pipeline import (
     ConversationOrchestrator,
     IncompleteTurn,
@@ -30,6 +31,7 @@ from app.orchestrator.result import (
 
 __all__ = [
     "ConversationOrchestrator",
+    "DecisionCoordinator",
     "GroundingSource",
     "IncompleteTurn",
     "PolicyCheckpoint",

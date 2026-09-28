@@ -134,6 +134,13 @@ _ACCOUNT_PROJECTION: dict[str, frozenset[str]] = {
 #: because it is asked not to, but because it has no way to.
 _SCOPED_ARGUMENTS: tuple[str, ...] = ("account_ref", "customer_ref")
 
+#: Every argument :meth:`ConversationOrchestrator._bind` sets itself. Left out
+#: of the tool calls echoed back to the model on the next round: whatever the
+#: model wrote there was overwritten, repeating it would tell the model its
+#: choice was honoured, and repeating the bound value instead would tell it an
+#: account or customer reference.
+_BOUND_ARGUMENTS: frozenset[str] = frozenset((*_SCOPED_ARGUMENTS, "promise_date"))
+
 #: Tools that change the bank's records, and the conversation state that must
 #: already support them.
 #:
@@ -322,6 +329,7 @@ class ConversationOrchestrator:
         # 8-11. Model generation, with a bounded tool loop. -----------------
         budget = self._runtime.settings.max_tool_calls_per_turn
         history: list[LlmMessage] = []
+        call_ids: set[str] = set()
         draft_text: str | None = None
         outcome: TurnOutcome | None = None
         last_good_decision = decision
@@ -355,8 +363,9 @@ class ConversationOrchestrator:
                 break
 
             # 10. Execute through the registry, then reload and re-decide.
+            calls = _identified(generation.tool_calls, call_ids)
             refreshed, tool_messages, tool_failed = self._run_tools(
-                session, work, generation.tool_calls, account
+                session, work, calls, account
             )
             if refreshed is not None and refreshed != account:
                 # A tool read the system of record, so the session's copy is now
@@ -368,9 +377,12 @@ class ConversationOrchestrator:
                 )
             account = refreshed
             work.account = account
-            history.append(
-                LlmMessage(role="assistant", content=generation.text or "")
-            )
+            # The model's own turn first, tool calls included, then one result
+            # per call - the order the chat-completions contract requires. The
+            # loop continues only when every call in the round was dispatched
+            # and answered; any failure ends the turn below, before another
+            # model call could send an unanswered call id.
+            history.append(_assistant_turn(generation.text, calls))
             history.extend(tool_messages)
             if tool_failed:
                 outcome = TurnOutcome.FAILED
@@ -1130,6 +1142,53 @@ class ConversationOrchestrator:
             error_type=result.errors[0].category.value if result.errors else None,
             error_categories=[e.category.value for e in result.errors],
         )
+
+
+def _identified(
+    calls: Iterable[LlmToolCall], used: set[str]
+) -> tuple[LlmToolCall, ...]:
+    """Give each tool call an id no other call in this turn has, and record it in ``used``.
+
+    The id is what a tool result answers, on the wire and in the audit trail. A
+    model that sent none, or reused one - including an index-style id that a
+    server restarts at ``call_0`` every round - has not identified the call, so
+    one is minted, as a missing id always was. A usable model id is kept.
+    """
+    identified: list[LlmToolCall] = []
+    for call in calls:
+        call_id = call.call_id
+        if not call_id or call_id in used:
+            call_id = uuid.uuid4().hex
+        used.add(call_id)
+        identified.append(
+            call if call_id == call.call_id else call.model_copy(update={"call_id": call_id})
+        )
+    return tuple(identified)
+
+
+def _assistant_turn(text: str | None, calls: tuple[LlmToolCall, ...]) -> LlmMessage:
+    """The model's tool-requesting turn, as it goes back to the model.
+
+    Each call keeps its id and tool name, so the tool results that follow
+    answer something on record. Its arguments are the model's own, minus
+    :data:`_BOUND_ARGUMENTS`.
+    """
+    return LlmMessage(
+        role="assistant",
+        content=text or "",
+        tool_calls=tuple(
+            LlmToolCall(
+                call_id=call.call_id,
+                tool_name=call.tool_name,
+                arguments={
+                    key: value
+                    for key, value in call.arguments.items()
+                    if key not in _BOUND_ARGUMENTS
+                },
+            )
+            for call in calls
+        ),
+    )
 
 
 def _elapsed(since: float) -> float:

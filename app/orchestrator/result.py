@@ -97,6 +97,9 @@ class TurnErrorCategory(str, Enum):
     LLM_UPSTREAM_ERROR = "llm_upstream_error"
     LLM_MALFORMED_RESPONSE = "llm_malformed_response"
     LLM_EMPTY_RESPONSE = "llm_empty_response"
+    # The model was cut off (finish_reason "length" or "content_filter"). What
+    # it produced is a fragment, and a fragment is never spoken.
+    LLM_INCOMPLETE_RESPONSE = "llm_incomplete_response"
     LLM_INVALID_TOOL_CALL = "llm_invalid_tool_call"
     INVALID_TOOL_REQUEST = "invalid_tool_request"
     TOOL_EXECUTION_FAILED = "tool_execution_failed"

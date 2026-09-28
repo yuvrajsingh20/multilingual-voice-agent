@@ -23,11 +23,50 @@ hold whatever the provider turns out to be:
 
 from __future__ import annotations
 
+import math
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Role = Literal["system", "user", "assistant", "tool"]
+
+
+def contains_non_finite_number(value: Any) -> bool:
+    """True if ``value`` holds a float that JSON cannot represent: NaN or ±Infinity.
+
+    Python's ``json`` module reads the non-standard literals ``NaN``,
+    ``Infinity`` and ``-Infinity`` as floats, and reads an overflowing literal
+    such as ``1e400`` as infinity, so "it parsed" does not mean "it is JSON".
+    Tool arguments are checked with this at the model boundary and again at the
+    registry. Nothing here converts a value: an argument that fails is refused.
+
+    Walked iteratively, because the parser accepts nesting close to the
+    recursion limit and a recursive walk could fail on input it had just
+    accepted. Only dicts, lists and tuples are descended into. Anything else -
+    the ``datetime.date`` the orchestrator binds, say - is not a number and
+    passes.
+    """
+    stack = [value]
+    seen: set[int] = set()
+    while stack:
+        item = stack.pop()
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                return True
+        elif isinstance(item, (dict, list, tuple)):
+            if id(item) in seen:
+                continue
+            seen.add(id(item))
+            stack.extend(item.values() if isinstance(item, dict) else item)
+    return False
+
+
+class LlmToolCall(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    call_id: str
+    tool_name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
 
 
 class LlmMessage(BaseModel):
@@ -36,6 +75,24 @@ class LlmMessage(BaseModel):
     role: Role
     content: str
     tool_call_id: str | None = None
+    # An assistant turn that requested tools carries those requests, so that
+    # every tool result sent after it answers a call the model is on record as
+    # having made. The OpenAI chat-completions contract requires this; a tool
+    # message with no preceding tool call is rejected by a strict server.
+    tool_calls: tuple[LlmToolCall, ...] = ()
+
+    @model_validator(mode="after")
+    def _tool_calls_are_answerable(self) -> "LlmMessage":
+        if not self.tool_calls:
+            return self
+        if self.role != "assistant":
+            raise ValueError("only an assistant message can carry tool calls")
+        ids = [call.call_id for call in self.tool_calls]
+        if not all(ids):
+            raise ValueError("a tool call sent back to the model must carry an id")
+        if len(set(ids)) != len(ids):
+            raise ValueError("tool call ids in one assistant message must be unique")
+        return self
 
 
 class LlmToolSpec(BaseModel):
@@ -46,14 +103,6 @@ class LlmToolSpec(BaseModel):
     name: str = Field(min_length=1)
     description: str
     parameters: dict[str, Any]
-
-
-class LlmToolCall(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    call_id: str
-    tool_name: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
 
 
 class LlmRequest(BaseModel):
@@ -180,6 +229,32 @@ class LlmEmptyResponse(LlmError):
     """
 
     category = "llm_empty_response"
+
+
+class LlmIncompleteResponse(LlmError):
+    """The model stopped before it had finished.
+
+    ``finish_reason`` was ``length`` - the output-token cap cut the generation
+    off - or ``content_filter`` - the server withheld part of it. What arrived is
+    a fragment, not the answer: a sentence cut off after "you do not need to"
+    says something the model never meant. Validation checks that figures are
+    grounded, not that a sentence is whole, so a fragment is refused here
+    rather than trusted downstream.
+
+    Never retried: the same request is cut off in the same place, and a second
+    attempt spends more of the customer's silence to learn that.
+    """
+
+    category = "llm_incomplete_response"
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"model generation ended early ({reason})")
+        # One of the adapter's own constants, never the server's string.
+        self.reason = reason
+
+    @property
+    def detail(self) -> str:
+        return f"{self.category} ({self.reason})"
 
 
 class LlmInvalidToolCall(LlmError):

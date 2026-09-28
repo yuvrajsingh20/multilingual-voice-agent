@@ -20,19 +20,22 @@ from app.runtime import Runtime, build_runtime
 
 @asynccontextmanager
 async def _lifespan(application: FastAPI) -> AsyncIterator[None]:
-    """Release the model connection pool on shutdown.
+    """Release the model and decision connection pools on shutdown.
 
-    Only the LLM service holds an OS resource - an HTTP connection pool, and only
-    when a model endpoint is configured. Everything else in the runtime is
-    in-memory. The check is ``hasattr`` rather than an isinstance test because
-    the service is a Protocol: a stand-in that owns no socket simply has nothing
-    to close.
+    Only two services hold an OS resource - the LLM service and the decision
+    service each own an HTTP connection pool, and only when configured.
+    Everything else in the runtime is in-memory. The check is ``hasattr``
+    rather than an isinstance test because both services are Protocols: a
+    stand-in that owns no socket simply has nothing to close.
     """
     yield
-    close = getattr(getattr(application.state, "runtime", None), "llm", None)
-    close = getattr(close, "close", None)
+    runtime = getattr(application.state, "runtime", None)
+    close = getattr(getattr(runtime, "llm", None), "close", None)
     if callable(close):
         close()
+    aclose = getattr(getattr(runtime, "decisions", None), "aclose", None)
+    if callable(aclose):
+        await aclose()
 
 
 def create_app(settings: Settings | None = None, runtime: Runtime | None = None) -> FastAPI:

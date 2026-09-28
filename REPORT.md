@@ -1508,3 +1508,675 @@ service that did not create it.
 works against a real model.** What Stage 3A delivers is a tested, typed, offline
 boundary that a remote OpenAI-compatible Gemma server can be pointed at by
 configuration alone.
+
+---
+
+# Stage 3A — Optional Decision Layer
+
+> **Jev is an optional semantic decision provider. It is not the regulatory
+> policy authority, authentication layer, banking source of truth, or tool
+> authorization layer.**
+
+**NO LIVE JEV CALL HAS BEEN MADE.** No TypeSafe key was available, and nothing
+was sent to TypeSafe or to any gateway. Every Jev answer this code has parsed
+was written by hand. The official SDK ran for real in the tests, against an
+in-process transport. Jev's accuracy on this domain, and its latency from this
+deployment, are **unmeasured**. No GCP resource, GPU, vLLM, Gemma or other model
+infrastructure was touched.
+
+**Disabled by default.** A fresh clone behaves exactly as before: the SDK is
+never imported, no client is built, and no request can leave the process.
+
+## SD.1 Why the layer exists
+
+Some decisions in a collections call are small, closed and semantic. Is "haan ji
+bilkul" said over the agent an acknowledgement or a bid for the floor? Is "I
+already paid this yesterday" a payment claim? Does the customer want a human?
+Deterministic rules handle these badly: the barge-in heuristic misses any
+backchannel outside its vocabulary. A general LLM is the wrong tool too. It is
+slow, costly and generative for what is a pick-one-label question.
+
+Jev (TypeSafe's "System One" model) answers exactly that shape: named labels in,
+one label plus a calibrated confidence out, and no generated text. This stage
+adds it **behind a provider-neutral boundary**, for **three registered
+decisions**, with an **explicit fallback** for every way it can fail or be
+unsure. Whether it is worth using is a question for measurement (SD.9). This
+stage builds the means to answer it; it does not claim the answer.
+
+## SD.2 Where it sits
+
+```
+Regulatory rules ─► Policy engine ─► Conversation state ─► Orchestrator (sync turn pipeline, UNCHANGED)
+                                                                ▲
+                                   upstream signals (EventSignals) │  ← an applied low-risk intent
+                                                                │     enters here, as any NLU signal does
+Audio ─► VAD / acoustic ─► STT ─► DecisionCoordinator (async)  ─┘      app/orchestrator/decisions.py
+                                    │  routing: is a decision needed at all?
+                                    │  deadline · threshold · fallback · one log record per decision
+                                    ▼
+                               DecisionService (Protocol)       app/services/decision.py — contract, no I/O
+                                    │
+                                    ▼
+                               JevDecisionService               app/services/decision_jev.py — the only SDK importer
+                                    │
+                                    ▼
+                               POST {JEV_BASE_URL}/v1/systemone   (typesafe-sdk==0.7.1, AsyncTypeSafeClient)
+                                    │
+                                    ▼
+                               fusion (pure)                    app/services/decisions/fusion.py
+                                    │  + heuristic result, hard signals, policy, state
+                                    ▼
+                    CONTINUE_TTS / STOP_TTS / WAIT · APPLY_SIGNAL / CONFIRM_FIRST / EXISTING_PATH ·
+                    ESCALATE / RECOMMEND_REVIEW / NO_CHANGE
+```
+
+The coordinator depends on `DecisionService` and never on Jev. Four structural
+tests pin the boundary:
+
+- only `decision_jev.py` imports `typesafe_sdk`;
+- within `app/`, only `runtime.py` imports `decision_jev.py`. The offline
+  measurement script also imports it, for `--mock`;
+- no decision module directly imports `app.tools`, `app.services.llm`,
+  `app.core.policy` or `app.core.checks`;
+- `pipeline.py` imports nothing decision-related.
+
+Direct imports are not the whole story. Python lets any module import anything,
+and `app.orchestrator`'s package `__init__` loads the pipeline anyway. What
+matters is what the coordinator *holds*. It is built with
+`DecisionCoordinator.from_runtime(runtime)`, which hands it exactly three
+things: the decision service, the settings and the barge-in classifier. It never
+holds the `Runtime`, the tool registry, the LLM, the policy engine or the
+session store. A test checks the built instance for all six, and the module
+imports `Runtime` only under `TYPE_CHECKING`.
+
+### The architectural conflict, reported rather than forced
+
+`ConversationOrchestrator.process_turn` **does not call the decision layer**, and
+this is deliberate. Wiring it in would have been the "forced" integration the
+task warned against, for three reasons found in the code:
+
+1. **The turn pipeline is synchronous.** So are `LlmService.generate` and the
+   FastAPI routes. The decision service is async, as the task required, because
+   its real caller is the live audio loop. Bridging async into `process_turn`
+   would need a per-call event loop, which defeats connection pooling, or a tie
+   to FastAPI's threadpool.
+2. **No response path in this codebase avoids the LLM.** Every allowed turn
+   calls the model. A Jev call inside the turn would add its latency to every
+   turn and remove no model call. That is exactly the "Jev → LLM on every
+   utterance" pattern the task ruled out.
+3. **Intent here is an upstream signal that gates writes.** The reducer turns
+   `PAYMENT_PROMISE`, `DISPUTE` and `ESCALATION_REQUEST` into flags that unlock
+   `record_payment_promise`, `create_dispute` and `escalate_case`, and
+   `WRONG_PERSON` clears identity verification. The only intents that are safe
+   to apply without confirmation (`REFUSAL`, `CALLBACK_REQUEST`) change nothing
+   that policy reads. Inside the turn, Jev would either be unsafe or inert.
+
+So the layer is integrated at the seams that exist:
+
+- the `Runtime` composition root (`runtime.decisions`, default disabled);
+- the app lifespan, which closes its connection pool;
+- an async `DecisionCoordinator` for the future audio loop;
+- an applied low-risk intent, which reaches `process_turn` through the
+  existing `signals=` parameter exactly as upstream NLU does. Tests exercise
+  this path end to end.
+
+Putting a decision *inside* the turn needs an async turn path and a non-LLM
+response path. Both are architecture changes, and both are out of scope.
+
+## SD.3 Decisions delegated to Jev
+
+Exactly three, fixed in `app/services/decisions/registry.py`. `DecisionName` is
+a closed enum, and `DecisionRequest.name` is `strict`, so even the string
+`"barge_in"` is refused. The registry is a read-only mapping, validated at
+import. Each entry fixes the labels, the literal question wording, the context
+fields the decision may see, and its threshold setting. Each is put to Jev as one
+`Choice` question.
+
+| Decision | Labels | Context sent | Routing: provider **not** called when |
+| --- | --- | --- | --- |
+| `barge_in` | `backchannel`, `interruption`, `continuation` | utterance, language, agent speaking, ≤3 earlier customer utterances | agent silent · heuristic says NOISE (acoustic gate) · no transcript · speech > 800 ms (hard signal) · an explicit stop phrase (hard signal) · less than 50 ms of the 800 ms window left |
+| `customer_intent` | the ten specified: `payment_promise`, `payment_already_made`, `dispute`, `request_information`, `refusal`, `financial_difficulty`, `wrong_person`, `callback_request`, `escalation_request`, `unclear` | utterance, language, stage | upstream NLU already supplied an intent · utterance empty or > 1000 chars |
+| `needs_human_escalation` | `yes`, `no` | utterance, language, ≤3 earlier customer utterances | policy or session state already requires escalation (authoritative) |
+
+`UNCERTAIN` is never offered to the provider as an option. It is what the
+coordinator reports when there is no confident answer.
+
+**Fusion** (`fusion.py`, pure functions) decides what each answer may change:
+
+- **Barge-in.** The existing `HeuristicBargeInClassifier` always runs first and
+  is the fallback. A decided `backchannel` → `CONTINUE_TTS`; `interruption` or
+  `continuation` → `STOP_TTS`. The heuristic's own `UNKNOWN` → `WAIT`. The
+  result carries a `BargeInDecision`, so it drives the existing
+  `TurnStateMachine` unchanged. Jev can never override the acoustic gate or a
+  hard signal.
+
+  **The wait counts against the window.** The agent keeps speaking while the
+  provider is consulted. So the provider gets only what is left of the 800 ms
+  window after the speech already heard, and never more than
+  `JEV_TIMEOUT_SECONDS`. A signal at 700 ms gets at most 100 ms. Speech so far
+  plus the wait therefore never exceeds the window. A later answer is discarded
+  as a timeout, and the heuristic's decision applies.
+
+  The caller contract is in the docstring: keep feeding partials while a call
+  is pending, and act on the newest resolution. Any `STOP_TTS` stops the agent.
+  Before the adversarial review (SD.14) the wait was *added* to the window: up
+  to 800 ms plus the full deadline.
+- **Intent**, tiered against the real reducer:
+
+  | Tier | Labels | Result |
+  | --- | --- | --- |
+  | Low risk | `refusal`, `callback_request` | `APPLY_SIGNAL`: may be passed to the reducer. Sets `ConversationState.intent` and nothing else. |
+  | High risk | `payment_promise`, `dispute`, `escalation_request`, `wrong_person` | `CONFIRM_FIRST`: returned with the candidate `Intent`, never applied. |
+  | No application meaning | `payment_already_made`, `request_information`, `financial_difficulty`, `unclear` | `EXISTING_PATH`: reported for the caller. |
+
+  Tests apply each intent through `apply_event` and assert the tiering matches
+  what the reducer really changes. A reducer change that raised the stakes of a
+  "low-risk" intent would fail CI.
+- **Escalation.** A policy or state escalation → `ESCALATE` (authoritative),
+  whatever Jev says. A decided `yes` → `RECOMMEND_REVIEW`
+  (`authoritative=False`); the application's escalation path must confirm it.
+  Anything else → `NO_CHANGE`.
+
+## SD.4 Decisions that remain deterministic
+
+Not registered, never sent to Jev, not duplicated:
+
+- **Policy rules**: calling hours, persistent calling, prohibited conduct,
+  recording disclosure, agent identification, grievance-pending hold, dispute
+  handling, agency details. All stay in the policy engine.
+- **Identity and access**: identity verification and account/customer binding.
+  `_bind` in the orchestrator is untouched, and `DecisionContext` has no
+  identity field.
+- **Tools**: tool authorisation, argument validation and write preconditions.
+- **Audio**: VAD, the acoustic gate and end-of-turn detection
+  (`SilenceTurnDetector` is untouched; Jev is never a turn detector).
+- **Hard interruption signals**: speech longer than 800 ms, and an explicit
+  request to stop. `HALT_PHRASES` covers English, romanised Hindi/Hinglish and
+  Marathi, and Devanagari: "stop", "wait", "hang on", "ruk" (which covers "ruk
+  jao"), "ruko", "thehro", "ek minute", "bas", "thamb", "रुक", "ठहरो", "थांब",
+  "एक सेकंड", "एक मिनिट" and others. Matching is on whole words after NFC
+  normalisation, with punctuation, symbols and zero-width joiners removed. The
+  list was added after test design showed that a confident wrong `backchannel`
+  on "stop" would otherwise keep the agent talking over a customer who asked it
+  to stop. The review then found common forms it missed, and they were added
+  (SD.14). The list only removes decisions from Jev; it never changes what the
+  heuristic does.
+
+## SD.5 Decisions that remain with the LLM
+
+All language:
+
+- every response the agent speaks;
+- open-ended questions ("Can you explain why I received this notice?");
+- anything labelled `request_information`, `payment_already_made`,
+  `financial_difficulty` or `unclear`. These need words, or the system of
+  record, not a label.
+
+The decision layer never calls the LLM and never generates text. It does not
+decide whether the LLM is called. In the current pipeline every allowed turn
+still calls it, as before.
+
+## SD.6 Fallback behaviour
+
+Every row ends in the pre-existing behaviour, and each is tested
+(`tests/test_decision_layer.py`, `tests/test_decision_jev_adapter.py`).
+
+| Condition | Recorded as | Barge-in | Intent | Escalation |
+| --- | --- | --- | --- | --- |
+| Provider disabled (default) | no call, no log record | heuristic, exactly | `EXISTING_PATH` | policy/state only |
+| Timeout (adapter `wait_for` and coordinator deadline) | `decision_timeout` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Connection failure | `decision_connection_failed` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| 401 / 403 | `decision_authentication_failed` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| 429 | `decision_rate_limited` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| 400 / 404 / 422 | `decision_request_rejected` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Other HTTP error | `decision_upstream_error` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Malformed answer (see below) | `decision_malformed_response` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Confidence below threshold | `UNCERTAIN` / `low_confidence` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Provider raises anything else | `decision_failed` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Provider *returns* something that is not a valid answer (None, a dict, or a `DecisionAnswer` that fails strict re-validation) | `decision_malformed_response` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Answer measured after the deadline, because the event loop stalled while it was pending (the provider blocked it, or other work did) | `decision_timeout`, answer discarded; the record carries `deadline_ms` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
+| Misconfiguration (switches disagree, key/model missing, SDK absent, bad key) | startup error | process does not start | | |
+
+Transport errors are exceptions, classified by type and status. Uncertainty is
+not an error: it is an answer below its threshold, reported as `UNCERTAIN` with
+the provider's leaning kept in `top_label` for evaluation only.
+
+**Malformed** covers what the SDK lets through, and all of it was verified
+against 0.7.1:
+
+- a label that was not offered;
+- a NaN, negative or >1 confidence;
+- probabilities for unknown labels, or outside [0, 1];
+- a missing answer, or an answer of the wrong type;
+- a body that is not JSON.
+
+The SDK validates only shape. The coordinator re-checks the label against the
+registry whatever the provider claims.
+
+**Retries** are off by default (`JEV_MAX_RETRIES=0`, max 2). When on, two
+kinds of failure are retried, inside the same deadline:
+
+- a connection that never opened (`httpx2.ConnectError`), where nothing was
+  sent;
+- 408/429/500/502/503/504, where the server received the request and reported
+  a transient failure. A retry here **sends the customer's words again**, which
+  is one reason retries are off by default.
+
+A read, write or protocol error is not retried, because whether the request
+was delivered is unknown. A timeout is not retried either: it has already
+spent the budget. The SDK's own default (2
+retries, 30 s budget, every 5xx and every transport error) is overridden. Tests
+pin both sides. The first version retried every transport error, contradicting
+this paragraph; the review caught it (SD.14).
+
+## SD.7 Confidence thresholds
+
+| Setting | Default | Gates | Why this default |
+| --- | --- | --- | --- |
+| `JEV_BACKCHANNEL_THRESHOLD` | 0.85 | keeping the agent talking, or stopping it, on a semantic call | Wrongly continuing means talking over the customer. |
+| `JEV_INTENT_THRESHOLD` | 0.80 | classifying intent | High-risk intents are confirm-first anyway, so a wrong label cannot act alone. |
+| `JEV_ESCALATION_THRESHOLD` | 0.90 | recommending a human | The highest-stakes recommendation. |
+
+**These are provisional, chosen conservatively, not derived from data.** Jev's
+own docs say thresholds depend on domain and model version. They mean nothing
+for an alias like `jev-latest`, because the answering model can change under it.
+Every decision records the model that answered.
+
+To choose real thresholds, label real calls in the shape of
+`data/eval/decision_cases.json` and run `python scripts/eval_decisions.py --live`.
+It prints, per decision, coverage and accuracy at 0.50–0.95, failure counts, and
+latency percentiles. The percentiles are truncated at the deadline, so raise
+`JEV_TIMEOUT_SECONDS` for the measurement run.
+
+The shipped 44 cases are **synthetic** and hand-written, as a template and smoke
+set, not a benchmark. Every label appears at least once, and every decision has
+cases in each of the four languages, but most labels have only one or two
+cases. The set is mostly English (25 English, 10 Hinglish, 5 Marathi, 4
+Hindi).
+
+## SD.8 Security boundaries
+
+Each item below is pinned by tests in `tests/test_decision_safety.py` and
+`tests/test_decision_boundary.py`, which give the provider every possible answer
+at 0.999 confidence.
+
+- **Identity.** Session customer A. The utterance and the model both name
+  account B. Whatever the intent, and even if the application confirms and
+  applies a high-risk one, the backend is asked only about A (20 cases).
+  `DecisionContext` has no structured field for an account ref, customer ref,
+  name, phone, amount, DPD or identity flag, and rejects one if given.
+  (Free-text identifiers are covered under "Data leaving the process".) No
+  decision can produce `IDENTITY_CONFIRMED`.
+- **Tools.** No decision module imports the tool registry, the LLM service or
+  the policy engine. The coordinator is handed none of them (SD.2). With every
+  answer, the backend is touched zero times and the LLM is called zero times.
+- **Policy.** With every intent answer, a turn outside calling hours is still
+  `POLICY_BLOCKED`, and the LLM is not called. The policy decision is identical
+  before and after every decision. A policy escalation stands against a
+  confident `no`.
+- **State.** The coordinator writes nothing: session state and event count are
+  unchanged after every decision.
+- **Writes.** A confident `payment_promise`, `dispute` or `escalation_request`
+  cannot unlock `record_payment_promise`, `create_dispute` or `escalate_case`.
+  The orchestrator refuses the write, and the backend records nothing.
+- **Secrets.** `JEV_API_KEY` is a `SecretStr`. The SDK validates its format at
+  construction; the adapter reports a bad key without echoing it. It is passed
+  explicitly, so the SDK's `TYPESAFE_*` environment variables are never read.
+- **Provider text never crosses the boundary.** SDK exceptions carry the
+  response body, and their `str` embeds the provider's message, which can echo
+  the customer's words. They are classified by type and status and dropped from
+  the chain (`__cause__` and `__context__` are both cleared). The SDK response
+  object, which holds the raw HTTP body, never leaves the adapter. A reported
+  model name is recorded only if it is a short identifier containing a letter
+  (full match). A bare number, or anything with spaces or a newline, is
+  dropped.
+- **Logs.** The SDK logs request URLs at INFO and full bodies at DEBUG, and
+  `TYPESAFE_LOG_LEVEL=debug` turns that on at import. Its one WARNING line
+  ("Ignoring answer %r with unrecognized type %r") quotes provider-controlled
+  text. So the adapter drops **every** SDK record with a logging filter, which
+  survives `configure_logging` being re-run, and `typesafe_sdk` is also in
+  `QUIET_LOGGERS`. The first version only held the level at WARNING, and the
+  review showed that line leaking echoed customer text (SD.14). The
+  coordinator logs one record per decision: name, provider, model, outcome,
+  label category, confidence bucket, threshold, latency, `fallback_used`,
+  fallback reason and session id. It never logs text. Tests capture every log
+  line at DEBUG and assert that no utterance, PAN, phone number or key appears.
+- **Data leaving the process.** When enabled, the customer's utterance, and for
+  some decisions up to three earlier utterances, the language and the stage,
+  are sent to TypeSafe or the configured gateway. That is personal data
+  transferred to a third-party processor. The DPDP Act 2023 and the RBI
+  outsourcing directions in this repo's corpus apply, and **no data-processing
+  assessment has been done**. Two measures limit what is sent:
+  - the registry's per-decision field allowlist, which sends no stage for
+    barge-in and no earlier utterances for intent;
+  - `mask_identifiers`, which runs on free text before anything leaves the
+    process.
+    - **Masked:** PANs (`<id>`), email addresses (`<email>`), and runs of 8 or
+      more digits with at most two separator characters (space, comma, period
+      or hyphen) between neighbours (`<number>`). That covers phone, Aadhaar,
+      account and card numbers, including ones read out digit by digit.
+    - **Kept:** shorter numbers, which covers amounts under one crore, and a
+      run that is exactly a *valid* d-m-yyyy or yyyy-mm-dd date ("12 10 2026",
+      "2026-10-12").
+    - **Over-masked, in the safe direction:** compact dates ("12102026"),
+      amounts of 8 or more digits, and neighbouring numbers that together reach
+      8 digits ("5000 5000").
+
+  Masking is best-effort. It misses names, numbers spoken as words, digits
+  separated by anything else or by wider gaps, identifiers shorter than 8
+  digits, and an identifier that happens to form a valid date in 2-2-4
+  grouping. On a 1000-character adversarial input it runs in under 0.1 ms. Utterances from the identity-verification stage are not
+  specially excluded; the caller should not send them. Adversarial content is a
+  documented Jev
+  weakness ("jaggedness", item 6). That is one more reason it decides nothing
+  safety-relevant.
+
+## SD.9 Latency measurements
+
+**Measured.** Local overhead only, no network. Intel i3-1115G4, 4 CPUs, Python
+3.10.12, 2,000 sequential calls per cell, logging disabled. Re-measured after
+both rounds of review fixes (masking, the halt-phrase normaliser, strict
+re-validation).
+
+| Path | barge_in p50 / p95 | customer_intent p50 / p95 | escalation p50 / p95 |
+| --- | --- | --- | --- |
+| Coordinator, provider disabled (heuristic / policy only) | 0.022 / 0.027 ms | 0.005 / 0.008 ms | 0.007 / 0.010 ms |
+| Coordinator + fusion, instant stub provider | 0.068 / 0.092 ms | 0.046 / 0.075 ms | 0.048 / 0.070 ms |
+| Coordinator + real Jev adapter + real SDK, instant in-process transport | 0.392 / 0.569 ms | 0.356 / 0.482 ms | 0.352 / 0.454 ms |
+
+One isolated outlier of about 15 ms appeared in the last row's
+`customer_intent` max, in all three runs. It is consistent with a garbage-collection
+pause, but was not investigated. The layer costs about 0.35–0.4 ms before the
+network. `scripts/eval_decisions.py
+--mock` reproduces the last row through the adapter alone.
+
+**Not measured:**
+
+- Jev's real round-trip from this deployment;
+- the gateway overhead;
+- behaviour under TypeSafe's rate limits (1,200 req/min currently, "adjusting
+  dynamically");
+- any LLM, since none is connected.
+
+TypeSafe's launch post says "End-to-end response time is 70ms-500ms"
+(typesafe.ai/blog/introducing-system-one-models-and-jev). Its docs say "most
+queries complete in about 100 ms". Both figures are the vendor's and have not
+been verified here. `JEV_TIMEOUT_SECONDS=0.5` is set at that upper bound and
+is also unmeasured.
+
+**Does Jev reduce end-to-end latency? Not shown, and on the evidence here, not
+for these decisions today.**
+
+- **Barge-in.** The existing heuristic decides in about 0.02 ms. Any network
+  call is orders of magnitude slower. Jev can only be justified here by
+  *accuracy*: it catches backchannels the vocabulary misses, and interruptions
+  hidden in backchannel words. That accuracy is unevaluated.
+- **Intent and escalation.** This pipeline never asked an LLM for them, so no
+  LLM call is removed. Jev replaces upstream NLU, which is outside this repo.
+  There is no baseline to compare against.
+
+## SD.10 Files
+
+**Created**
+
+| File | What it is |
+| --- | --- |
+| `app/services/decision.py` | Provider-neutral contract: `DecisionName`, `DecisionContext`, `DecisionRequest`, `DecisionAnswer`, `DecisionResult`, error taxonomy, `DecisionService` protocol, `DisabledDecisionService`, `ScriptedDecisionService`. No I/O. |
+| `app/services/decisions/__init__.py` | Package exports. |
+| `app/services/decisions/registry.py` | The closed registry: labels, question wording, context allowlist, threshold keys; `build_state` and `mask_identifiers`; import-time consistency check. |
+| `app/services/decisions/fusion.py` | Pure fusion: barge-in, intent tiers, escalation; hard signals; `HALT_PHRASES` and its normaliser. |
+| `app/services/decision_jev.py` | The Jev adapter; the only `typesafe_sdk` importer. |
+| `app/orchestrator/decisions.py` | `DecisionCoordinator` (built with `from_runtime`): routing, deadline and barge-in window budget, threshold, fallback, measurement, fusion. |
+| `app/evaluation/decisions.py` | Provider-agnostic evaluation: threshold sweep, failures, latency percentiles. |
+| `scripts/eval_decisions.py` | CLI: `--mock` (offline overhead) or `--live` (configured provider). |
+| `data/eval/decision_cases.json` | 44 synthetic labelled cases: every label, and every decision in all four languages. |
+| `tests/test_decision_boundary.py` | 86 tests: defaults, config, isolation, registry, contract types. |
+| `tests/test_decision_jev_adapter.py` | 98 tests: real SDK over a mock transport, identifier masking, and event-loop lag through the real adapter. |
+| `tests/test_decision_layer.py` | 163 tests: routing, fusion, fallback, thresholds, deadline, window budget, metrics, concurrency, event-loop lag. |
+| `tests/test_decision_safety.py` | 65 tests: identity, tools, policy, state, writes. |
+| `tests/test_decision_evaluation.py` | 16 tests: harness arithmetic, case coverage, the script (including masked cases), lifespan close. |
+
+**Modified**
+
+| File | Change |
+| --- | --- |
+| `app/config.py` | Ten settings: `DECISION_PROVIDER`, `JEV_ENABLED`, `JEV_API_KEY`, `JEV_MODEL`, `JEV_BASE_URL`, `JEV_TIMEOUT_SECONDS`, `JEV_MAX_RETRIES` and three thresholds. Validators: blank-is-unset, base URL must be HTTP, provider case-insensitive. |
+| `app/runtime.py` | `build_decision_service(settings)`; `Runtime.decisions` (defaulted, so every existing construction is unchanged); `build_runtime(..., decisions=)`. |
+| `app/main.py` | The lifespan also `await`s the decision service's `aclose()`. |
+| `app/observability.py` | `typesafe_sdk` added to `QUIET_LOGGERS` (the adapter additionally drops every SDK record). |
+| `app/orchestrator/__init__.py` | Exports `DecisionCoordinator`. |
+| `requirements.txt` | `typesafe-sdk==0.7.1`. |
+| `.env.example` | Decision-layer section, disabled. |
+| `REPORT.md` | This section. |
+
+**Not touched:**
+
+- `app/services/llm_openai.py`, `app/services/llm.py`, and the LLM
+  retry/deadline logic;
+- `app/orchestrator/pipeline.py`, `prompt.py` and `result.py`;
+- `app/core/` (policy engine, checks, rules, session reducer);
+- `app/models/`, `app/tools/` (registry, banking interfaces) and `app/api/`;
+- `app/services/turn.py`, `stt.py`, `tts.py` and `validation.py`;
+- `data/regulatory/` and `regulatory_corpus/`;
+- `tests/fakes.py`, `tests/conftest.py`, and every pre-existing test.
+
+## SD.11 Dependency
+
+`typesafe-sdk==0.7.1`, pinned exactly. It is TypeSafe's official Python SDK,
+released 2026-09-21. The wheel sha256 is `9d04eee1…43e9d2ad`, verified against
+PyPI before installation. It requires `httpx2>=2.0.0` and `pydantic>=2.12.0`,
+both already present, plus `tenacity>=9.0.0`, which is new (9.1.4 installed).
+Installing it upgraded nothing.
+
+It is always installed and imported only when enabled. A subprocess test blocks
+the import entirely and shows the application still starts. Enabling Jev without
+it fails at startup and names the requirement.
+
+## SD.12 Tests
+
+| | Collected | Passed |
+| --- | --- | --- |
+| Before (commit `e594f05`) | 473 | 473 |
+| After | 901 | 901 |
+| New | 428 | 428 |
+
+The 428 include 87 regression tests added across two rounds of adversarial
+review. The fixes were mutation-checked, with the results in SD.14.
+
+No existing test was modified, skipped or deleted, and nothing in the new tests
+is skipped. Coverage of the required cases:
+
+| Required | Where |
+| --- | --- |
+| Disabled → zero calls, behaviour unchanged | `test_disabled_barge_in_is_exactly_the_heuristic` (32 signal × speaking cases), `test_disabled_intent_and_escalation_take_the_existing_path`, `test_a_default_process_never_loads_the_sdk_or_the_adapter` |
+| Success parsed | `test_a_valid_answer_is_parsed_into_the_provider_neutral_type`, `test_every_registered_decision_round_trips` |
+| Timeout → fallback | `test_an_sdk_timeout_becomes_a_decision_timeout`, `test_the_whole_call_is_bounded_by_the_deadline`, `test_the_coordinator_enforces_the_deadline_on_a_provider_that_does_not`, `test_the_provider_wait_is_charged_to_the_acknowledgement_window`, `test_an_answer_that_arrives_after_the_deadline_is_discarded` |
+| Transport failure → fallback | `test_a_transport_failure_is_a_connection_failure_not_uncertainty`, `test_every_failure_falls_back_to_the_heuristic` |
+| Malformed → reject → fallback | `test_an_answer_the_sdk_accepts_but_is_unusable_is_malformed` (8), `test_a_nan_confidence_is_malformed`, `test_a_label_the_registry_does_not_offer_is_malformed_whatever_the_provider` |
+| Low confidence → UNCERTAIN → fallback | `test_below_the_threshold_is_uncertain_and_falls_back`, `test_each_decision_has_its_own_threshold` |
+| Backchannel ("hmm", "yeah", "uh-huh", "right") vs context | `test_a_semantic_backchannel_keeps_the_agent_speaking`, `test_a_backchannel_word_is_not_assumed_to_be_a_backchannel`, `test_an_acknowledgement_followed_by_an_objection_stops_the_agent` |
+| Interruption ("stop", "wait", "no", "one second") | `test_an_explicit_request_to_stop_is_never_left_to_the_provider`, `test_common_ways_to_say_stop_are_hard_signals` (20 variants), `test_a_semantic_interruption_stops_the_agent` |
+| Intent | `test_an_already_made_payment_is_classified_and_left_to_the_application` and the tier tests |
+| Escalation | the five escalation tests in `test_decision_layer.py` |
+| Identity A ≠ B | `test_no_decision_can_make_a_tool_read_another_customers_account` (20) |
+
+**Passing tests do not make this safe to rely on.** They prove the plumbing,
+routing, fallbacks and boundaries. They cannot show that Jev gives good answers
+on real Hindi, Marathi or Hinglish calls.
+
+## SD.13 Known limitations
+
+1. **Jev has never answered.** Accuracy and latency are unmeasured (SD.9).
+2. **Not in the turn path** (SD.2). No production caller exists yet; the audio
+   loop that would call the coordinator is not built.
+3. **Thresholds are provisional**, and the eval set is synthetic (SD.7).
+4. **Language.** TypeSafe says English is Jev's primary language, and others
+   are "handled but not equally well". Three of the four languages here are
+   non-English, and code-mixed Hinglish is untested.
+5. **Adversarial input.** Jev documents that state text can steer it. That is
+   bounded here by design, since nothing it decides is safety-relevant. A
+   customer could still, for example, talk the barge-in decision into keeping
+   the agent speaking. The bound: speech heard plus the provider wait stays
+   within 800 ms, plus however long the caller takes to deliver the next
+   partial, whose duration then trips the hard signal. That assumes the caller
+   follows the contract in SD.3. A caller that stops feeding partials while a
+   call is pending loses the bound.
+6. **`HALT_PHRASES` is provisional**, like the backchannel vocabulary it sits
+   beside. It is derived from the languages, not from calls.
+7. **Escalation `yes` bundles several judgments** into one question: explicit
+   request, distress, repeated misunderstanding. Jev's docs advise one judgment
+   per question. Decomposing it into separate questions is a follow-up that
+   needs evaluation data first.
+8. **One question per call.** Jev evaluates many questions in one request more
+   cheaply than separate calls. Intent and escalation for the same utterance
+   are two calls today; batching them would need a `decide_many` contract.
+9. **Deadline granularity.** The adapter and the coordinator both enforce
+   `JEV_TIMEOUT_SECONDS`, and barge-in also enforces its window budget. The
+   SDK's own timeout is per HTTP phase. A cancelled request is abandoned, not
+   drained. A provider that *blocks* the event loop defeats every async
+   deadline. Its late answer is discarded, but the stall has already happened.
+   Loop-lag tests pin both the coordinator and the real Jev adapter (through
+   the SDK) at under 25 ms of lag, against about 6 ms normally. A stall caused
+   by *other* work on the loop also discards a pending answer as a timeout.
+   That is safe, but the record then points at the provider, so read it
+   together with `deadline_ms`.
+10. **Model aliases are accepted.** `jev-latest` and gateway IDs such as
+    `typesafe-ai/jev` move under you. Pin a versioned ID once thresholds are
+    tuned; each record logs the answering model.
+11. **No circuit breaker.** A degraded provider costs up to the deadline on
+    every eligible decision until someone disables it.
+12. **One event loop per adapter instance.** Pooled connections belong to the
+    loop that opened them. Use and close a `JevDecisionService` on one loop;
+    uvicorn's single loop and the lifespan do. A per-call `asyncio.run` breaks
+    the instance, not just its pooling.
+13. **Identifier masking is best-effort** (SD.8). It misses names, numbers
+    spoken as words, oddly separated digits and short identifiers. It
+    over-masks some dates and large amounts.
+14. **Accepted without argmax check.** The adapter does not verify that the
+    chosen label is the most probable one in the answer's own probabilities.
+    The review raised this; its verifier rejected it (SD.14).
+15. **Pre-existing, found incidentally, not changed:** `.env.example` cannot be
+    loaded verbatim as `.env`. Its blank `MODEL_CONNECT_TIMEOUT_SECONDS=`,
+    `MODEL_MAX_OUTPUT_TOKENS=`, `MODEL_TEMPERATURE=` and
+    `MAX_RECOVERY_CALLS_PER_DAY=` fail numeric validation. The new decision
+    keys are all loadable.
+
+## SD.14 Adversarial review, and what it changed
+
+After the first version passed (814/814), five independent reviewers each
+examined the change through a different lens:
+
+- safety and authority;
+- SDK-contract fidelity;
+- async, fallback and configuration;
+- privacy and logging;
+- documentation honesty and test vacuity.
+
+Each finding then went to a skeptic prompted to *refute* it, with reproductions
+run against the real code. That produced 23 findings. 12 were confirmed. None
+was confirmed critical or high: 11 were rated low, and one medium, the vacuous
+test. The other 11 were rejected.
+
+**Confirmed, and fixed**
+
+| # | Finding | Fix | Pinned by |
+| --- | --- | --- | --- |
+| 1 | The barge-in provider wait was *added* to the acknowledgement window. The agent could talk over up to 800 ms plus the full deadline, including a "stop" said during the wait. | The wait is charged to the window, `min(deadline, 800 ms − speech so far)`; nothing is attempted with under 50 ms left; the caller contract is documented. | `test_the_provider_wait_is_charged_to_the_acknowledgement_window`, `test_no_provider_call_when_the_window_is_all_but_spent` |
+| 2 | `HALT_PHRASES` missed "ruk jao", "रुक जाओ", "थांब", "एक सेकंड", "एक मिनिट" and "ठहरो"; zero-width joiners broke matching. | Stems and both scripts added; NFC normalisation; format characters stripped; phrases compared in the same normal form. | `test_common_ways_to_say_stop_are_hard_signals`, which checks a variant list kept apart from the list itself |
+| 3 | Retries re-sent after read, write and protocol errors, when the utterance may already have been delivered. The docs said only failed connects were retried. | Code changed to match the docs: `api_connection_error=False` plus a predicate that allows only `httpx2.ConnectError`. | `test_an_error_after_the_request_may_have_been_delivered_is_never_retried`, `test_a_failed_connect_is_the_only_transport_error_retried` |
+| 4 | The SDK's one WARNING line put provider-controlled text, including an echoed utterance, into the application log. | A filter drops every SDK record; unlike a level, it survives `configure_logging`. | `test_provider_text_in_the_sdks_own_warning_never_reaches_the_logs` |
+| 5 | `test_the_coordinator_does_not_block_the_event_loop` could not fail. | It now measures loop lag while a decision is pending. A companion test shows a blocking provider is detected. The side-by-side bound is tightened. | `test_the_loop_lag_measurement_does_detect_a_blocked_loop` |
+| 6 | "No decision module can reach the registry" held only for direct imports; the coordinator was handed the whole `Runtime`. | Built via `from_runtime` with only the service, settings and classifier; `Runtime` is imported only for typing. | `test_the_coordinator_is_handed_nothing_it_could_misuse` |
+| 7 | The report said the eval cases covered every label "in the four languages". | 10 non-English cases added; the wording is corrected; per-language coverage per decision is tested. | `test_every_decision_has_cases_in_every_language_in_scope` |
+
+The seven rows cover all 12 confirmed findings, because several were reported
+more than once:
+
+- row 3 three times: two reports of the behaviour and one of the wording;
+- row 4 three times;
+- row 5 twice.
+
+The "800 ms" bound in SD.13 was part of row 1's finding.
+
+**Rejected by the verifiers, but hardened anyway because it was cheap**
+
+- Fusion now acts only on `DECIDED` results. `DecisionResult` now enforces
+  "label if and only if decided", so a contradictory result cannot be built.
+- A provider that *returns* garbage now falls back instead of raising. The
+  first round covered None and a dict. The second round (below) found an
+  unvalidated `DecisionAnswer` still escaping, and closed that too.
+- An answer measured after its deadline is discarded.
+- The reported model name must fully match an identifier containing a letter.
+- Only SDK-related missing modules are reported as "install typesafe-sdk"; any
+  other missing module re-raises with its traceback.
+- Identifier-shaped spans in free text are masked before egress.
+
+**Rejected and left as is**
+
+- **No argmax check on answers.** The verifier showed that confidence is
+  derived from the distribution's shape, not `probabilities[choice]`, so the
+  proposed check would reject legitimate answers. Listed in SD.13.
+- **A closed client raises `RuntimeError`, not a `DecisionError`.** The
+  coordinator already records it as `decision_failed`. It only happens after
+  shutdown.
+- **The eval percentiles exclude timeouts.** The timeout count is reported
+  alongside, and the deadline can be raised for measurement. A docstring now
+  says so.
+- **Cross-event-loop reuse fails.** No code path does it. It is documented in
+  the adapter and in SD.13.
+- **The vendor latency figure had no source.** The source was found and is now
+  cited in SD.9.
+
+**Second round.** A smaller pass, with two reviewers and one skeptic, checked
+the fixes and this report. It confirmed 12 more findings, 8 distinct once
+duplicates are merged. One was medium: a `DecisionAnswer` built without
+validation (`model_construct`) and holding a wrong-typed or missing field
+still raised out of the coordinator. None was a safety or authority hole. All
+were fixed:
+
+- answers are strictly re-validated behind a catch-all, and `confidence=True`,
+  which lax validation turns into a decided 1.0, is refused;
+- the date exemption requires a real calendar date, so "98 76 2019" is masked;
+- masking separators were widened, and the masking claims restated to match
+  the code exactly (SD.8);
+- the stated cause of late-answer discards was corrected: any loop stall causes
+  one, not only a blocking provider. The record now carries `deadline_ms`;
+- the eval `--mock` run now keys cases by the masked utterance;
+- the retry rationale was corrected: retried statuses do re-send the
+  customer's words;
+- this section's accounting was corrected;
+- a loop-lag test now runs through the real adapter. The earlier one allowed a
+  30 ms block.
+
+**Mutation check, final state.** Each code fix from both rounds was reverted in
+a scratch copy of the repository, one at a time, and its regression test was
+run. 24 mutations were tried and 22 were killed. These include the two ways of
+reintroducing a blocking call that the original vacuous test let through, and a
+30 ms block in the real adapter.
+
+The two survivors are each a *redundant* defence layer in the coordinator's
+answer check: the `isinstance` guard and the catch-all. Removing either alone
+changes nothing, because another layer covers it. Removing each together with
+the layer that masks it (isinstance with the catch-all, strict re-validation
+with the catch-all) is killed. Two changes are pinned but were not
+mutation-checked: the eval-case additions, pinned by a coverage test, and the
+masking regex's anchoring, a performance change pinned by a generous timing
+bound.
+
+## SD.15 Stage 3B
+
+`REPORT.md` does not define Stage 3B. This section takes it to be the step the
+Stage 3A banner defers: connecting a real model, meaning the GCP/vLLM Gemma
+deployment. **It remains exactly as blocked or deferred as before.** This change
+neither depends on it nor unblocks it:
+
+- no model infrastructure was touched;
+- `LlmService` and its adapter are unchanged;
+- the decision layer runs with or without a model.
+
+**No claim is made that this is production ready, that Jev improves latency, or
+that Jev is more accurate than the existing heuristic or upstream NLU.** What
+this stage delivers is an isolated, disabled-by-default, tested boundary.
+Through it, a bounded semantic provider can be switched on by configuration,
+measured with the included harness, and bounded by a deterministic fallback
+in every failure mode the tests exercise.
