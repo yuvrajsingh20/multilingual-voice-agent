@@ -9,23 +9,40 @@ customer's silence was spent for nothing, and the operator was told the model
 server was slow when it had in fact said "503, later". A ``Retry-After`` date
 the server garbled escaped the adapter altogether, as a ``ValueError``.
 
+The first fix asked only that 10 ms be left after the wait: enough to *send* a
+retry, not enough for anything to answer it. A retry sent with 15 ms left can
+only turn the 503 that prompted it into a timeout. So a retry now needs a real
+share of the budget after its wait - the retry floor,
+``max(10 ms, 25% of timeout_seconds)``: 250 ms of a 1 s budget, 5 s of a 20 s
+one.
+
 What is being pinned
 --------------------
-- A wait is taken only when an attempt can still follow it
-  (``delay + _MIN_ATTEMPT_SECONDS <= time left``). Otherwise the failure that
-  actually happened is raised, with no sleep and no second request.
+- A wait is taken exactly when a retry with a real chance can follow it:
+  ``delay + retry_floor <= time left`` - at the edge, and a hair either side of
+  it, for a 1 s and a 20 s budget. Otherwise the failure that actually happened
+  (a 503, a 429, a refused connection, a connect timeout) is raised, with no
+  sleep and no second request, and logged as failed against attempt 1 with its
+  status.
+- A ``Retry-After`` that fits the budget but would leave less than the floor is
+  not honoured: no wait, no backoff substituted for it, the original error.
+- On a budget under 40 ms the floor is the 10 ms an attempt needs, never less,
+  so a wait is never bought that nothing can follow.
 - A wait that overruns - a sleep is a lower bound, not an exact duration - and
   leaves no room for an attempt surfaces the failure that preceded it, logged
   against the attempt that actually ran, never a fresh timeout.
-- When there is room, the retry is made, is given only the time actually left,
-  and can succeed.
+- When there is room, the retry is made, is given only the time actually left
+  (an oversleep eats into the floor; 10 ms is still enough to try), and can
+  succeed.
 - Retries are bounded (at most three, none by default), happen only on the
   statuses a server uses for "later" and on transport failures from before the
   request left, and never on anything that may already have reached the model.
 - ``Retry-After`` is honoured when it is a usable future delay, falls back to
   backoff when it is zero, negative or in the past, and never raises.
-- Across every schedule of failures, attempts plus waits never exceed the
-  configured ``timeout_seconds``.
+- Across every schedule of failures, for both budgets: attempts plus waits never
+  exceed the configured ``timeout_seconds``, every wait is followed by an
+  attempt, every retry starts with at least the floor left, and a retry is
+  declined only when its wait plus the floor did not fit.
 
 Every test runs on a fake clock: only the adapter module's view of ``time`` is
 replaced, and the scripted endpoint charges each attempt to that clock. Nothing
@@ -71,6 +88,15 @@ EPSILON = 1e-9
 
 #: The backoff the adapter uses for its first three retries.
 BACKOFF = [0.05, 0.1, 0.2]
+
+#: What a retry must still have after its wait, per budget:
+#: ``max(10 ms, 25% of timeout_seconds)``. Written out rather than read from the
+#: adapter, so a change to the rule fails here instead of being followed.
+RETRY_FLOOR = {1.0: 0.25, 20.0: 5.0}
+
+#: A distance from an edge that is exact in binary floating point - about a
+#: millisecond - and far above the fake clock's rounding.
+HAIR = 2**-10
 
 
 def _request() -> LlmRequest:
@@ -171,19 +197,21 @@ class _Transport:
     adapter put on the request is cut off at that timeout and ends as a read
     timeout, as a real transport would: that keeps the fake clock honest about
     the one thing the adapter controls inside an attempt, the budget it hands
-    the request.
+    the request. ``started`` records when, into the call, each request arrived.
     """
 
     def __init__(self, clock: _FakeClock, *steps: _Step) -> None:
         self._clock = clock
         self._steps = list(steps)
         self.requests: list[httpx2.Request] = []
+        self.started: list[float] = []
         self.timeouts: list[dict] = []
         self.cut_off: list[bool] = []
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         request.read()
         self.requests.append(request)
+        self.started.append(self._clock.elapsed)
         timeout = request.extensions["timeout"]
         self.timeouts.append(timeout)
         step = self._steps.pop(0) if len(self._steps) > 1 else self._steps[0]
@@ -317,16 +345,43 @@ def test_a_backoff_longer_than_the_time_left_is_not_waited_for(clock) -> None:
             ["retrying", "failed"],
             id="second-100ms-backoff-with-105ms-left",
         ),
+        # Past the old 10 ms floor, short of the 250 ms one: these were retried
+        # with a sliver of the budget before the floor became a share of it.
+        pytest.param(
+            (_fails(503, cost=0.8),),
+            1,
+            503,
+            [],
+            ["failed"],
+            id="50ms-backoff-with-200ms-left",
+        ),
+        pytest.param(
+            (_fails(429, cost=0.6, retry_after="0.2"),),
+            1,
+            429,
+            [],
+            ["failed"],
+            id="200ms-retry-after-with-400ms-left",
+        ),
+        pytest.param(
+            (_fails(503, cost=0.1), _fails(503, cost=0.55)),
+            2,
+            503,
+            [0.05],
+            ["retrying", "failed"],
+            id="second-100ms-backoff-with-300ms-left",
+        ),
     ],
 )
 def test_a_wait_that_fits_but_leaves_no_room_for_an_attempt_is_not_taken(
     clock, log_stream, steps, max_retries, status, sleeps, outcomes
 ) -> None:
-    """The gap: ``delay < time left < delay + 10 ms``.
+    """The gap: ``delay < time left < delay + retry_floor``.
 
-    The wait fits; the attempt after it would not. Taking the wait used to end
-    in a fresh ``LlmTimeout``, so a server that said "503, later" was reported
-    as a slow one. The original status is what the caller must get.
+    The wait fits; a retry with a real chance after it would not. Taking the
+    wait used to end in a fresh ``LlmTimeout``, so a server that said "503,
+    later" was reported as a slow one. The original status is what the caller
+    must get - and the floor applies to every retry, not only the first.
     """
     transport = _Transport(clock, *steps)
 
@@ -340,9 +395,11 @@ def test_a_wait_that_fits_but_leaves_no_room_for_an_attempt_is_not_taken(
 
     records = _llm_records(log_stream)
     assert [r["outcome"] for r in records] == outcomes
+    assert [r["attempt"] for r in records] == list(range(1, len(records) + 1))
     final = records[-1]
     assert final["attempt"] == len(transport.requests)
     assert final["error_type"] == "LlmUpstreamError"
+    assert final["error_category"] == "llm_upstream_error"
     assert final["http_status"] == status
     _assert_within_budget(clock)
 
@@ -395,6 +452,211 @@ def test_a_budget_too_small_for_any_attempt_sends_nothing_and_times_out(
     assert clock.sleeps == []
     final = _llm_records(log_stream)[-1]
     assert (final["outcome"], final["attempt"], final["error_type"]) == ("failed", 1, "LlmTimeout")
+
+
+# --- a retry needs the floor after its wait ---------------------------------
+
+#: ``(budget, Retry-After, the wait, time left when the failure comes back)``
+#: with ``left - wait`` exactly the floor or a millisecond over it. The
+#: ``Retry-After`` delays are binary fractions, so on the fake clock the time
+#: left can equal ``wait + floor`` exactly; the 50 ms backoff is not, so it is
+#: placed a clear millisecond over the edge instead.
+_ROOM_FOR_A_RETRY = [
+    pytest.param(1.0, "0.5", 0.5, 0.75, id="1s-budget-500ms-retry-after-exactly-at-the-edge"),
+    pytest.param(20.0, "8", 8.0, 13.0, id="20s-budget-8s-retry-after-exactly-at-the-edge"),
+    pytest.param(1.0, None, 0.05, 0.301, id="1s-budget-50ms-backoff-1ms-over-the-edge"),
+    pytest.param(20.0, None, 0.05, 5.051, id="20s-budget-50ms-backoff-1ms-over-the-edge"),
+]
+
+#: The same edges, approached from below.
+_NO_ROOM_FOR_A_RETRY = [
+    pytest.param(1.0, "0.5", 0.75 - HAIR, id="1s-budget-500ms-retry-after-a-hair-under-the-edge"),
+    pytest.param(20.0, "8", 13.0 - HAIR, id="20s-budget-8s-retry-after-a-hair-under-the-edge"),
+    pytest.param(1.0, None, 0.299, id="1s-budget-50ms-backoff-1ms-under-the-edge"),
+    pytest.param(20.0, None, 5.049, id="20s-budget-50ms-backoff-1ms-under-the-edge"),
+]
+
+
+@pytest.mark.parametrize(("budget", "retry_after", "wait", "left"), _ROOM_FOR_A_RETRY)
+def test_a_retry_is_taken_when_its_wait_plus_the_floor_fits_in_the_time_left(
+    clock, log_stream, budget, retry_after, wait, left
+) -> None:
+    """At the edge counts as fitting: ``<=``, not ``<``.
+
+    The retry then starts with the floor - and no more than the time actually
+    left - as its budget.
+    """
+    transport = _Transport(
+        clock,
+        _fails(503, cost=budget - left, retry_after=retry_after),
+        _answers("ab jawab mila"),
+    )
+
+    generation = _service(transport, timeout_seconds=budget, max_retries=1).generate(_request())
+
+    assert generation.text == "ab jawab mila"
+    assert clock.sleeps == [wait]
+    assert len(transport.requests) == 2
+    assert budget - transport.started[1] >= RETRY_FLOOR[budget] - EPSILON
+    assert transport.timeouts[1]["read"] == pytest.approx(left - wait, abs=1e-9)
+
+    records = _llm_records(log_stream)
+    assert [r["outcome"] for r in records] == ["retrying", "ok"]
+    assert [r["attempt"] for r in records] == [1, 2]
+    assert [r["http_status"] for r in records] == [503, 200]
+    assert records[0]["retry_in_ms"] == pytest.approx(wait * 1000.0)
+    _assert_within_budget(clock, budget)
+
+
+@pytest.mark.parametrize(("budget", "retry_after", "left"), _NO_ROOM_FOR_A_RETRY)
+def test_a_retry_whose_wait_plus_the_floor_overshoots_the_time_left_is_not_taken(
+    clock, log_stream, budget, retry_after, left
+) -> None:
+    """By a millisecond. The old 10 ms floor retried every one of these."""
+    transport = _Transport(clock, _fails(503, cost=budget - left, retry_after=retry_after))
+
+    with pytest.raises(LlmUpstreamError) as caught:
+        _service(transport, timeout_seconds=budget, max_retries=1).generate(_request())
+
+    assert caught.value.status_code == 503
+    assert clock.sleeps == []
+    assert len(transport.requests) == 1
+    assert clock.elapsed == pytest.approx(budget - left)
+
+    records = _llm_records(log_stream)
+    assert [(r["outcome"], r["attempt"], r["http_status"]) for r in records] == [
+        ("failed", 1, 503)
+    ]
+    assert records[0]["error_type"] == "LlmUpstreamError"
+    assert records[0]["error_category"] == "llm_upstream_error"
+
+
+#: ``(budget, time left when the failure comes back)``: more than any wait
+#: below plus 10 ms, less than that wait plus the floor.
+_PAST_THE_OLD_FLOOR_SHORT_OF_THE_NEW = [
+    pytest.param(1.0, 0.2, id="1s-budget-200ms-left"),
+    pytest.param(20.0, 4.0, id="20s-budget-4s-left"),
+]
+
+#: ``(failure, what the caller gets, its HTTP status)``: every kind of failure
+#: the adapter retries.
+_RETRYABLE_FAILURES = [
+    pytest.param(_fails(503), LlmUpstreamError, 503, id="503-50ms-backoff"),
+    pytest.param(_fails(429, retry_after="0.1"), LlmUpstreamError, 429, id="429-100ms-retry-after"),
+    pytest.param(_raises(httpx2.ConnectError), LlmConnectionFailed, None, id="connect-error"),
+    pytest.param(_raises(httpx2.ConnectTimeout), LlmTimeout, None, id="connect-timeout"),
+]
+
+
+@pytest.mark.parametrize(("step", "raised", "status"), _RETRYABLE_FAILURES)
+@pytest.mark.parametrize(("budget", "left"), _PAST_THE_OLD_FLOOR_SHORT_OF_THE_NEW)
+def test_a_retryable_failure_without_room_for_its_wait_plus_the_floor_is_raised_as_itself(
+    clock, log_stream, budget, left, step, raised, status
+) -> None:
+    """Room to wait and to send a retry, not for anything to answer it.
+
+    The failure that happened is the answer: no sleep, one request, and one log
+    line saying so against attempt 1. A connect timeout stays an ``LlmTimeout``
+    *caused by* that connect timeout.
+    """
+    transport = _Transport(clock, dataclasses.replace(step, cost=budget - left))
+
+    with pytest.raises(raised) as caught:
+        _service(transport, timeout_seconds=budget, max_retries=3).generate(_request())
+
+    error = caught.value
+    assert type(error) is raised
+    if status is None:
+        assert type(error.__cause__) is step.error
+    else:
+        assert error.status_code == status
+    assert clock.sleeps == []
+    assert len(transport.requests) == 1
+
+    records = _llm_records(log_stream)
+    assert len(records) == 1
+    final = records[0]
+    assert (final["outcome"], final["attempt"]) == ("failed", 1)
+    assert final["error_type"] == raised.__name__
+    assert final["error_category"] == raised.category
+    assert final.get("http_status") == status
+    _assert_within_budget(clock, budget)
+
+
+@pytest.mark.parametrize(
+    ("budget", "cost", "status", "header"),
+    [
+        pytest.param(1.0, 0.01, 429, "0.8", id="1s-budget-800ms-retry-after-with-990ms-left"),
+        pytest.param(20.0, 1.0, 503, "15", id="20s-budget-15s-retry-after-with-19s-left"),
+    ],
+)
+def test_a_retry_after_that_fits_the_budget_but_not_the_floor_is_not_honoured(
+    clock, log_stream, budget, cost, status, header
+) -> None:
+    """The wait fits; the retry after it would get less than the floor.
+
+    Nor is the adapter's own, shorter backoff - which would fit - put in its
+    place: the server said how long, and that is too long for this call.
+    """
+    transport = _Transport(clock, _fails(status, cost=cost, retry_after=header))
+
+    with pytest.raises(LlmUpstreamError) as caught:
+        _service(transport, timeout_seconds=budget, max_retries=3).generate(_request())
+
+    hinted = float(header)
+    assert hinted < budget - cost  # the premise: the wait alone would fit
+    assert caught.value.status_code == status
+    assert caught.value.retry_after_seconds == hinted
+    assert clock.sleeps == []
+    assert len(transport.requests) == 1
+    assert clock.elapsed == pytest.approx(cost)
+
+    records = _llm_records(log_stream)
+    assert [(r["outcome"], r["attempt"], r["http_status"]) for r in records] == [
+        ("failed", 1, status)
+    ]
+    assert records[0]["error_type"] == "LlmUpstreamError"
+
+
+#: A quarter of this is 9 ms: less than the 10 ms an attempt needs.
+_TINY_BUDGET = 0.036
+
+
+def test_on_a_tiny_budget_the_floor_is_still_the_ten_milliseconds_an_attempt_needs(
+    clock, log_stream
+) -> None:
+    """A 26.5 ms wait would leave 9.5 ms: a quarter of the budget, too little to send.
+
+    A floor of 9 ms would buy that wait and then raise the 503 anyway, having
+    waited for nothing.
+    """
+    transport = _Transport(clock, _fails(503, retry_after="0.0265"), _answers())
+
+    with pytest.raises(LlmUpstreamError) as caught:
+        _service(transport, timeout_seconds=_TINY_BUDGET, max_retries=1).generate(_request())
+
+    assert caught.value.status_code == 503
+    assert clock.sleeps == []
+    assert len(transport.requests) == 1
+    records = _llm_records(log_stream)
+    assert [(r["outcome"], r["attempt"], r["http_status"]) for r in records] == [
+        ("failed", 1, 503)
+    ]
+
+
+def test_on_a_tiny_budget_a_wait_that_leaves_ten_milliseconds_is_still_taken(clock) -> None:
+    """The floor never exceeds what the budget can give: 20 ms + 10 ms fits in 36 ms."""
+    transport = _Transport(clock, _fails(503, retry_after="0.02"), _answers("jaldi"))
+
+    generation = _service(
+        transport, timeout_seconds=_TINY_BUDGET, max_retries=1
+    ).generate(_request())
+
+    assert generation.text == "jaldi"
+    assert clock.sleeps == [0.02]
+    assert len(transport.requests) == 2
+    assert transport.timeouts[1]["read"] == pytest.approx(0.016, abs=1e-9)
+    _assert_within_budget(clock, _TINY_BUDGET)
 
 
 # --- a wait that overruns ---------------------------------------------------
@@ -462,20 +724,23 @@ def test_a_wait_that_overruns_after_a_connect_timeout_surfaces_that_connect_time
 @pytest.mark.parametrize(
     ("wake_at", "left"),
     [
-        pytest.param(None, 0.015, id="exact-sleep-15ms-left"),
+        pytest.param(None, 0.3, id="exact-sleep-300ms-left"),
+        pytest.param(0.9, 0.1, id="oversleep-100ms-left"),
         pytest.param(0.989, 0.011, id="oversleep-11ms-left"),
     ],
 )
 def test_with_room_left_after_the_wait_the_retry_is_made_and_can_succeed(
     clock, log_stream, wake_at, left
 ) -> None:
-    """65 ms left and a 50 ms backoff: room for the wait and an attempt after it.
+    """350 ms left and a 50 ms backoff: room for the wait and the 250 ms floor after it.
 
-    The retry is given only the time actually left once the wait is over -
-    including any oversleep - not a fresh budget.
+    The retry is given only the time actually left once the wait is over, not
+    a fresh budget. The floor is judged before the wait, against the wait asked
+    for; a sleep that overruns eats into it, and the retry is still made while
+    the 10 ms an attempt needs remain.
     """
     transport = _Transport(
-        clock, _fails(503, cost=0.935), _answers("dobara koshish safal", cost=0.01)
+        clock, _fails(503, cost=0.65), _answers("dobara koshish safal", cost=0.01)
     )
     clock.wake_at = wake_at
 
@@ -490,6 +755,8 @@ def test_with_room_left_after_the_wait_the_retry_is_made_and_can_succeed(
     records = _llm_records(log_stream)
     assert [r["outcome"] for r in records] == ["retrying", "ok"]
     assert [r["attempt"] for r in records] == [1, 2]
+    assert [r["http_status"] for r in records] == [503, 200]
+    assert records[0]["retry_in_ms"] == pytest.approx(50.0)
     _assert_within_budget(clock)
 
 
@@ -709,13 +976,25 @@ def test_a_future_http_date_beyond_the_budget_is_not_waited_for(clock) -> None:
 
 # --- the budget as a whole --------------------------------------------------
 
-#: How long each attempt takes, as a fraction of the 1 s budget. Chosen to
-#: land on both sides of every wait the adapter can take (50/100/200 ms backoff,
-#: a 300 ms and a 1 ms ``Retry-After``) and to include attempts the request
-#: timeout cuts off. None sits within float noise of a ``delay + 10 ms`` edge.
-_COSTS = (0.0, 0.1, 0.25, 0.4, 0.695, 0.8, 0.945, 0.95, 0.99, 0.995, 1.0, 1.5)
+#: How long each attempt takes, as a fraction of the budget. Chosen to land on
+#: both sides of every wait the adapter can take (50/100/200 ms backoff, a
+#: 300 ms and a 1 ms ``Retry-After``) plus the floor, for both budgets, and to
+#: include attempts the request timeout cuts off. None sits within float noise
+#: of a ``delay + retry_floor`` edge.
+_COSTS = (
+    0.0, 0.1, 0.25, 0.4, 0.44, 0.46, 0.69, 0.695, 0.71, 0.73, 0.75,
+    0.8, 0.945, 0.95, 0.99, 0.995, 1.0, 1.5,
+)
 
 
+def _wait_before(step: _Step, attempt: int) -> float:
+    """The wait the adapter asks for after ``attempt`` fails with ``step``."""
+    if step.retry_after is not None:
+        return max(float(step.retry_after), 0.01)
+    return BACKOFF[attempt - 1]
+
+
+@pytest.mark.parametrize("budget", [1.0, 20.0])
 @pytest.mark.parametrize(
     ("step", "raised"),
     [
@@ -727,26 +1006,40 @@ _COSTS = (0.0, 0.1, 0.25, 0.4, 0.695, 0.8, 0.945, 0.95, 0.99, 0.995, 1.0, 1.5)
     ],
 )
 def test_no_schedule_of_failures_overdraws_the_budget_or_waits_for_nothing(
-    monkeypatch, step, raised
+    monkeypatch, step, raised, budget
 ) -> None:
-    """Every attempt cost, every retry bound: three invariants hold.
+    """Every attempt cost, every retry bound: five invariants hold.
 
     Attempts plus waits never exceed ``timeout_seconds``; every wait is
-    followed by an attempt; and the error raised is the failure that actually
-    happened last - never a cause-less timeout manufactured by the retry loop.
+    followed by an attempt; every retry starts with at least the floor left; a
+    retry still allowed is declined only when its wait plus the floor did not
+    fit; and the error raised is the failure that actually happened last -
+    never a cause-less timeout manufactured by the retry loop.
     """
-    for cost in _COSTS:
+    floor = RETRY_FLOOR[budget]
+    for fraction in _COSTS:
+        cost = fraction * budget
         for max_retries in range(4):
-            scenario = f"cost={cost} max_retries={max_retries}"
+            scenario = f"budget={budget} cost={cost} max_retries={max_retries}"
             clock = _install_clock(monkeypatch)
             transport = _Transport(clock, dataclasses.replace(step, cost=cost))
 
             with pytest.raises(LlmError) as caught:
-                _service(transport, max_retries=max_retries).generate(_request())
+                _service(
+                    transport, timeout_seconds=budget, max_retries=max_retries
+                ).generate(_request())
 
-            _assert_within_budget(clock)
-            assert len(transport.requests) == len(clock.sleeps) + 1, scenario
-            assert len(transport.requests) <= max_retries + 1, scenario
+            _assert_within_budget(clock, budget)
+            attempts = len(transport.requests)
+            assert attempts == len(clock.sleeps) + 1, scenario
+            assert attempts <= max_retries + 1, scenario
+            assert clock.sleeps == [_wait_before(step, n) for n in range(1, attempts)], scenario
+            for started in transport.started[1:]:
+                assert budget - started >= floor - EPSILON, scenario
+            if not transport.cut_off[-1] and attempts <= max_retries:
+                # A retry was still allowed and the failure was retryable.
+                left = budget - clock.elapsed
+                assert left < _wait_before(step, attempts) + floor + EPSILON, scenario
 
             error = caught.value
             if transport.cut_off[-1]:
@@ -764,10 +1057,17 @@ def test_no_schedule_of_failures_overdraws_the_budget_or_waits_for_nothing(
 # --- what the orchestrator sees ---------------------------------------------
 
 
+@pytest.mark.parametrize(
+    "cost",
+    [
+        pytest.param(0.945, id="55ms-left"),
+        pytest.param(0.8, id="200ms-left-under-the-floor"),
+    ],
+)
 def test_a_503_near_the_deadline_ends_the_turn_as_an_upstream_error_not_a_timeout(
-    clock,
+    clock, cost
 ) -> None:
-    transport = _Transport(clock, _fails(503, cost=0.945))
+    transport = _Transport(clock, _fails(503, cost=cost))
     runtime = make_runtime(llm=http_llm(transport, timeout_seconds=BUDGET, max_retries=1))
     session = open_session(runtime)
 
@@ -778,6 +1078,7 @@ def test_a_503_near_the_deadline_ends_the_turn_as_an_upstream_error_not_a_timeou
     assert TurnErrorCategory.LLM_UPSTREAM_ERROR in result.error_categories
     assert TurnErrorCategory.LLM_TIMEOUT not in result.error_categories
     assert clock.sleeps == []
+    assert len(transport.requests) == 1
 
 
 def test_an_unreadable_retry_after_ends_the_turn_as_an_upstream_error_not_a_crash(

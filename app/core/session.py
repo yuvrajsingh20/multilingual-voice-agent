@@ -160,7 +160,37 @@ class SessionStore:
     def __init__(self, max_sessions: int) -> None:
         self._sessions: dict[str, Session] = {}
         self._lock = threading.Lock()
+        # One lock per session, created on first use. Guards the whole
+        # authorise-check-execute-record sequence of a banking write, not
+        # ordinary access: get() and append_event() above already serialise
+        # themselves. See write_lock().
+        self._write_locks: dict[str, threading.Lock] = {}
         self._max = max_sessions
+
+    def write_lock(self, session_id: str) -> threading.Lock:
+        """The lock one banking write for ``session_id`` must be held under.
+
+        A write tool's authorisation is read from the event log, the backend
+        is called, and the result is appended to the log, in three separate
+        steps - none of which holds ``self._lock`` for longer than its own
+        instant. Two overlapping turns on the same session could otherwise
+        both read "not yet written" before either's result lands, and both
+        proceed: the same customer statement authorising the same write
+        twice over, instead of once. The caller holds this lock across that
+        whole sequence instead.
+
+        Lazily created, and the creation itself uses the store's own lock so
+        that two threads asking for the same session's lock for the first
+        time are handed the same object rather than two different ones.
+        Never removed: a session's write lock is small and lives as long as
+        the session does.
+        """
+        with self._lock:
+            lock = self._write_locks.get(session_id)
+            if lock is None:
+                lock = threading.Lock()
+                self._write_locks[session_id] = lock
+            return lock
 
     def create(
         self,
@@ -238,7 +268,11 @@ class SessionStore:
 
     def delete(self, session_id: str) -> bool:
         with self._lock:
-            return self._sessions.pop(session_id, None) is not None
+            existed = self._sessions.pop(session_id, None) is not None
+            # Not otherwise reclaimed: write_lock() creates one of these per
+            # session and nothing else ever removes it.
+            self._write_locks.pop(session_id, None)
+            return existed
 
     def __len__(self) -> int:
         with self._lock:

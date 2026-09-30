@@ -3,6 +3,14 @@
 Date: 2026-09-24
 Python 3.10.12 · pydantic 2.13.5 · FastAPI 0.141.1 · pytest 9.1.1
 
+> **Current state (updated 2026-09-29).** This report grew stage by stage, and
+> each stage's section keeps the test counts measured when that stage finished.
+> The optional Jev decision layer described in an earlier Stage 3A section was
+> later removed in full and is not replaced by any other decision model; see
+> "Stage 3A — Decision Layer Removed". The current count and the Stage 3A gate
+> result are in the last section, "Stage 3A — Final Hardening and Green Gate".
+> Stage 3B has not started.
+
 ---
 
 # 1. Executive Summary
@@ -582,6 +590,10 @@ One dependency was added.
 | --- | --- |
 | `httpx2` | **Test-only.** Starlette's `TestClient` needs an HTTP client library; this Starlette version emits a deprecation warning for `httpx` and expects `httpx2`. Without it the API cannot be tested through real routing and serialization. Nothing in `app/` imports it. |
 
+*(Stage 1 statement, superseded: since Stage 3A the model adapter imports
+`httpx2` and, since the Stage 3A hardening, `httpcore2`; both are now runtime
+dependencies pinned exactly. See S3A.6 and the final section.)*
+
 Unchanged: `fastapi`, `pydantic`, `pydantic-settings`, `python-dotenv`,
 `uvicorn[standard]`, `pytest`. `zoneinfo`, `json`, `re`, `threading`, `uuid`,
 `logging` and `datetime` are standard library.
@@ -1043,7 +1055,11 @@ been optimised — these exist so that the next phase optimises something real.
 11. **Single-threaded assumptions.** `SessionStore` is lock-guarded, but a turn
     reads the session, works, then appends — two concurrent turns on one session
     would interleave. Telephony gives one turn at a time per call; nothing enforces
-    it.
+    it. (Narrowed for one specific case in the Stage 3A hardening pass, H.2b:
+    a banking *write*'s authorisation is now atomic under this exact
+    interleaving. Everything else about concurrent turns on one session -
+    reads, state updates outside a write tool, general interleaving - still
+    stands exactly as written here.)
 12. **`NOT_IMPLEMENTED` is ambiguous.** The backend returns it both for "no
     backend is wired" and for "this account does not exist". The orchestrator
     treats both as benign unavailability, so a genuinely missing account reads as
@@ -1267,12 +1283,28 @@ code.
 { "model": "<MODEL_NAME>",
   "messages": [{"role": "system", "content": "..."},
                {"role": "user", "content": "..."},
-               {"role": "tool", "content": "...", "tool_call_id": "..."}],
+               {"role": "assistant", "content": null,
+                "tool_calls": [{"id": "call_0", "type": "function",
+                                "function": {"name": "get_outstanding_amount", "arguments": "{}"}}]},
+               {"role": "tool", "content": "...", "tool_call_id": "call_0"}],
   "max_tokens": 512, "temperature": 0.2, "stream": false,
   "tools": [{"type": "function", "function": {"name": "...", "description": "...", "parameters": {…}}}] }
 ```
 
-`tool_call_id` appears only on messages that carry one. `tools` is omitted
+The first request of a turn is `[system, user]`. After a tool round, the model's
+own tool-requesting turn is sent back **before** the tool results, as the
+chat-completions contract requires: an `assistant` message carrying the
+`tool_calls` it made, then one `tool` message per call, each answering one of
+those ids. (Until the Stage 3A hardening the assistant message was sent without
+its `tool_calls`, which a strict server rejects; see the final section.) The
+echoed calls keep their id and tool name. Their arguments are the model's own,
+minus every argument the orchestrator binds itself (`account_ref`,
+`customer_ref`, `promise_date`): the model's value there was overwritten, and
+sending back the bound value would tell the model a reference it must never
+see. An assistant turn with no words is sent as `"content": null`.
+
+`tool_call_id` appears only on messages that carry one, and `tool_calls` only on
+an assistant message that made calls — never as an empty array. `tools` is omitted
 entirely when none are offered. `parameters` is the registry's own
 `model_json_schema()` passed through **unaltered** — rewriting it would offer the
 model a looser contract than the registry enforces. `stream` is always `false`;
@@ -1295,7 +1327,7 @@ request wins when it spoke.
 | --- | --- |
 | `message.content` | `text` (whitespace-only becomes `None`) |
 | `message.tool_calls[]` | `tool_calls: tuple[LlmToolCall, ...]` |
-| `choices[0].finish_reason` | `finish_reason` |
+| `choices[0].finish_reason` | `finish_reason`; `length` or `content_filter` raises `LlmIncompleteResponse` instead (a cut-off generation is not an answer); a non-string value raises `LlmMalformedResponse`; absent is accepted |
 | `model` | `model`, falling back to the configured name |
 | `usage` | `usage: LlmUsage \| None` |
 | measured | `latency_ms` |
@@ -1314,21 +1346,37 @@ is tolerance for two documented wire forms, not a guess about intent.
 Everything else raises `LlmInvalidToolCall`: a broken JSON string, valid JSON that
 is not an object (`[1,2,3]`, `"ACC-1"`, `42`), a missing or empty tool name, a
 `tool_calls` value that is not an array, a call with no `function` object, or an
-`id` of the wrong type. **No tool call is ever repaired** — a repaired tool call
-is one the application invented, and the registry would then validate arguments no
-model actually asked for.
+`id` of the wrong type, and — since the Stage 3A hardening — arguments holding a
+number JSON cannot represent: Python's parser reads `NaN`, `Infinity`,
+`-Infinity` and an overflowing `1e400` as floats, on both wire forms and at any
+depth. **No tool call is ever repaired** — a repaired tool call is one the
+application invented, and the registry would then validate arguments no model
+actually asked for. The strings `"NaN"` and `"Infinity"` are legitimate JSON text
+and are kept as strings.
 
-A missing `id` is the one tolerated omission: it becomes `""`, and the
-orchestrator's existing `request_id = call.call_id or uuid4().hex` mints one.
+A missing `id` is the one tolerated omission: it becomes `""`. The orchestrator
+then gives every call in the turn an id no other call in the turn has, keeping
+the model's own whenever it is non-empty and unused, and minting one otherwise.
+Servers that restart index-style ids (`call_0`) every round therefore still get
+one unambiguous answer per call, and the audit trail one key per execution.
+
+The registry checks tool arguments for non-finite numbers too, twice: on the
+raw arguments, because not every `LlmService` parses JSON, and on what
+validation produced, because a float field turns the *string* `"NaN"` or
+`"1e400"` into a non-finite float. Either way the result is `INVALID_REQUEST`
+and the tool never runs.
 
 The adapter does not execute, dispatch, queue or forward tool calls. It returns
 them. Stage 2's controls are untouched and still run afterwards: identity binding
 overwrites `account_ref`/`customer_ref` from the session, write tools require
 corroborating conversation state, a write must be alone in its round, and
 `MAX_TOOL_CALLS_PER_TURN` bounds the loop.
-`test_the_model_still_cannot_choose_which_account_a_tool_reads_over_http` runs a
-model that names `ACC-VICTIM` over HTTP and shows this session's own account is
-what gets read.
+`tests/test_stage3a_identity_backend.py` proves it at the backend itself: a
+recording backend that holds two customers with different figures, and every
+assertion on the exact list of backend calls, for every read and write tool,
+over HTTP and not. (`test_the_model_still_cannot_choose_which_account_a_tool_reads_over_http`,
+cited here originally, observes only the tool request and the draft; the final
+section explains why that was not enough.)
 
 ## S3A.9 Timeout, error and retry behaviour
 
@@ -1346,7 +1394,8 @@ could drift out of date.
 | Any status ≥ 400 | `LlmUpstreamError` (status only) | `llm_upstream_error` |
 | Body not JSON, or wrong shape | `LlmMalformedResponse` | `llm_malformed_response` |
 | No text and no tool call | `LlmEmptyResponse` | `llm_empty_response` |
-| Unreadable tool call | `LlmInvalidToolCall` | `llm_invalid_tool_call` |
+| Unreadable tool call, or a non-finite number in its arguments | `LlmInvalidToolCall` | `llm_invalid_tool_call` |
+| Cut off: `finish_reason` `length` or `content_filter` | `LlmIncompleteResponse` | `llm_incomplete_response` |
 
 An empty model response is a failure, not an empty turn: an agent that says
 nothing on a live call is a defect, and an empty draft must not be handed to
@@ -1361,13 +1410,36 @@ protocol error, a 400/401/403/404/409/422, a malformed body and a **read**
 timeout are not retried. The constructor rejects a non-positive timeout and a
 `max_retries` outside 0..3, the same cap as configuration.
 
-**One deadline, shared.** `MODEL_TIMEOUT_SECONDS` is the budget for the whole
-call. Each attempt's HTTP timeout is the time still left, and it is set on the
-request itself, so an injected client cannot disable it. Before another attempt
-the adapter waits: `Retry-After` when the server sent a positive delay,
-otherwise a short exponential backoff (50 ms, 100 ms, 200 ms, capped at 1 s).
-If that wait does not fit in the time still left, the call fails with the error
-already in hand. It does not start a fresh 20 s clock per attempt.
+**One wall-clock deadline, shared.** `MODEL_TIMEOUT_SECONDS` is the budget for
+the whole call: every attempt, every HTTP phase inside it, and the waits between
+attempts. httpx2's own timeouts are per phase and, inside a phase, per socket
+operation — the read timeout restarts with every byte that arrives — so on their
+own they let a slow connect plus a slow read hold one attempt for a multiple of the
+budget, and a server that dribbles its response hold it without bound
+(measured before the fix: 7.1 s against a 0.4 s budget, and the call
+*succeeded*). The adapter's own
+client therefore routes every connection through `_DeadlineBackend`, which gives
+each connect, TLS handshake, read and every partial `send()` the smaller of its
+own timeout and the time the call has left, and raises that phase's timeout
+once none is left. A host with several addresses is tried address by address
+under what is left, not a full timeout each. Only a `200` is read as a
+completion: any other status is reported by its status without the body being
+read, so a slow or huge error body cannot turn a 503 into a timeout. A `200`
+body is read to at most 8 MiB after decompression, and a reply that completes
+after the deadline is reported as a timeout rather than returned.
+The attempt's per-phase timeout is still also set on the request itself, so an
+injected client cannot disable it. See the final section for the mechanism's
+limits (DNS, injected clients, TLS through an HTTPS proxy).
+
+Before another attempt the adapter waits: `Retry-After` when the server sent a
+positive delay (never less than 10 ms), otherwise a short exponential backoff
+(50 ms, 100 ms, 200 ms, capped at 1 s). The wait is taken only if, after it, at
+least a quarter of the configured budget is still left for the retry (a
+provisional share, not measured); otherwise the call fails at once with the
+error already in hand — a 503 stays a 503, rather than becoming the timeout of
+a retry that had no chance. If a wait overruns (a sleep is a
+lower bound), the failure that preceded it is what the caller gets, not a
+fresh timeout. An unreadable `Retry-After` is ignored rather than raised.
 
 **Latency** is measured at the boundary with `time.perf_counter()` around the
 whole call, carried on `LlmGeneration.latency_ms`, logged as `model_latency_ms`,
@@ -1411,6 +1483,32 @@ Upstream response bodies are discarded at the boundary. `LlmUpstreamError` retai
 the status code and nothing else; there are tests asserting that an API key or an
 organisation name embedded in a 401 body appears in neither the exception nor the
 log.
+
+**Nothing of a failed exchange travels with the error** (since the Stage 3A
+hardening). An httpx2 exception carries the request it failed on, headers and
+body included — so the `Authorization` header and the customer's words — and a
+JSON decode error carries the whole document it could not parse. Before the
+hardening both were chained to the surfaced `LlmError` as `__cause__` and
+`__context__`, where a logger or error reporter could render them. Now every
+error raised from an `except` block is raised with `__context__` cleared, JSON
+errors are not chained at all, and a transport error keeps only an empty
+stand-in of the same class (`type(exc)("")`: no request, no message, no
+traceback), because retry policy depends on the class. A key that cannot be
+carried in a header (non-ASCII, inner whitespace) is refused at construction
+without being quoted; before, it failed inside httpx2 on every call with
+`Bearer <key>` inside the encoding error.
+
+What this does *not* cover: Python traceback **frames**. A surfaced error's own
+traceback references the frames it passed through. Those frames hold the
+service (which must hold its key to send it), the request as the adapter
+serialised it (prompt, FACTS and the customer's words), and - for an error
+raised while reading a `200` body - the parsed body. The httpx2 request and
+response objects are no longer among them: they live only inside the helper
+that sends, which has returned or been unwound before any error is raised, and
+an error status's body is never read at all. Standard traceback rendering
+prints none of this. An error reporter configured to capture local variables
+would, and must not be configured to do so for this process. Nothing in the
+application logs an exception object or `exc_info`.
 
 ## S3A.11 Test coverage
 
@@ -1459,7 +1557,7 @@ policy-blocked turn makes **no HTTP request at all**; an ungrounded figure arriv
 over HTTP is still blocked before TTS; tool results are fed back as outcomes and
 never as payloads (no paise, no `account_ref`); every boundary failure maps to its
 own turn error category with `speakable=False`; upstream error detail reaches the
-operator but never the customer; retries are bounded, never applied to 4xx, never
+operator but never the customer; retries are bounded, never applied to a 4xx other than 408 or 429, never
 to read timeouts, never to malformed bodies, and each attempt is logged so a
 degrading endpoint is visible; configuration reaches the wire intact; a
 half-configuration fails loudly; and an injected HTTP client is not closed by the
@@ -1487,15 +1585,19 @@ service that did not create it.
 4. **One connection pool, no health checking.** There is no circuit breaker, no
    endpoint failover and no warm-up. A degrading endpoint is visible in the logs
    and fails turns; nothing reacts to it automatically.
-5. **httpx phase timeouts are capped, not a single socket timer.** The shared
-   deadline caps each phase (connect, read, write, pool) at the time still left
-   and refuses another attempt once that time cannot hold the backoff. A single
-   attempt can still spend up to one phase-timeout per phase. The default of
-   zero retries means a normal call makes one attempt inside that budget.
-6. **`finish_reason` is recorded, not acted on.** A generation truncated by
-   `max_tokens` arrives as ordinary text with `finish_reason="length"`. Validation
-   and grounding still apply, so nothing unbacked can be spoken, but the turn is
-   not retried or flagged.
+5. **~~httpx phase timeouts are capped, not a single socket timer.~~ Fixed in
+   the Stage 3A hardening.** This item said a single attempt could spend up to
+   one phase-timeout per phase. It understated the problem: the read timeout
+   restarts with every byte, so a dribbling server could hold an attempt
+   without bound. Every socket operation is now clamped to the call's deadline
+   (S3A.9). The residuals are listed in the final section.
+6. **~~`finish_reason` is recorded, not acted on.~~ Fixed in the Stage 3A
+   hardening.** This item also claimed that because validation and grounding
+   still apply, "nothing unbacked can be spoken". That was wrong in the way that
+   mattered: validation checks that figures are grounded, not that a sentence is
+   whole, and a truncated disclosure or a clause cut off after "you do not need
+   to" passed it. A `length` or `content_filter` generation now fails the turn as
+   `llm_incomplete_response` and is never spoken or retried.
 7. **No authentication scheme but bearer tokens.** mTLS, cloud IAM signing and
    header-based API keys are not supported.
 8. **Tool-call streaming deltas are not handled**, since streaming is off. A
@@ -1511,672 +1613,567 @@ configuration alone.
 
 ---
 
-# Stage 3A — Optional Decision Layer
+# Stage 3A — Decision Layer Removed
 
-> **Jev is an optional semantic decision provider. It is not the regulatory
-> policy authority, authentication layer, banking source of truth, or tool
-> authorization layer.**
+Date: 2026-09-29. An earlier pass of this stage built an optional, disabled-by-
+default semantic decision layer ("Jev", TypeSafe's System One model) behind a
+provider-neutral `DecisionService` contract, for three narrow decisions
+(barge-in, customer intent, escalation recommendation). It was never wired
+into `process_turn` — the turn already makes the LLM call, and a synchronous
+Jev call inside it would add latency and remove nothing — and it was never
+called live: no TypeSafe key was ever configured, and no request left the
+process for it.
 
-**NO LIVE JEV CALL HAS BEEN MADE.** No TypeSafe key was available, and nothing
-was sent to TypeSafe or to any gateway. Every Jev answer this code has parsed
-was written by hand. The official SDK ran for real in the tests, against an
-in-process transport. Jev's accuracy on this domain, and its latency from this
-deployment, are **unmeasured**. No GCP resource, GPU, vLLM, Gemma or other model
-infrastructure was touched.
+That layer has been removed completely, at the project owner's direction, and
+is not replaced by any other decision model, AI classifier or external
+inference service. The reasons given: it added an entire subsystem (438 lines
+of contract, 311 of adapter, 419 of fusion, 338 of registry, plus a
+third-party SDK dependency) for decisions the deterministic and heuristic
+systems already listed below already covered, its accuracy and latency were
+never measured against a live endpoint, and it was not authoritative for
+anything a customer-facing system needs to get right — so removing it was a
+net simplification, not a capability loss.
 
-**Disabled by default.** A fresh clone behaves exactly as before: the SDK is
-never imported, no client is built, and no request can leave the process.
+**What decides now, for every decision Jev used to be asked about:**
 
-## SD.1 Why the layer exists
+- **Backchannel / interruption / continuation.** The pre-existing, unchanged
+  acoustic classifier in `app/services/turn.py`
+  (`HeuristicBargeInClassifier`, `SilenceTurnDetector`,
+  `TurnStateMachine`) — the same code Jev's fusion logic sat in front of and
+  deferred to below its confidence threshold. It was never bypassed even when
+  Jev was enabled: a decided Jev label only ever narrowed which of the
+  heuristic's own outcomes could still occur.
+- **Customer intent, and whether a human should take over.** Deterministic
+  application logic: the policy engine (`app/core/policy.py`), the
+  conversation-state reducer (`app/core/session.py`) reading upstream NLU
+  signals, and the escalation rules already encoded in
+  `data/regulatory/rules/recovery_rules.json`.
+- **Compliance and account authority.** Unchanged: the policy engine, identity
+  binding in `ConversationOrchestrator._bind`, and `ToolRegistry` remain the
+  only authorities. Jev was never one of them, even while it existed.
 
-Some decisions in a collections call are small, closed and semantic. Is "haan ji
-bilkul" said over the agent an acknowledgement or a bid for the floor? Is "I
-already paid this yesterday" a payment claim? Does the customer want a human?
-Deterministic rules handle these badly: the barge-in heuristic misses any
-backchannel outside its vocabulary. A general LLM is the wrong tool too. It is
-slow, costly and generative for what is a pick-one-label question.
+**What removal changed, concretely** (see H.9 for the full file list): every
+file under `app/services/decision*.py` and `app/services/decisions/`,
+`app/orchestrator/decisions.py`, `app/evaluation/decisions.py`,
+`scripts/eval_decisions.py`, `data/eval/decision_cases.json`, the five
+`tests/test_decision_*.py` files (428 tests), the `typesafe-sdk` and
+`tenacity` dependency (removed from `requirements.txt` and uninstalled), the
+`DECISION_PROVIDER`/`JEV_*` settings and `.env.example` block, and the
+decision-layer wiring in `app/runtime.py`, `app/main.py`,
+`app/observability.py` and `app/orchestrator/__init__.py`. A new regression
+file, `tests/test_stage3a_jev_removed.py`, pins the absence: no removed module
+importable, no Settings field or template key left over, the application
+starts and serves with the SDK made unimportable at the interpreter level, a
+stale `.env` naming Jev is silently ignored rather than changing behaviour or
+refusing to start, and no source, configuration or dependency file mentions
+Jev or TypeSafe by name.
 
-Jev (TypeSafe's "System One" model) answers exactly that shape: named labels in,
-one label plus a calibrated confidence out, and no generated text. This stage
-adds it **behind a provider-neutral boundary**, for **three registered
-decisions**, with an **explicit fallback** for every way it can fail or be
-unsure. Whether it is worth using is a question for measurement (SD.9). This
-stage builds the means to answer it; it does not claim the answer.
+**The LLM remains the only semantic/language component.** It drafts replies
+and requests tools; it never decides policy, identity or authorization, and
+nothing added here changes that. No new AI decision provider, classifier or
+inference service was introduced to replace Jev.
+---
 
-## SD.2 Where it sits
+# Stage 3A — Final Hardening and Green Gate
 
-```
-Regulatory rules ─► Policy engine ─► Conversation state ─► Orchestrator (sync turn pipeline, UNCHANGED)
-                                                                ▲
-                                   upstream signals (EventSignals) │  ← an applied low-risk intent
-                                                                │     enters here, as any NLU signal does
-Audio ─► VAD / acoustic ─► STT ─► DecisionCoordinator (async)  ─┘      app/orchestrator/decisions.py
-                                    │  routing: is a decision needed at all?
-                                    │  deadline · threshold · fallback · one log record per decision
-                                    ▼
-                               DecisionService (Protocol)       app/services/decision.py — contract, no I/O
-                                    │
-                                    ▼
-                               JevDecisionService               app/services/decision_jev.py — the only SDK importer
-                                    │
-                                    ▼
-                               POST {JEV_BASE_URL}/v1/systemone   (typesafe-sdk==0.7.1, AsyncTypeSafeClient)
-                                    │
-                                    ▼
-                               fusion (pure)                    app/services/decisions/fusion.py
-                                    │  + heuristic result, hard signals, policy, state
-                                    ▼
-                    CONTINUE_TTS / STOP_TTS / WAIT · APPLY_SIGNAL / CONFIRM_FIRST / EXISTING_PATH ·
-                    ESCALATE / RECOMMEND_REVIEW / NO_CHANGE
-```
+Date: 2026-09-29. Scope: the Stage 3A correctness, protocol and security
+findings left open after the LLM-adapter hardening, the complete removal of
+the optional Jev decision layer (see "Stage 3A — Decision Layer Removed",
+above), and nothing else. **Stage 3B was not started.** No GCP resource, Qwen,
+vLLM, GPU, STT, TTS or telephony work was done, no product feature was added,
+and no external decision model or new AI provider was introduced.
 
-The coordinator depends on `DecisionService` and never on Jev. Four structural
-tests pin the boundary:
+> **Commit note.** The repository owner committed part of this work in progress
+> as `d7a626a` ("Implement optional decision layer with Jev integration"),
+> between working sessions. That commit contains the first-round code fixes for
+> A–G and the first five new test files. Everything since is uncommitted, as
+> `git status` shows:
+> - the fixes found while writing tests (H.2);
+> - the second-round fixes from the adversarial review and the peer audit
+>   (H.2a);
+> - later edits to test files that were already committed;
+> - the remaining new test files;
+> - this report.
+>
+> This work made no commit.
 
-- only `decision_jev.py` imports `typesafe_sdk`;
-- within `app/`, only `runtime.py` imports `decision_jev.py`. The offline
-  measurement script also imports it, for `--mock`;
-- no decision module directly imports `app.tools`, `app.services.llm`,
-  `app.core.policy` or `app.core.checks`;
-- `pipeline.py` imports nothing decision-related.
+**GATE RESULT: GREEN — see H.6 and VERDICT.**
 
-Direct imports are not the whole story. Python lets any module import anything,
-and `app.orchestrator`'s package `__init__` loads the pipeline anyway. What
-matters is what the coordinator *holds*. It is built with
-`DecisionCoordinator.from_runtime(runtime)`, which hands it exactly three
-things: the decision service, the settings and the barge-in classifier. It never
-holds the `Runtime`, the tool registry, the LLM, the policy engine or the
-session store. A test checks the built instance for all six, and the module
-imports `Runtime` only under `TYPE_CHECKING`.
+## H.1 Method
 
-### The architectural conflict, reported rather than forced
+1. **Reproduce first.** Each finding was reproduced independently against the
+   unmodified code, by eight read-only agents writing scripts outside the
+   repository, before anything was changed. The prior report was not trusted:
+   finding C turned out to be a test gap rather than a code defect, and the
+   others proved worse than first described (G's overrun was unbounded, not
+   "several multiples").
+2. **Fix.** One author, smallest change consistent with the architecture.
+3. **Pin.** One new test file per finding. Every file was run three ways: on the
+   fixed code (must pass, three times, for flakiness), on a snapshot of the code
+   before the fix (tests aimed at the defect must fail), and under targeted
+   mutations of the fix in a scratch copy (each must be killed).
+4. **Adversarial gate.** Four independent read-only reviewers, one per lens,
+   inspected the final code — not the old tests. Every finding they rated
+   medium or above, or blocking, went to two skeptics prompted to refute it
+   with a reproduction (H.6).
+5. **Second round.** A second Claude session auditing the same tree for the
+   same user sent its own list of residual gaps. Its findings and the review's
+   were merged, fixed and pinned the same way (H.2a), and the four lenses were
+   run again on the result (H.6).
 
-`ConversationOrchestrator.process_turn` **does not call the decision layer**, and
-this is deliberate. Wiring it in would have been the "forced" integration the
-task warned against, for three reasons found in the code:
+## H.2 Findings and fixes
 
-1. **The turn pipeline is synchronous.** So are `LlmService.generate` and the
-   FastAPI routes. The decision service is async, as the task required, because
-   its real caller is the live audio loop. Bridging async into `process_turn`
-   would need a per-call event loop, which defeats connection pooling, or a tie
-   to FastAPI's threadpool.
-2. **No response path in this codebase avoids the LLM.** Every allowed turn
-   calls the model. A Jev call inside the turn would add its latency to every
-   turn and remove no model call. That is exactly the "Jev → LLM on every
-   utterance" pattern the task ruled out.
-3. **Intent here is an upstream signal that gates writes.** The reducer turns
-   `PAYMENT_PROMISE`, `DISPUTE` and `ESCALATION_REQUEST` into flags that unlock
-   `record_payment_promise`, `create_dispute` and `escalate_case`, and
-   `WRONG_PERSON` clears identity verification. The only intents that are safe
-   to apply without confirmation (`REFUSAL`, `CALLBACK_REQUEST`) change nothing
-   that policy reads. Inside the turn, Jev would either be unsafe or inert.
-
-So the layer is integrated at the seams that exist:
-
-- the `Runtime` composition root (`runtime.decisions`, default disabled);
-- the app lifespan, which closes its connection pool;
-- an async `DecisionCoordinator` for the future audio loop;
-- an applied low-risk intent, which reaches `process_turn` through the
-  existing `signals=` parameter exactly as upstream NLU does. Tests exercise
-  this path end to end.
-
-Putting a decision *inside* the turn needs an async turn path and a non-LLM
-response path. Both are architecture changes, and both are out of scope.
-
-## SD.3 Decisions delegated to Jev
-
-Exactly three, fixed in `app/services/decisions/registry.py`. `DecisionName` is
-a closed enum, and `DecisionRequest.name` is `strict`, so even the string
-`"barge_in"` is refused. The registry is a read-only mapping, validated at
-import. Each entry fixes the labels, the literal question wording, the context
-fields the decision may see, and its threshold setting. Each is put to Jev as one
-`Choice` question.
-
-| Decision | Labels | Context sent | Routing: provider **not** called when |
+| | Finding | Reproduced (before the fix) | Fix |
 | --- | --- | --- | --- |
-| `barge_in` | `backchannel`, `interruption`, `continuation` | utterance, language, agent speaking, ≤3 earlier customer utterances | agent silent · heuristic says NOISE (acoustic gate) · no transcript · speech > 800 ms (hard signal) · an explicit stop phrase (hard signal) · less than 50 ms of the 800 ms window left |
-| `customer_intent` | the ten specified: `payment_promise`, `payment_already_made`, `dispute`, `request_information`, `refusal`, `financial_difficulty`, `wrong_person`, `callback_request`, `escalation_request`, `unclear` | utterance, language, stage | upstream NLU already supplied an intent · utterance empty or > 1000 chars |
-| `needs_human_escalation` | `yes`, `no` | utterance, language, ≤3 earlier customer utterances | policy or session state already requires escalation (authoritative) |
+| A | Retry wait vs. deadline | With retries on and `delay < time left < delay + 10 ms`, the adapter slept, sent nothing, and raised a **fresh** `LlmTimeout`: a 503/429 or a refused connection was reported as a slow server, logged as an attempt that never ran. | A wait is taken only if `delay + 10 ms` fits; otherwise the original failure is raised at once. The failure a wait followed is kept, so a sleep that overruns still surfaces the 503. |
+| B | Tool-loop message protocol | The second request was `[system, user, {assistant, content ""}, {tool, tool_call_id}]`: a tool result answering no recorded call. A strict server rejects it. | `LlmMessage.tool_calls`; the orchestrator sends the model's tool-requesting turn, with its calls, before the results. Ids are unique per turn. App-bound arguments are stripped from the echo. `content` is `null` when empty. |
+| C | Identity at the backend | **No code defect.** Binding already held. But the HTTP identity test observed a `ToolRequest` and a draft, not the backend call, and could stay green while the wrong account was read. | Tests only: a recording backend holding two customers with different figures; every assertion is on the exact list of backend calls. |
+| D | `Authorization` on surfaced exceptions | `exc.__cause__._request.headers` held `Bearer <key>`; the cause's message, its traceback frames, and `JSONDecodeError.doc` (the whole body, or the raw tool arguments) were all reachable from the surfaced `LlmError`. | No exchange object is chained: `__context__` cleared, JSON errors unchained, transport errors keep only an empty stand-in of the same class, which retry policy needs. |
+| E | NaN / ±Infinity tool arguments | `NaN`, `Infinity`, `-Infinity` and `1e400` parsed as floats, on both wire forms, at any depth. | Refused at the adapter (`LlmInvalidToolCall`) and twice at the registry — before validation, and after it (see "found during the work"). |
+| F | `finish_reason="length"` | A cut-off reply was spoken as a completed turn and its claimed duties (e.g. recording disclosure) were recorded as done. REPORT S3A.13 #6 claimed validation made this safe; it did not. | `LlmIncompleteResponse`, category `llm_incomplete_response`: never spoken, never retried. |
+| G | Per-phase vs. wall-clock deadline | A server that dribbled its response held one attempt for **7.1 s against a 0.4 s budget, and the call succeeded.** Read timeouts restart per byte; the connect timeout was spent twice (TCP, then TLS). | Every connect, TLS handshake, read and write is clamped to the time the call has left, via a wrapped httpcore2 network backend on the adapter's own client. |
+| Env | `.env.example` did not load | Four blank optional numbers failed float/int parsing. The relative rules path only resolved from the repository root. | Blank means unset for those four optional fields only. The relative path line is commented out in favour of the absolute default. |
 
-`UNCERTAIN` is never offered to the provider as an option. It is what the
-coordinator reports when there is no confident answer.
+**Found during the work, and fixed** (same code paths, same classes of defect):
 
-**Fusion** (`fusion.py`, pure functions) decides what each answer may change:
+- An unparseable `Retry-After` raised a raw `ValueError` out of `generate()`, on
+  any error status, including a 401.
+- Deeply nested JSON raised `RecursionError` out of the adapter.
+- An API key the header cannot carry (a pasted curly quote, an inner space)
+  failed inside httpx2 on every call, with `Bearer <key>` inside the
+  `UnicodeEncodeError`. It is now refused at construction without being quoted.
+- pydantic turns legitimate JSON *text* (`"NaN"`, `"1e400"`) into a non-finite
+  number for a float, `Decimal` or `complex` field, a `dict[float, …]` key, or a
+  set or deque of floats. The registry now checks what validation produced, and
+  the walk covers those shapes. This was latent: no banking tool has such a
+  field.
+- A `Retry-After` under 10 ms was honoured, below the adapter's own minimum wait.
+- Servers that restart index-style ids (`call_0`) every round gave two
+  executions in one turn the same audit `request_id`.
+- A write loops `send()` under one timeout, so it is now clamped per 16 KiB
+  slice.
 
-- **Barge-in.** The existing `HeuristicBargeInClassifier` always runs first and
-  is the fallback. A decided `backchannel` → `CONTINUE_TTS`; `interruption` or
-  `continuation` → `STOP_TTS`. The heuristic's own `UNKNOWN` → `WAIT`. The
-  result carries a `BargeInDecision`, so it drives the existing
-  `TurnStateMachine` unchanged. Jev can never override the acoustic gate or a
-  hard signal.
+## H.2a Second round: the adversarial review and the peer audit
 
-  **The wait counts against the window.** The agent keeps speaking while the
-  provider is consulted. So the provider gets only what is left of the 800 ms
-  window after the speech already heard, and never more than
-  `JEV_TIMEOUT_SECONDS`. A signal at 700 ms gets at most 100 ms. Speech so far
-  plus the wait therefore never exceeds the window. A later answer is discarded
-  as a timeout, and the heuristic's decision applies.
+The first four-lens review (H.6, round 1) confirmed A–G on the final code, on
+real loopback sockets. Three lenses still returned YELLOW, on non-blocking
+findings. A second session auditing the same tree sent further gaps, and argued
+two of them against the brief's wording. Both sets were merged. Each item below
+was fixed and pinned.
 
-  The caller contract is in the docstring: keep feeding partials while a call
-  is pending, and act on the newest resolution. Any `STOP_TTS` stops the agent.
-  Before the adversarial review (SD.14) the wait was *added* to the window: up
-  to 800 ms plus the full deadline.
-- **Intent**, tiered against the real reducer:
-
-  | Tier | Labels | Result |
-  | --- | --- | --- |
-  | Low risk | `refusal`, `callback_request` | `APPLY_SIGNAL`: may be passed to the reducer. Sets `ConversationState.intent` and nothing else. |
-  | High risk | `payment_promise`, `dispute`, `escalation_request`, `wrong_person` | `CONFIRM_FIRST`: returned with the candidate `Intent`, never applied. |
-  | No application meaning | `payment_already_made`, `request_information`, `financial_difficulty`, `unclear` | `EXISTING_PATH`: reported for the caller. |
-
-  Tests apply each intent through `apply_event` and assert the tiering matches
-  what the reducer really changes. A reducer change that raised the stakes of a
-  "low-risk" intent would fail CI.
-- **Escalation.** A policy or state escalation → `ESCALATE` (authoritative),
-  whatever Jev says. A decided `yes` → `RECOMMEND_REVIEW`
-  (`authoritative=False`); the application's escalation path must confirm it.
-  Anything else → `NO_CHANGE`.
-
-## SD.4 Decisions that remain deterministic
-
-Not registered, never sent to Jev, not duplicated:
-
-- **Policy rules**: calling hours, persistent calling, prohibited conduct,
-  recording disclosure, agent identification, grievance-pending hold, dispute
-  handling, agency details. All stay in the policy engine.
-- **Identity and access**: identity verification and account/customer binding.
-  `_bind` in the orchestrator is untouched, and `DecisionContext` has no
-  identity field.
-- **Tools**: tool authorisation, argument validation and write preconditions.
-- **Audio**: VAD, the acoustic gate and end-of-turn detection
-  (`SilenceTurnDetector` is untouched; Jev is never a turn detector).
-- **Hard interruption signals**: speech longer than 800 ms, and an explicit
-  request to stop. `HALT_PHRASES` covers English, romanised Hindi/Hinglish and
-  Marathi, and Devanagari: "stop", "wait", "hang on", "ruk" (which covers "ruk
-  jao"), "ruko", "thehro", "ek minute", "bas", "thamb", "रुक", "ठहरो", "थांब",
-  "एक सेकंड", "एक मिनिट" and others. Matching is on whole words after NFC
-  normalisation, with punctuation, symbols and zero-width joiners removed. The
-  list was added after test design showed that a confident wrong `backchannel`
-  on "stop" would otherwise keep the agent talking over a customer who asked it
-  to stop. The review then found common forms it missed, and they were added
-  (SD.14). The list only removes decisions from Jev; it never changes what the
-  heuristic does.
-
-## SD.5 Decisions that remain with the LLM
-
-All language:
-
-- every response the agent speaks;
-- open-ended questions ("Can you explain why I received this notice?");
-- anything labelled `request_information`, `payment_already_made`,
-  `financial_difficulty` or `unclear`. These need words, or the system of
-  record, not a label.
-
-The decision layer never calls the LLM and never generates text. It does not
-decide whether the LLM is called. In the current pipeline every allowed turn
-still calls it, as before.
-
-## SD.6 Fallback behaviour
-
-Every row ends in the pre-existing behaviour, and each is tested
-(`tests/test_decision_layer.py`, `tests/test_decision_jev_adapter.py`).
-
-| Condition | Recorded as | Barge-in | Intent | Escalation |
-| --- | --- | --- | --- | --- |
-| Provider disabled (default) | no call, no log record | heuristic, exactly | `EXISTING_PATH` | policy/state only |
-| Timeout (adapter `wait_for` and coordinator deadline) | `decision_timeout` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Connection failure | `decision_connection_failed` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| 401 / 403 | `decision_authentication_failed` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| 429 | `decision_rate_limited` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| 400 / 404 / 422 | `decision_request_rejected` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Other HTTP error | `decision_upstream_error` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Malformed answer (see below) | `decision_malformed_response` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Confidence below threshold | `UNCERTAIN` / `low_confidence` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Provider raises anything else | `decision_failed` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Provider *returns* something that is not a valid answer (None, a dict, or a `DecisionAnswer` that fails strict re-validation) | `decision_malformed_response` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Answer measured after the deadline, because the event loop stalled while it was pending (the provider blocked it, or other work did) | `decision_timeout`, answer discarded; the record carries `deadline_ms` | heuristic | `EXISTING_PATH` | `NO_CHANGE` |
-| Misconfiguration (switches disagree, key/model missing, SDK absent, bad key) | startup error | process does not start | | |
-
-Transport errors are exceptions, classified by type and status. Uncertainty is
-not an error: it is an answer below its threshold, reported as `UNCERTAIN` with
-the provider's leaning kept in `top_label` for evaluation only.
-
-**Malformed** covers what the SDK lets through, and all of it was verified
-against 0.7.1:
-
-- a label that was not offered;
-- a NaN, negative or >1 confidence;
-- probabilities for unknown labels, or outside [0, 1];
-- a missing answer, or an answer of the wrong type;
-- a body that is not JSON.
-
-The SDK validates only shape. The coordinator re-checks the label against the
-registry whatever the provider claims.
-
-**Retries** are off by default (`JEV_MAX_RETRIES=0`, max 2). When on, two
-kinds of failure are retried, inside the same deadline:
-
-- a connection that never opened (`httpx2.ConnectError`), where nothing was
-  sent;
-- 408/429/500/502/503/504, where the server received the request and reported
-  a transient failure. A retry here **sends the customer's words again**, which
-  is one reason retries are off by default.
-
-A read, write or protocol error is not retried, because whether the request
-was delivered is unknown. A timeout is not retried either: it has already
-spent the budget. The SDK's own default (2
-retries, 30 s budget, every 5xx and every transport error) is overridden. Tests
-pin both sides. The first version retried every transport error, contradicting
-this paragraph; the review caught it (SD.14).
-
-## SD.7 Confidence thresholds
-
-| Setting | Default | Gates | Why this default |
-| --- | --- | --- | --- |
-| `JEV_BACKCHANNEL_THRESHOLD` | 0.85 | keeping the agent talking, or stopping it, on a semantic call | Wrongly continuing means talking over the customer. |
-| `JEV_INTENT_THRESHOLD` | 0.80 | classifying intent | High-risk intents are confirm-first anyway, so a wrong label cannot act alone. |
-| `JEV_ESCALATION_THRESHOLD` | 0.90 | recommending a human | The highest-stakes recommendation. |
-
-**These are provisional, chosen conservatively, not derived from data.** Jev's
-own docs say thresholds depend on domain and model version. They mean nothing
-for an alias like `jev-latest`, because the answering model can change under it.
-Every decision records the model that answered.
-
-To choose real thresholds, label real calls in the shape of
-`data/eval/decision_cases.json` and run `python scripts/eval_decisions.py --live`.
-It prints, per decision, coverage and accuracy at 0.50–0.95, failure counts, and
-latency percentiles. The percentiles are truncated at the deadline, so raise
-`JEV_TIMEOUT_SECONDS` for the measurement run.
-
-The shipped 44 cases are **synthetic** and hand-written, as a template and smoke
-set, not a benchmark. Every label appears at least once, and every decision has
-cases in each of the four languages, but most labels have only one or two
-cases. The set is mostly English (25 English, 10 Hinglish, 5 Marathi, 4
-Hindi).
-
-## SD.8 Security boundaries
-
-Each item below is pinned by tests in `tests/test_decision_safety.py` and
-`tests/test_decision_boundary.py`, which give the provider every possible answer
-at 0.999 confidence.
-
-- **Identity.** Session customer A. The utterance and the model both name
-  account B. Whatever the intent, and even if the application confirms and
-  applies a high-risk one, the backend is asked only about A (20 cases).
-  `DecisionContext` has no structured field for an account ref, customer ref,
-  name, phone, amount, DPD or identity flag, and rejects one if given.
-  (Free-text identifiers are covered under "Data leaving the process".) No
-  decision can produce `IDENTITY_CONFIRMED`.
-- **Tools.** No decision module imports the tool registry, the LLM service or
-  the policy engine. The coordinator is handed none of them (SD.2). With every
-  answer, the backend is touched zero times and the LLM is called zero times.
-- **Policy.** With every intent answer, a turn outside calling hours is still
-  `POLICY_BLOCKED`, and the LLM is not called. The policy decision is identical
-  before and after every decision. A policy escalation stands against a
-  confident `no`.
-- **State.** The coordinator writes nothing: session state and event count are
-  unchanged after every decision.
-- **Writes.** A confident `payment_promise`, `dispute` or `escalation_request`
-  cannot unlock `record_payment_promise`, `create_dispute` or `escalate_case`.
-  The orchestrator refuses the write, and the backend records nothing.
-- **Secrets.** `JEV_API_KEY` is a `SecretStr`. The SDK validates its format at
-  construction; the adapter reports a bad key without echoing it. It is passed
-  explicitly, so the SDK's `TYPESAFE_*` environment variables are never read.
-- **Provider text never crosses the boundary.** SDK exceptions carry the
-  response body, and their `str` embeds the provider's message, which can echo
-  the customer's words. They are classified by type and status and dropped from
-  the chain (`__cause__` and `__context__` are both cleared). The SDK response
-  object, which holds the raw HTTP body, never leaves the adapter. A reported
-  model name is recorded only if it is a short identifier containing a letter
-  (full match). A bare number, or anything with spaces or a newline, is
-  dropped.
-- **Logs.** The SDK logs request URLs at INFO and full bodies at DEBUG, and
-  `TYPESAFE_LOG_LEVEL=debug` turns that on at import. Its one WARNING line
-  ("Ignoring answer %r with unrecognized type %r") quotes provider-controlled
-  text. So the adapter drops **every** SDK record with a logging filter, which
-  survives `configure_logging` being re-run, and `typesafe_sdk` is also in
-  `QUIET_LOGGERS`. The first version only held the level at WARNING, and the
-  review showed that line leaking echoed customer text (SD.14). The
-  coordinator logs one record per decision: name, provider, model, outcome,
-  label category, confidence bucket, threshold, latency, `fallback_used`,
-  fallback reason and session id. It never logs text. Tests capture every log
-  line at DEBUG and assert that no utterance, PAN, phone number or key appears.
-- **Data leaving the process.** When enabled, the customer's utterance, and for
-  some decisions up to three earlier utterances, the language and the stage,
-  are sent to TypeSafe or the configured gateway. That is personal data
-  transferred to a third-party processor. The DPDP Act 2023 and the RBI
-  outsourcing directions in this repo's corpus apply, and **no data-processing
-  assessment has been done**. Two measures limit what is sent:
-  - the registry's per-decision field allowlist, which sends no stage for
-    barge-in and no earlier utterances for intent;
-  - `mask_identifiers`, which runs on free text before anything leaves the
-    process.
-    - **Masked:** PANs (`<id>`), email addresses (`<email>`), and runs of 8 or
-      more digits with at most two separator characters (space, comma, period
-      or hyphen) between neighbours (`<number>`). That covers phone, Aadhaar,
-      account and card numbers, including ones read out digit by digit.
-    - **Kept:** shorter numbers, which covers amounts under one crore, and a
-      run that is exactly a *valid* d-m-yyyy or yyyy-mm-dd date ("12 10 2026",
-      "2026-10-12").
-    - **Over-masked, in the safe direction:** compact dates ("12102026"),
-      amounts of 8 or more digits, and neighbouring numbers that together reach
-      8 digits ("5000 5000").
-
-  Masking is best-effort. It misses names, numbers spoken as words, digits
-  separated by anything else or by wider gaps, identifiers shorter than 8
-  digits, and an identifier that happens to form a valid date in 2-2-4
-  grouping. On a 1000-character adversarial input it runs in under 0.1 ms. Utterances from the identity-verification stage are not
-  specially excluded; the caller should not send them. Adversarial content is a
-  documented Jev
-  weakness ("jaggedness", item 6). That is one more reason it decides nothing
-  safety-relevant.
-
-## SD.9 Latency measurements
-
-**Measured.** Local overhead only, no network. Intel i3-1115G4, 4 CPUs, Python
-3.10.12, 2,000 sequential calls per cell, logging disabled. Re-measured after
-both rounds of review fixes (masking, the halt-phrase normaliser, strict
-re-validation).
-
-| Path | barge_in p50 / p95 | customer_intent p50 / p95 | escalation p50 / p95 |
-| --- | --- | --- | --- |
-| Coordinator, provider disabled (heuristic / policy only) | 0.022 / 0.027 ms | 0.005 / 0.008 ms | 0.007 / 0.010 ms |
-| Coordinator + fusion, instant stub provider | 0.068 / 0.092 ms | 0.046 / 0.075 ms | 0.048 / 0.070 ms |
-| Coordinator + real Jev adapter + real SDK, instant in-process transport | 0.392 / 0.569 ms | 0.356 / 0.482 ms | 0.352 / 0.454 ms |
-
-One isolated outlier of about 15 ms appeared in the last row's
-`customer_intent` max, in all three runs. It is consistent with a garbage-collection
-pause, but was not investigated. The layer costs about 0.35–0.4 ms before the
-network. `scripts/eval_decisions.py
---mock` reproduces the last row through the adapter alone.
-
-**Not measured:**
-
-- Jev's real round-trip from this deployment;
-- the gateway overhead;
-- behaviour under TypeSafe's rate limits (1,200 req/min currently, "adjusting
-  dynamically");
-- any LLM, since none is connected.
-
-TypeSafe's launch post says "End-to-end response time is 70ms-500ms"
-(typesafe.ai/blog/introducing-system-one-models-and-jev). Its docs say "most
-queries complete in about 100 ms". Both figures are the vendor's and have not
-been verified here. `JEV_TIMEOUT_SECONDS=0.5` is set at that upper bound and
-is also unmeasured.
-
-**Does Jev reduce end-to-end latency? Not shown, and on the evidence here, not
-for these decisions today.**
-
-- **Barge-in.** The existing heuristic decides in about 0.02 ms. Any network
-  call is orders of magnitude slower. Jev can only be justified here by
-  *accuracy*: it catches backchannels the vocabulary misses, and interruptions
-  hidden in backchannel words. That accuracy is unevaluated.
-- **Intent and escalation.** This pipeline never asked an LLM for them, so no
-  LLM call is removed. Jev replaces upstream NLU, which is outside this repo.
-  There is no baseline to compare against.
-
-## SD.10 Files
-
-**Created**
-
-| File | What it is |
-| --- | --- |
-| `app/services/decision.py` | Provider-neutral contract: `DecisionName`, `DecisionContext`, `DecisionRequest`, `DecisionAnswer`, `DecisionResult`, error taxonomy, `DecisionService` protocol, `DisabledDecisionService`, `ScriptedDecisionService`. No I/O. |
-| `app/services/decisions/__init__.py` | Package exports. |
-| `app/services/decisions/registry.py` | The closed registry: labels, question wording, context allowlist, threshold keys; `build_state` and `mask_identifiers`; import-time consistency check. |
-| `app/services/decisions/fusion.py` | Pure fusion: barge-in, intent tiers, escalation; hard signals; `HALT_PHRASES` and its normaliser. |
-| `app/services/decision_jev.py` | The Jev adapter; the only `typesafe_sdk` importer. |
-| `app/orchestrator/decisions.py` | `DecisionCoordinator` (built with `from_runtime`): routing, deadline and barge-in window budget, threshold, fallback, measurement, fusion. |
-| `app/evaluation/decisions.py` | Provider-agnostic evaluation: threshold sweep, failures, latency percentiles. |
-| `scripts/eval_decisions.py` | CLI: `--mock` (offline overhead) or `--live` (configured provider). |
-| `data/eval/decision_cases.json` | 44 synthetic labelled cases: every label, and every decision in all four languages. |
-| `tests/test_decision_boundary.py` | 86 tests: defaults, config, isolation, registry, contract types. |
-| `tests/test_decision_jev_adapter.py` | 98 tests: real SDK over a mock transport, identifier masking, and event-loop lag through the real adapter. |
-| `tests/test_decision_layer.py` | 163 tests: routing, fusion, fallback, thresholds, deadline, window budget, metrics, concurrency, event-loop lag. |
-| `tests/test_decision_safety.py` | 65 tests: identity, tools, policy, state, writes. |
-| `tests/test_decision_evaluation.py` | 16 tests: harness arithmetic, case coverage, the script (including masked cases), lifespan close. |
-
-**Modified**
-
-| File | Change |
-| --- | --- |
-| `app/config.py` | Ten settings: `DECISION_PROVIDER`, `JEV_ENABLED`, `JEV_API_KEY`, `JEV_MODEL`, `JEV_BASE_URL`, `JEV_TIMEOUT_SECONDS`, `JEV_MAX_RETRIES` and three thresholds. Validators: blank-is-unset, base URL must be HTTP, provider case-insensitive. |
-| `app/runtime.py` | `build_decision_service(settings)`; `Runtime.decisions` (defaulted, so every existing construction is unchanged); `build_runtime(..., decisions=)`. |
-| `app/main.py` | The lifespan also `await`s the decision service's `aclose()`. |
-| `app/observability.py` | `typesafe_sdk` added to `QUIET_LOGGERS` (the adapter additionally drops every SDK record). |
-| `app/orchestrator/__init__.py` | Exports `DecisionCoordinator`. |
-| `requirements.txt` | `typesafe-sdk==0.7.1`. |
-| `.env.example` | Decision-layer section, disabled. |
-| `REPORT.md` | This section. |
-
-**Not touched:**
-
-- `app/services/llm_openai.py`, `app/services/llm.py`, and the LLM
-  retry/deadline logic;
-- `app/orchestrator/pipeline.py`, `prompt.py` and `result.py`;
-- `app/core/` (policy engine, checks, rules, session reducer);
-- `app/models/`, `app/tools/` (registry, banking interfaces) and `app/api/`;
-- `app/services/turn.py`, `stt.py`, `tts.py` and `validation.py`;
-- `data/regulatory/` and `regulatory_corpus/`;
-- `tests/fakes.py`, `tests/conftest.py`, and every pre-existing test.
-
-## SD.11 Dependency
-
-`typesafe-sdk==0.7.1`, pinned exactly. It is TypeSafe's official Python SDK,
-released 2026-09-21. The wheel sha256 is `9d04eee1…43e9d2ad`, verified against
-PyPI before installation. It requires `httpx2>=2.0.0` and `pydantic>=2.12.0`,
-both already present, plus `tenacity>=9.0.0`, which is new (9.1.4 installed).
-Installing it upgraded nothing.
-
-It is always installed and imported only when enabled. A subprocess test blocks
-the import entirely and shows the application still starts. Enabling Jev without
-it fails at startup and names the requirement.
-
-## SD.12 Tests
-
-| | Collected | Passed |
+| Source | Finding | Fix |
 | --- | --- | --- |
-| Before (commit `e594f05`) | 473 | 473 |
-| After | 901 | 901 |
-| New | 428 | 428 |
+| Review CF-1, PM-1, SEC-4 | Non-`LlmError` exceptions still escaped `generate()`. A lone surrogate in a transcript raised a `UnicodeEncodeError` holding the **entire request** (prompt, FACTS, the customer's words). Others: a URL httpx2 cannot use, a `1e10` timeout, a call after `close()`. | The adapter serialises the body itself, as ASCII-escaped JSON. The URL and the numbers are validated at construction. A closed client is `LlmNotConfigured`. An outermost guard turns anything else into a plain `LlmError`, with nothing chained and its type logged. |
+| Review CF-2; peer C1 | One customer statement could authorise the same banking write many times: in a second round of the turn, or on any later turn. The state flag stays raised. | Write authorisation is consumed. A write is refused if one of its kind already succeeded since the latest event carrying its authorising intent. This is read from the session's own event log; the reducer is untouched. A failed write does not consume it. |
+| Peer A1; review CF-7 | A retry could start with 10–65 ms left. It could not succeed, so a 503 still ended up reported as a timeout. | A retry needs at least a quarter of the budget left after its wait. Otherwise the original failure is raised. |
+| Peer A2, G; review CF-5 | The body was read before the status was checked, so a 503 with a slow body became a timeout. Decompression and parsing ran unbounded (a 146 KB gzip body became 150 MB and returned **successfully** at 2.2× the budget). | Only a `200` body is read, capped at 8 MiB after decompression. Any other status is reported without reading its body. A reply that completes after the deadline is a timeout. |
+| Peer F1; review CF-8, PM-3 | `finish_reason` was a two-word denylist: `LENGTH`, `max_tokens`, `abort` and `error` passed as complete. | An allowlist of words known to mean "finished", compared case-insensitively. Anything else is incomplete. |
+| Review PM-2 | Only the HTTP adapter enforced truncation. Any other `LlmService` could hand the pipeline a `length` generation and have it spoken. | The orchestrator applies the same check to every generation. |
+| Peer F2, F3, F4; review PM-6, SEC-6 | The legacy `function_call` was dropped silently. `tool_calls` with no calls was accepted. A 3xx or a non-200 2xx was parsed as a completion. | All three are refused. |
+| Review BH-1 | Unparsed tool-call markup (`<tool_call>{…}`) was spoken as a completed turn, and the call inside it never ran: an escalation could be silently lost. | Replies with known template markers, or that are entirely JSON, are malformed. |
+| Peer E1 | A repeated key laundered a NaN: `{"amount_minor": NaN, "amount_minor": 1}` was accepted. | Repeated keys in tool arguments are refused, on both wire forms. |
+| Review SEC-1; peer D4 | Model-authored tool names, call ids and invented argument keys were written to logs verbatim, at any length. | Tool names must match OpenAI's function-name rule. Ids that are not short plain tokens are replaced. Logs carry only registered tool names and declared argument keys. |
+| Review SEC-2, SEC-5, PM-5; peer D1, D2 | A base-URL password could appear in a startup error and in Settings validation errors. URL userinfo silently replaced the Bearer key with Basic auth. A bad URL or a NaN temperature failed only at call time. | The URL is validated without being quoted, and Settings errors hide their input. Userinfo together with an API key is refused. Temperature and the output cap are checked at construction. |
+| Review CF-4, BH-10; peer G1 | One 16 KiB write could loop partial sends under one timeout. A host with several addresses gave each a full timeout: 1.2 s on a 0.4 s budget with three unreachable addresses. | Every `send()` is clamped. Addresses are tried under the time that is left. |
+| Review SEC-3, CF-6, PM-4; peer D3 | The server's `finish_reason` was logged verbatim. | Only allowlisted words can reach the success log. |
+| Peer B2 | After a payload was discarded as unusable, the model was still told "FACTS … now up to date". | It is told the data could not be used. |
+| Review PM-12 | A SOCKS proxy in the environment failed at startup with a raw `ImportError`. | It is refused as `LlmConfigurationError`. |
+| Review CF-3, BH-2 to BH-9, PM-7, PM-8, PM-13 | Report and docstring inaccuracies: the protected-systems scope, the traceback-frame limitation, the retry wording, stale claims elsewhere in the report, the commit note. | Corrected in place. |
 
-The 428 include 87 regression tests added across two rounds of adversarial
-review. The fixes were mutation-checked, with the results in SD.14.
+Considered and **not** changed:
+- B1: `LlmRequest` does not itself validate message order. A pre-existing test
+  builds an unordered request, and the orchestrator is the only producer of
+  tool messages.
+- E2: pydantic validates `Iterable[float]` fields lazily, so the post-validation
+  check cannot see those values. This is latent; no tool has such a field.
+- C2: the identity test helper checks only the identity argument, by design.
+  `reason_code` free text is listed under H.10.
 
-No existing test was modified, skipped or deleted, and nothing in the new tests
-is skipped. Coverage of the required cases:
+## H.2b Third round: the final gate, and the Jev removal
 
-| Required | Where |
+After Jev was removed in full (see "Stage 3A — Decision Layer Removed",
+above) and the round-2 fixes above were pinned, a fresh four-lens review ran
+against that final state - the gate this report's H.6 reports on. Three
+lenses returned GREEN outright. The fourth, security-logging, found one real,
+independently-reproduced defect and rated it high severity, blocking green;
+its two skeptics agreed the mechanism was real and disagreed only on whether
+an existing, older disclosure already covered it.
+
+| Finding | What it was | Fix |
+| --- | --- | --- |
+| SEC-1 | The H.2a write-authorisation fix (`_already_written`) closed *sequential* reuse - a second round of the same turn, or a later turn with no new signal - but the check, the backend write and the audit-log append are three separate steps, none of them serialised across the whole sequence. Two overlapping `process_turn` calls for the *same session*, both standing on one customer authorisation (a client-layer retry after a slow response is the obvious real-world trigger), could each read "not yet written" before either result landed, and both proceed: one customer statement recorded as two banking writes. Reproduced directly against the production classes (`ConversationOrchestrator`, `SessionStore`, `ToolRegistry`, no mocks), through the real HTTP entry point's own concurrency model - `post_turn` is a sync `def`, so FastAPI dispatches concurrent requests for one session onto its thread pool against the one singleton runtime. | `SessionStore.write_lock(session_id)` - a lazily-created, per-session lock - is held across a write tool's whole check-execute-record sequence in `_run_tools`. Two write attempts for the same session now serialise: the loser sees the ordinary "already recorded" refusal instead of a second, unauthorised write. Read tools take no lock and are unaffected. Verified: the exact pre-fix reproduction no longer succeeds; a lock-disabled control (the same harness with `write_lock` monkeypatched to a no-op) still reproduces the double write, confirming the fix and not the harness is what closes it; holds under 5-way contention and under a cross-tool race (a promise and a dispute for one session at once); no deadlock is possible (`SessionStore` never holds its own lock while waiting on a per-session lock, and no tool implementation calls back into `SessionStore`). A parametrized regression test covers all three write tools and is mutation-checked (fails with the fix reverted, passes with it in place). |
+| Found while verifying SEC-1's fix | `SessionStore.delete()` never removed a session's entry from the new per-session lock table, so a deployment that started calling `delete()` (nothing does today) would leak one lock per deleted session for the life of the process. | `delete()` now pops the write-lock entry too, with its own regression test. |
+
+This was reviewed twice: once by the security-logging lens that found it (two
+skeptics, one for and one against blocking green on the letter of an older,
+more general disclosure), and once more, after the fix, by an independent
+adversarial pass asked specifically to break the fix - re-derive it from the
+code, reproduce the original race against the fixed code, and look for a new
+problem the fix itself might introduce (deadlock, starvation, incomplete
+coverage of the three write tools, lock-table growth). It could not
+reproduce the original race, found no new problem beyond the delete()
+oversight above (itself then fixed and tested), and returned GREEN for the
+fix as scoped. Neither pass was a full second run of all four lenses; see
+H.6.
+
+Worth recording as a review-method note, since it says something about the
+limits of the other lenses' own methods: the control-flow lens's own review,
+on the *pre-fix* code, explicitly checked for "a write executing twice for
+one authorising signal" by tracing `_bind`/`_already_written`/execute/append
+as one sequential path, and reported no such path. That is a correct reading
+of one thread's execution; the defect exists only in the interleaving of two
+threads' executions of that same sequence, which a sequential trace does not
+model. It took the security-logging lens's real-threading-plus-a-sleep
+reproduction to surface it.
+
+## H.3 Behaviour chosen, and why
+
+- **Truncation (F).** An explicit error, the smallest change consistent with the
+  existing taxonomy. `length` and `content_filter` are refused as incomplete. An
+  absent `finish_reason` is accepted, because not every compatible server sends
+  one. A non-string one is malformed. Any other string is accepted and recorded:
+  TGI reports a normal stop as `eos_token`. The check runs before the content is
+  read, so a cut-off tool call is reported as cut off, not as unreadable.
+- **The echo (B).** It carries the model's own arguments minus `account_ref`,
+  `customer_ref` and `promise_date`. Those were overwritten, so echoing the
+  model's value would tell it its choice was honoured, and echoing the bound
+  value would tell it a reference. Ids are made unique per turn, not just per
+  round, so the audit trail has one key per execution.
+- **The deadline (G).** httpx2 has no public hook for a network backend, and
+  passing a custom transport would silently drop environment proxy settings. So
+  the backend is swapped on each connection pool the client built, through
+  attributes private to httpx2/httpcore2 **2.13.1**. Both are now pinned exactly
+  in `requirements.txt`. If the attributes are not where that version keeps
+  them, the adapter refuses to start (`LlmConfigurationError`) rather than run
+  unbounded. Injected clients are used as given.
+- **Exceptions (D).** No exchange object is chained: an empty same-class
+  cause so that retry classification is unchanged, and `__context__` cleared
+  so nothing raised inside an `except` block travels with the error either.
+- **Identity (C).** Kept exactly as it was: silent overwrite by deterministic
+  application code. No model check was added; no decision provider exists
+  to add one for.
+- **Truncation, second round.** Changed from a denylist to an allowlist.
+  - Only `stop`, `tool_calls`, `function_call`, `eos_token`, `eos`,
+    `stop_sequence` and `end_turn` mean "finished", compared case-insensitively.
+  - An unfamiliar word is treated as not finished, so a server's own word for
+    a cut-off cannot pass. The cost is that a normal reply with a word missing
+    from the list fails loudly until the list is extended.
+  - The check sits in the orchestrator as well as the adapter, so it holds for
+    any `LlmService`.
+- **Retry share.** A retry must have a quarter of the budget left. The number
+  is provisional: no real model's latency is known. The rule it enforces is
+  what matters: a retry that cannot succeed must not be sent, because its only
+  effect is to replace the real failure with a timeout.
+- **Write authorisation.** One write per authorising statement, read from the
+  event log. The peer audit suggested allowing a write only in the turn whose
+  signal raised the flag. That was not adopted: it would refuse a legitimate
+  first write one turn later, for example when the model confirms the date
+  before recording it.
+- **Write authorisation, made atomic (H.2b, SEC-1).** The check above is a
+  read of the event log; a second write cannot also be executing and
+  recorded, or the check does not mean anything. A per-session lock, not a
+  global one, so ordinary traffic on other sessions is unaffected, and one
+  held across the whole check-execute-record sequence rather than only the
+  read, because the read alone was never the exposed part.
+- **Only `200` is a completion.** A redirect is not followed (httpx2's default)
+  and is not a completion either. Error bodies are never read, which removes
+  them from memory, from frames and from the timing path.
+- **Unparsed markup is refused, not repaired.** The adapter does not try to
+  extract the tool call from the text. That would be inventing a call the
+  server did not report.
+
+## H.4 Tests
+
+Counts are from `.venv/bin/python -m pytest -q`; no test is skipped or xfailed.
+"Before this work" is the last commit, `d7a626a` — the point this whole
+hardening-and-removal pass started from. Between then and now, the 428
+decision-layer tests were deleted along with the layer, three files that
+contained a smaller Jev-only section had that section removed, three
+Stage 3A files were rewritten for the second round of fixes (H.2a) or the
+internals they pin, two new files and one absence-proving file were added,
+and - for the concurrency fix in H.2b, found by the final gate rather than
+planned in advance - one parametrized test was added to an existing Stage 3A
+file and one test to a pre-existing, previously-untouched file
+(`tests/test_conversation_state.py`, +1 test; see H.8 for why this is no
+longer zero-diff against `e594f05`).
+
+| | Count |
 | --- | --- |
-| Disabled → zero calls, behaviour unchanged | `test_disabled_barge_in_is_exactly_the_heuristic` (32 signal × speaking cases), `test_disabled_intent_and_escalation_take_the_existing_path`, `test_a_default_process_never_loads_the_sdk_or_the_adapter` |
-| Success parsed | `test_a_valid_answer_is_parsed_into_the_provider_neutral_type`, `test_every_registered_decision_round_trips` |
-| Timeout → fallback | `test_an_sdk_timeout_becomes_a_decision_timeout`, `test_the_whole_call_is_bounded_by_the_deadline`, `test_the_coordinator_enforces_the_deadline_on_a_provider_that_does_not`, `test_the_provider_wait_is_charged_to_the_acknowledgement_window`, `test_an_answer_that_arrives_after_the_deadline_is_discarded` |
-| Transport failure → fallback | `test_a_transport_failure_is_a_connection_failure_not_uncertainty`, `test_every_failure_falls_back_to_the_heuristic` |
-| Malformed → reject → fallback | `test_an_answer_the_sdk_accepts_but_is_unusable_is_malformed` (8), `test_a_nan_confidence_is_malformed`, `test_a_label_the_registry_does_not_offer_is_malformed_whatever_the_provider` |
-| Low confidence → UNCERTAIN → fallback | `test_below_the_threshold_is_uncertain_and_falls_back`, `test_each_decision_has_its_own_threshold` |
-| Backchannel ("hmm", "yeah", "uh-huh", "right") vs context | `test_a_semantic_backchannel_keeps_the_agent_speaking`, `test_a_backchannel_word_is_not_assumed_to_be_a_backchannel`, `test_an_acknowledgement_followed_by_an_objection_stops_the_agent` |
-| Interruption ("stop", "wait", "no", "one second") | `test_an_explicit_request_to_stop_is_never_left_to_the_provider`, `test_common_ways_to_say_stop_are_hard_signals` (20 variants), `test_a_semantic_interruption_stops_the_agent` |
-| Intent | `test_an_already_made_payment_is_classified_and_left_to_the_application` and the tier tests |
-| Escalation | the five escalation tests in `test_decision_layer.py` |
-| Identity A ≠ B | `test_no_decision_can_make_a_tool_read_another_customers_account` (20) |
+| Before this work (`d7a626a`) | 1466 (1458 passed, 8 xfailed) |
+| After | **1432** |
+| Passed | 1432 |
+| Failed | 0 |
+| Skipped | 0 |
+| Xfailed | 0 |
+| Decision-layer tests removed (5 files) | 428 |
+| Jev-only cases removed from a mixed file | 84 (77 from C, 2 from D, 5 from Env) |
 
-**Passing tests do not make this safe to rely on.** They prove the plumbing,
-routing, fallbacks and boundaries. They cannot show that Jev gives good answers
-on real Hindi, Marathi or Hinglish calls.
+| Stage 3A file | Tests | Notes |
+| --- | --- | --- |
+| `test_stage3a_retry_deadline.py` (A) | 114 | Rewritten for the quarter-of-budget retry floor (H.2a); grew from the original 84. Mutation-checked by its author; not independently re-verified in this pass beyond the full-suite regression. |
+| `test_stage3a_tool_protocol.py` (B) | 59 | Unchanged since the original round: 24 fail on the pre-fix code, 20/20 targeted mutations killed. |
+| `test_stage3a_identity_backend.py` (C) | 78 | Was 155; the 77-test "decision layer" section (§8) was removed with Jev. The remaining 78 are unchanged: 0 fail on the pre-fix code by design (C was a test gap, not a code defect), 6/6 binding mutations killed. |
+| `test_stage3a_exception_redaction.py` (D) | 134 | Was 136; a 2-test "Jev adapter, for comparison" section was removed. The remaining 134 are unchanged: ~70 fail on the pre-fix code, 12/12 mutations killed. |
+| `test_stage3a_nonfinite_arguments.py` (E) | 176 | Unchanged: 136 fail on the pre-fix code, 10/10 mutations killed. |
+| `test_stage3a_finish_reason.py` (F) | 54 | Unchanged: 40 fail on the pre-fix code, 13/14 mutations killed (the survivor is a no-op change). |
+| `test_stage3a_wallclock_deadline.py` (G) | 117 | Rewritten for host resolution, the direct-socket write path and the streaming status-before-body read (H.2a): 19 of its prior 100 failed against the changed internals before the rewrite; 8 targeted mutations of the rewrite, all killed. |
+| `test_stage3a_env_example.py` (Env) | 53 | Was 58; the 5 `jev_*` blank-numeric cases were removed with the settings they tested. The remaining 53 are unchanged: ~23 fail on the pre-fix code, 10/10 mutations killed. |
+| `test_stage3a_review_adapter.py` (new, H.2a) | 122 | The finish_reason allowlist, tool-name/id/markup/duplicate-key checks, the outermost exception guard, `_encode`, `_require_usable_url`, `hide_input_in_errors` and the timeout/temperature/output-cap constructor checks. 12 targeted mutations, all killed (1 to 27 additional failures each). |
+| `test_stage3a_review_orchestrator.py` (new, H.2a + H.2b) | 30 | Write-authorisation consumption, the orchestrator's own truncation backstop, the "could not be used" tool message, and unregistered/invented/unusable identifiers never reaching a log line. 15/27 fail against the pre-fix (`d7a626a`) code, confirming the file is not vacuous; 8 targeted mutations, all killed. 3 more tests (one per write tool) were added in H.2b for the concurrent-write race; all 3 fail with the fix reverted and pass with it in place. |
+| `test_stage3a_jev_removed.py` (new) | 21 | Proves the removal: no removed module importable, no leftover Settings field, the app starts with the SDK made unimportable, a stale `.env` naming Jev is ignored, no source or config file mentions it. 19/21 fail against a snapshot with Jev still present. |
+| `test_conversation_state.py` (pre-existing; +1, H.2b) | 23 | One test added: deleting a session also forgets its per-session write lock. Fails with the H.2b fix's cleanup reverted, passes with it in place. The other 22 are the original, unchanged file. |
 
-## SD.13 Known limitations
+The tests that pass on the pre-fix code are deliberate controls. They pin
+behaviour the fix must keep, so that a fix which refused too much would fail.
+Examples: finite numbers and the *string* `"NaN"` preserved exactly, an absent
+`finish_reason` accepted, and a fast server still answering.
 
-1. **Jev has never answered.** Accuracy and latency are unmeasured (SD.9).
-2. **Not in the turn path** (SD.2). No production caller exists yet; the audio
-   loop that would call the coordinator is not built.
-3. **Thresholds are provisional**, and the eval set is synthetic (SD.7).
-4. **Language.** TypeSafe says English is Jev's primary language, and others
-   are "handled but not equally well". Three of the four languages here are
-   non-English, and code-mixed Hinglish is untested.
-5. **Adversarial input.** Jev documents that state text can steer it. That is
-   bounded here by design, since nothing it decides is safety-relevant. A
-   customer could still, for example, talk the barge-in decision into keeping
-   the agent speaking. The bound: speech heard plus the provider wait stays
-   within 800 ms, plus however long the caller takes to deliver the next
-   partial, whose duration then trips the hard signal. That assumes the caller
-   follows the contract in SD.3. A caller that stops feeding partials while a
-   call is pending loses the bound.
-6. **`HALT_PHRASES` is provisional**, like the backchannel vocabulary it sits
-   beside. It is derived from the languages, not from calls.
-7. **Escalation `yes` bundles several judgments** into one question: explicit
-   request, distress, repeated misunderstanding. Jev's docs advise one judgment
-   per question. Decomposing it into separate questions is a follow-up that
-   needs evaluation data first.
-8. **One question per call.** Jev evaluates many questions in one request more
-   cheaply than separate calls. Intent and escalation for the same utterance
-   are two calls today; batching them would need a `decide_many` contract.
-9. **Deadline granularity.** The adapter and the coordinator both enforce
-   `JEV_TIMEOUT_SECONDS`, and barge-in also enforces its window budget. The
-   SDK's own timeout is per HTTP phase. A cancelled request is abandoned, not
-   drained. A provider that *blocks* the event loop defeats every async
-   deadline. Its late answer is discarded, but the stall has already happened.
-   Loop-lag tests pin both the coordinator and the real Jev adapter (through
-   the SDK) at under 25 ms of lag, against about 6 ms normally. A stall caused
-   by *other* work on the loop also discards a pending answer as a timeout.
-   That is safe, but the record then points at the provider, so read it
-   together with `deadline_ms`.
-10. **Model aliases are accepted.** `jev-latest` and gateway IDs such as
-    `typesafe-ai/jev` move under you. Pin a versioned ID once thresholds are
-    tuned; each record logs the answering model.
-11. **No circuit breaker.** A degraded provider costs up to the deadline on
-    every eligible decision until someone disables it.
-12. **One event loop per adapter instance.** Pooled connections belong to the
-    loop that opened them. Use and close a `JevDecisionService` on one loop;
-    uvicorn's single loop and the lifespan do. A per-call `asyncio.run` breaks
-    the instance, not just its pooling.
-13. **Identifier masking is best-effort** (SD.8). It misses names, numbers
-    spoken as words, oddly separated digits and short identifiers. It
-    over-masks some dates and large amounts.
-14. **Accepted without argmax check.** The adapter does not verify that the
-    chosen label is the most probable one in the answer's own probabilities.
-    The review raised this; its verifier rejected it (SD.14).
-15. **Pre-existing, found incidentally, not changed:** `.env.example` cannot be
-    loaded verbatim as `.env`. Its blank `MODEL_CONNECT_TIMEOUT_SECONDS=`,
-    `MODEL_MAX_OUTPUT_TOKENS=`, `MODEL_TEMPERATURE=` and
-    `MAX_RECOVERY_CALLS_PER_DAY=` fail numeric validation. The new decision
-    keys are all loadable.
+Timing tests use a fake clock swapped into the adapter module. The real-socket
+probes in G each finish in well under a second and keep at least a 3× margin.
+The whole suite runs in about 15 s.
 
-## SD.14 Adversarial review, and what it changed
+## H.5 Security and data boundary — the invariants, as they now stand
 
-After the first version passed (814/814), five independent reviewers each
-examined the change through a different lens:
+1. The backend is the source of truth; nothing is fabricated when it is
+   unavailable.
+2. The LLM is not an authority: it drafts and requests tools, nothing more.
+3. The policy engine is authoritative for deterministic policy; it runs before
+   the model, after every tool round, and before speech.
+4. Customer identity comes from session state. It is proven at the backend
+   boundary: given session A and a model naming B, the backend receives only
+   A, for every read and every write (C).
+5. `ToolRegistry` is the only place a tool runs, and every dispatched call is
+   counted against a backend invocation (B).
+6. No customer or account data in logs: unchanged, re-checked by the new tests.
+7. No API key in logs, reprs or **surfaced exceptions**, including their whole
+   cause/context chain and their rendered tracebacks (D). Not covered: the
+   *frames* of a traceback, which hold the running service. An error reporter
+   configured to capture local variables would see them and must not be so
+   configured.
+8. A write is authorised at most once per authorising customer statement, and
+   this now holds under concurrent requests for one session, not only
+   sequential ones (H.2b). A per-session lock, not a session-wide read lock:
+   ordinary reads for other tools, and turns on other sessions, are
+   unaffected.
 
-- safety and authority;
-- SDK-contract fidelity;
-- async, fallback and configuration;
-- privacy and logging;
-- documentation honesty and test vacuity.
+No regulatory compliance and no security certification is claimed.
 
-Each finding then went to a skeptic prompted to *refute* it, with reproductions
-run against the real code. That produced 23 findings. 12 were confirmed. None
-was confirmed critical or high: 11 were rated low, and one medium, the vacuous
-test. The other 11 were rejected.
+## H.6 Adversarial gate
 
-**Confirmed, and fixed**
+Four independent, read-only lenses reviewed the code as it stood after Jev's
+removal and the H.2a fixes: **control-flow**, **security-logging**,
+**protocol-mapping**, **boundary-honesty**. Each ran its own reproductions
+against the real code - real loopback sockets, fake clocks, the actual
+`ConversationOrchestrator`/`SessionStore`/`ToolRegistry`, not only the
+existing test suite - and any medium-or-above finding went to two further,
+independent skeptics prompted to refute it.
 
-| # | Finding | Fix | Pinned by |
-| --- | --- | --- | --- |
-| 1 | The barge-in provider wait was *added* to the acknowledgement window. The agent could talk over up to 800 ms plus the full deadline, including a "stop" said during the wait. | The wait is charged to the window, `min(deadline, 800 ms − speech so far)`; nothing is attempted with under 50 ms left; the caller contract is documented. | `test_the_provider_wait_is_charged_to_the_acknowledgement_window`, `test_no_provider_call_when_the_window_is_all_but_spent` |
-| 2 | `HALT_PHRASES` missed "ruk jao", "रुक जाओ", "थांब", "एक सेकंड", "एक मिनिट" and "ठहरो"; zero-width joiners broke matching. | Stems and both scripts added; NFC normalisation; format characters stripped; phrases compared in the same normal form. | `test_common_ways_to_say_stop_are_hard_signals`, which checks a variant list kept apart from the list itself |
-| 3 | Retries re-sent after read, write and protocol errors, when the utterance may already have been delivered. The docs said only failed connects were retried. | Code changed to match the docs: `api_connection_error=False` plus a predicate that allows only `httpx2.ConnectError`. | `test_an_error_after_the_request_may_have_been_delivered_is_never_retried`, `test_a_failed_connect_is_the_only_transport_error_retried` |
-| 4 | The SDK's one WARNING line put provider-controlled text, including an echoed utterance, into the application log. | A filter drops every SDK record; unlike a level, it survives `configure_logging`. | `test_provider_text_in_the_sdks_own_warning_never_reaches_the_logs` |
-| 5 | `test_the_coordinator_does_not_block_the_event_loop` could not fail. | It now measures loop lag while a decision is pending. A companion test shows a blocking provider is detected. The side-by-side bound is tightened. | `test_the_loop_lag_measurement_does_detect_a_blocked_loop` |
-| 6 | "No decision module can reach the registry" held only for direct imports; the coordinator was handed the whole `Runtime`. | Built via `from_runtime` with only the service, settings and classifier; `Runtime` is imported only for typing. | `test_the_coordinator_is_handed_nothing_it_could_misuse` |
-| 7 | The report said the eval cases covered every label "in the four languages". | 10 non-English cases added; the wording is corrected; per-language coverage per decision is tested. | `test_every_decision_has_cases_in_every_language_in_scope` |
+| Lens | Verdict | What it found |
+| --- | --- | --- |
+| Control-flow | GREEN | Traced the whole retry/deadline/tool-loop/write-authorisation control flow and reproduced the budget, ordering and consumption claims directly. Two info-level, non-blocking observations: one wasted model round-trip exactly at the tool-call budget boundary, and no practical floor on `MODEL_TIMEOUT_SECONDS` below ">0" (a misconfigured few-millisecond timeout fails closed via the existing "budget too small for any attempt" path, but only at the first customer turn, not at startup). Did **not** find the concurrency defect below - see the note in H.2b on why a sequential trace could not. |
+| Security-logging | **YELLOW → fixed** | Found and, via two independent skeptics, confirmed **SEC-1**: the write-authorisation check was not atomic against concurrent requests for one session (H.2b). Rated high severity, blocking green, by one skeptic; the other judged the same reproduced mechanism as already covered by an existing, more general Stage 2 disclosure ("two concurrent turns on one session would interleave") and rated it a non-blocking, honestly-disclosed residual. Fixed regardless (H.2b), because the specific guarantee this stage claims - a write is authorised once - did not hold under concurrency, whichever reading of the disclosure is preferred. Also confirmed, and left as a documented residual: a model-supplied tool-call id that happens to be PII-shaped but fits the "short plain token" rule is still logged verbatim as a correlation id (already stated in H.9). |
+| Protocol-mapping | GREEN | Reproduced the wire contract, every `finish_reason`/exception/retry mapping, the repeated-key rejection on both wire forms, the private-attribute deadline install (including under HTTP(S)/ALL_PROXY), and the `.env.example`/`Settings` bijection with the Jev fields gone from both sides. One low, non-blocking finding: this report described `LlmUpstreamError` as covering "any status ≥ 400"; the code is actually stricter and routes *any* non-200 status there (1xx, other 2xx, 3xx included) - corrected in S3A.9. |
+| Boundary-honesty | GREEN | Reran the full suite three times (1428/0/0 at the time it ran, before H.2b's 4 additional tests) and independently rebuilt four of H.4's "fails on the pre-fix code" claims from the named commits, matching exactly. Confirmed the Jev removal is total by every method available (grep, import, `pip show`, diff). Two info-level findings, both about report structure rather than content: a VALIDATED bullet that was itself marked PENDING (this section, before it was filled in - fixed now), and a pre-existing, unrelated `BrokenPipeError` traceback that prints to stderr during the suite but does not affect the pass count. |
 
-The seven rows cover all 12 confirmed findings, because several were reported
-more than once:
+**SEC-1 was fixed (H.2b) and then independently re-verified**, by an
+adversarial pass asked specifically to break the fix rather than confirm it:
+re-derive the mechanism from the code, reproduce the original race against
+the fixed code, and look for a new problem (deadlock, starvation, a write
+tool the lock does not cover, unbounded lock-table growth). It could not
+reproduce the race, found and this report's author then fixed one dormant,
+currently-unreachable gap (`SessionStore.delete()`, which nothing calls
+today, was not cleaning up its per-session lock entry), and returned GREEN
+for the fix as scoped. This second pass was not a full rerun of all four
+lenses - only control-flow and security-logging's territory was touched by
+the fix, and the fix's own footprint (one new lock, one `with` block, two
+test files) is small enough that a full second review of protocol-mapping
+and boundary-honesty's much larger territory would have re-covered ground
+neither the fix nor anything since has touched.
 
-- row 3 three times: two reports of the behaviour and one of the wording;
-- row 4 three times;
-- row 5 twice.
+**GATE RESULT: three lenses GREEN outright; the fourth found one real,
+confirmed defect, which was fixed and the fix independently verified.** No
+lens's finding, after the fix, falsifies a Final Green Gate checklist item.
+See VERDICT in this report's closing summary for how this is being called.
 
-The "800 ms" bound in SD.13 was part of row 1's finding.
+## H.7 Implemented, validated, not validated, unknown
 
-**Rejected by the verifiers, but hardened anyway because it was cheap**
+**IMPLEMENTED**
+- the Jev decision layer removed, and not replaced by any other decision
+  model or AI classifier (see "Stage 3A — Decision Layer Removed", above)
+- retry waits bounded by the shared deadline (A)
+- a protocol-correct tool loop (B)
+- the identity boundary, now proven at the backend (C)
+- exception redaction (D)
+- non-finite argument rejection (E)
+- explicit truncation handling (F)
+- the wall-clock deadline at the socket (G)
+- write authorisation, atomic under concurrent requests for one session, not
+  only sequential ones (H.2b)
+- a loadable `.env.example`
 
-- Fusion now acts only on `DECIDED` results. `DecisionResult` now enforces
-  "label if and only if decided", so a contradictory result cannot be built.
-- A provider that *returns* garbage now falls back instead of raising. The
-  first round covered None and a dict. The second round (below) found an
-  unvalidated `DecisionAnswer` still escaping, and closed that too.
-- An answer measured after its deadline is discarded.
-- The reported model name must fully match an identifier containing a letter.
-- Only SDK-related missing modules are reported as "install typesafe-sdk"; any
-  other missing module re-raises with its traceback.
-- Identifier-shaped spans in free text are masked before egress.
+**VALIDATED** — offline only, by the means stated
+- 1432 unit and integration tests, all passing, 0 failed, 0 skipped (H.4)
+- every Stage 3A test file fails on the code it targets before its fix, or
+  (for C, a test-only finding) is confirmed non-vacuous some other way (H.4)
+- mutation checks on every fix, including the two found by the final gate
+  (H.2b, H.4)
+- real loopback sockets for the deadline, refused connections and timeouts
+- a strict mock of the chat-completions message contract
+- the four-lens adversarial review (H.6): three lenses GREEN outright; the
+  fourth's one confirmed finding (SEC-1) was fixed and the fix independently
+  re-verified by a dedicated adversarial pass, not a full second run of all
+  four lenses
 
-**Rejected and left as is**
+**NOT VALIDATED**
+- any real model's behaviour (no model has ever answered this code)
+- end-to-end voice latency
+- concurrent real GPU inference
+- behaviour against a real vLLM tool-call parser or chat template (for example
+  its id format)
+- the deadline against real DNS, real TLS and real proxies
+- the write-authorisation fix (H.2b) under real concurrent telephony traffic,
+  as opposed to an in-process thread-based reproduction of the same race
 
-- **No argmax check on answers.** The verifier showed that confidence is
-  derived from the distribution's shape, not `probabilities[choice]`, so the
-  proposed check would reject legitimate answers. Listed in SD.13.
-- **A closed client raises `RuntimeError`, not a `DecisionError`.** The
-  coordinator already records it as `decision_failed`. It only happens after
-  shutdown.
-- **The eval percentiles exclude timeouts.** The timeout count is reported
-  alongside, and the deadline can be raised for measurement. A docstring now
-  says so.
-- **Cross-event-loop reuse fails.** No code path does it. It is documented in
-  the adapter and in SD.13.
-- **The vendor latency figure had no source.** The source was found and is now
-  cited in SD.9.
+**UNKNOWN**
+- Qwen performance
+- 100-call concurrency performance
+- whether vLLM or the chosen model emits `finish_reason` and tool-call ids the
+  way the OpenAI contract describes
 
-**Second round.** A smaller pass, with two reviewers and one skeptic, checked
-the fixes and this report. It confirmed 12 more findings, 8 distinct once
-duplicates are merged. One was medium: a `DecisionAnswer` built without
-validation (`model_construct`) and holding a wrong-typed or missing field
-still raised out of the coordinator. None was a safety or authority hole. All
-were fixed:
+## H.8 Protected systems
 
-- answers are strictly re-validated behind a catch-all, and `confidence=True`,
-  which lax validation turns into a decided 1.0, is refused;
-- the date exemption requires a real calendar date, so "98 76 2019" is masked;
-- masking separators were widened, and the masking claims restated to match
-  the code exactly (SD.8);
-- the stated cause of late-answer discards was corrected: any loop stall causes
-  one, not only a blocking provider. The record now carries `deadline_ms`;
-- the eval `--mock` run now keys cases by the masked utterance;
-- the retry rationale was corrected: retried statuses do re-send the
-  customer's words;
-- this section's accounting was corrected;
-- a loop-lag test now runs through the real adapter. The earlier one allowed a
-  30 ms block.
+`git diff e594f05` (the commit before the decision layer was ever added) now
+shows **zero** changed lines in:
+- `app/core/policy.py`, `checks.py` and `rules.py` (the policy engine)
+- `app/models/`
+- `app/tools/banking.py` (the banking tool contracts)
+- `app/services/stt.py`, `tts.py`, `turn.py` and `validation.py`
+- `app/orchestrator/prompt.py` and `app/api/`
+- `data/`, `regulatory/` and `regulatory_corpus/` — including
+  `data/eval/decision_cases.json`, the decision layer's synthetic evaluation
+  set, which no longer exists
+- `app/runtime.py`, `app/main.py`, `app/observability.py` and
+  `app/orchestrator/__init__.py` — each byte-identical to `e594f05`, because
+  every line the decision layer added to them has been removed
 
-**Mutation check, final state.** Each code fix from both rounds was reverted in
-a scratch copy of the repository, one at a time, and its regression test was
-run. 24 mutations were tried and 22 were killed. These include the two ways of
-reintroducing a blocking call that the original vacuous test let through, and a
-30 ms block in the real adapter.
+The decision layer itself is gone in full: `app/services/decision.py`,
+`decision_jev.py` and `decisions/`, `app/orchestrator/decisions.py`,
+`app/evaluation/decisions.py`, `scripts/eval_decisions.py`, the settings block
+it added to `app/config.py` and `.env.example`, the `typesafe-sdk`/`tenacity`
+dependency, and the five `tests/test_decision_*.py` files. See "Stage 3A —
+Decision Layer Removed", above.
 
-The two survivors are each a *redundant* defence layer in the coordinator's
-answer check: the `isinstance` guard and the catch-all. Removing either alone
-changes nothing, because another layer covers it. Removing each together with
-the layer that masks it (isinstance with the catch-all, strict re-validation
-with the catch-all) is killed. Two changes are pinned but were not
-mutation-checked: the eval-case additions, pinned by a coverage test, and the
-masking regex's anchoring, a performance change pinned by a generous timing
-bound.
+Production code changed from `e594f05`, in total, only in:
+- `app/services/llm.py` and `llm_openai.py` (the model boundary)
+- `app/orchestrator/pipeline.py` (the tool loop, write authorisation and the
+  finish-reason check) and `result.py` (one error category)
+- `app/tools/base.py` (the registry's argument checks and log fields)
+- `app/core/session.py` (H.2b: `SessionStore.write_lock()`, and `delete()`
+  now clears it too) - the one file in this "protected" list that is no
+  longer zero-diff, and the only place H.2b's fix touches outside
+  `pipeline.py`. `apply_event`, the reducer's actual state-transition logic,
+  is untouched; what changed is bookkeeping for one lock per session.
+- `app/config.py` (blank means unset for four optional fields, timeout
+  ceilings, hidden inputs in validation errors)
+- `.env.example` and `requirements.txt`
 
-## SD.15 Stage 3B
+No GCP, Qwen, vLLM, telephony, STT or TTS work was done.
 
-`REPORT.md` does not define Stage 3B. This section takes it to be the step the
-Stage 3A banner defers: connecting a real model, meaning the GCP/vLLM Gemma
-deployment. **It remains exactly as blocked or deferred as before.** This change
-neither depends on it nor unblocks it:
+## H.9 Remaining limitations
 
-- no model infrastructure was touched;
-- `LlmService` and its adapter are unchanged;
-- the decision layer runs with or without a model.
+The deadline:
+- **DNS resolution is not bounded.** No socket timeout covers it. A connection
+  that opens late because of a slow lookup is closed and reported as a connect
+  timeout, but the time is already spent. An IP-literal `MODEL_BASE_URL`
+  avoids the lookup entirely.
+- **TLS through an HTTPS proxy.** When TLS runs inside another TLS connection,
+  one read loops `recv` under a single timeout, and one 16 KiB write slice
+  loops under a single timeout.
+- **An injected HTTP client** is bounded per phase only. Production always
+  builds its own client.
+- **Private httpx2/httpcore2 attributes.** The mechanism depends on them. It is
+  pinned, refuses to start if they move, and is covered by tests.
+- **Per-address connect.** It passes the bare address to the connect call, so an
+  IPv6 link-local scope id is dropped.
 
-**No claim is made that this is production ready, that Jev improves latency, or
-that Jev is more accurate than the existing heuristic or upstream NLU.** What
-this stage delivers is an isolated, disabled-by-default, tested boundary.
-Through it, a bounded semantic provider can be switched on by configuration,
-measured with the included harness, and bounded by a deterministic fallback
-in every failure mode the tests exercise.
+Retries:
+- **The quarter-of-the-budget floor is provisional.** It is chosen, not
+  measured.
+- **A retried status re-sends the customer's words.** Retries are off by
+  default.
+
+The model's reply:
+- **An absent `finish_reason` is accepted.** A server that sends none gives no
+  way to detect a cut-off reply.
+- **The tool-call markup check is a list of common template tokens plus
+  "entirely JSON".** A server-specific format outside that list would still be
+  spoken.
+- **A `finish_reason` that contradicts the payload is accepted in one
+  direction:** a tool call reported with `stop` is used. The other direction,
+  `tool_calls` with no call, is refused.
+
+Logs and identifiers:
+- A model-chosen tool name or call id that *does* match the plain-token rules
+  (≤ 64 or ≤ 128 characters of letters, digits and `_-.:`) is still recorded as
+  sent.
+- Traceback *frames* hold the service, the serialised request and — for body
+  errors — the parsed body (S3A.10, H.5 item 8).
+- `MODEL_BASE_URL` userinfo, if used, is visible in `Settings`' repr. Nothing
+  logs `Settings`.
+- A non-ASCII (IDN) host must be given in its ASCII (punycode) form.
+
+Boundaries:
+- **The backend is trusted to return the record it was asked for.** A returned
+  record's `account_ref` is not cross-checked (only `get_account_status`
+  returns one).
+- **Identity binding matches parameter names** (`account_ref`, `customer_ref`).
+  A future tool naming its identity argument differently would not be bound.
+  Late-registered tools are refused; tools present at construction are trusted.
+  No current tool is affected.
+- **`reason_code` is free model text.** It is written to the case by
+  `create_dispute` and `escalate_case`.
+- **pydantic's lax mode accepts JSON `true` as `amount_minor=1`.** This is a
+  banking argument model, a protected contract, and is not changed here.
+- **Write authorisation is one write per authorising statement.** A customer
+  who promises again, in a way upstream NLU does not flag as a new promise,
+  cannot have the second promise recorded. This now holds under concurrent
+  requests for the same session as well as sequential ones (H.2b) - not
+  validated under real concurrent telephony traffic, only an in-process
+  thread-based reproduction of the same race (H.7).
+- **`LlmRequest` does not validate message order itself** (H.2a, B1).
+- **Lazily validated `Iterable` fields are not seen by the registry's
+  post-validation check** (H.2a, E2).
+- **Response size cap.** Bodies are capped at 8 MiB after decompression. A
+  larger legitimate reply would be refused as malformed.
+
+Test environment:
+- Tests read `.env` from the working directory at import, and exported
+  `MODEL_*` variables reach the tests that build settings with
+  `_env_file=None`.
+
+Everything in S3A.13 (other than items 5 and 6), and the Stage 1 and Stage 2
+limitations, still stands. In particular: no real model, no telephony, STT,
+TTS, banking backend, authentication or persistence.
+
+## H.10 Stage 3B
+
+**READY**, on the basis of H.6: three lenses GREEN outright, the fourth's one
+confirmed finding fixed and the fix independently re-verified. Stage 3B
+(real STT/TTS/telephony/a live model) has not been started, and nothing in
+it is implied by this readiness - it says only that Stage 3A's own findings
+are closed, not that the system is production-ready, compliant, fast or
+accurate (H.7, and the disclaimers at the top of this report).
+
+## VERDICT
+
+**GREEN**, with the full history kept rather than smoothed over: the final
+four-lens gate (H.6) found one real, independently-confirmed defect (SEC-1,
+a concurrent write-authorisation race, not present in either the original
+Stage 3A findings A-G or the second-round H.2a fixes). It was fixed (a
+per-session lock spanning the whole check-execute-record sequence for a
+banking write) and the fix was independently re-verified by a dedicated
+adversarial pass that tried to break it and could not, plus a mutation-tested
+regression test for every write tool. Three of the four lenses returned
+GREEN without any confirmed defect. No claim here extends past what H.7
+lists as VALIDATED, and everything in H.9's remaining-limitations list still
+stands except where H.2b narrows it.

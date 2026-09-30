@@ -174,6 +174,27 @@ def test_store_enforces_its_limit() -> None:
         store.create(now=NOW)
 
 
+def test_deleting_a_session_also_forgets_its_write_lock() -> None:
+    """Nothing calls delete() today, but its own bookkeeping must still be complete.
+
+    write_lock() creates one lock per session and nothing else ever removes
+    it; delete() is the only place a session's resources are meant to be
+    reclaimed, so it must reclaim this one too, or a deployment that starts
+    calling delete() would leak a lock per deleted session for the process's
+    lifetime.
+    """
+    store = SessionStore(max_sessions=10)
+    session = store.create(now=NOW)
+    lock = store.write_lock(session.session_id)  # noqa: F841 - creates the entry
+    assert session.session_id in store._write_locks
+
+    assert store.delete(session.session_id) is True
+    assert store.get(session.session_id) is None
+    assert session.session_id not in store._write_locks
+
+    assert store.delete("nope") is False
+
+
 def test_appending_an_event_advances_state_and_the_log() -> None:
     store = SessionStore(max_sessions=10)
     session = store.create(now=NOW)

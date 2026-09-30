@@ -21,12 +21,4 @@ uvicorn[standard]
 httpx2==2.13.1
 httpcore2==2.13.1
 
-# Optional decision layer, since Stage 3A. TypeSafe's official Python SDK for
-# Jev, pinned exactly: the adapter (app/services/decision_jev.py) was written and
-# tested against 0.7.1's AsyncTypeSafeClient, exception hierarchy and answer
-# types. It brings in tenacity (retries); its other requirements (httpx2,
-# pydantic) are already here. Installed always, imported only when
-# DECISION_PROVIDER=jev and JEV_ENABLED=true - a disabled process never loads it.
-typesafe-sdk==0.7.1
-
 pytest

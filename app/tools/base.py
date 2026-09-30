@@ -112,6 +112,18 @@ class ToolRegistry:
                 error_type="ValidationError",
             )
 
+        # And again on what validation produced: a float field accepts the
+        # *string* "NaN" or "1e400" - legitimate JSON text - and converts it to
+        # a non-finite float, which the check above could not see.
+        if contains_non_finite_number(args.model_dump()):
+            return self._finish(
+                request,
+                started,
+                ToolStatus.INVALID_REQUEST,
+                error="invalid arguments: a number JSON cannot represent (NaN or Infinity)",
+                error_type="NonFiniteArgument",
+            )
+
         try:
             data = tool.run(args)
         except ToolNotImplemented as exc:
@@ -144,16 +156,23 @@ class ToolRegistry:
         error_type: str | None = None,
     ) -> ToolResult:
         latency_ms = (time.perf_counter() - started) * 1000.0
+        # Only what the registry itself defined is logged: a registered tool's
+        # name and the argument names its model declares. A name or key the
+        # model invented is model text - it can carry whatever the model read
+        # in the transcript - so it is counted, never written out.
+        tool = self._tools.get(request.tool_name)
+        declared = frozenset(tool.args_model.model_fields) if tool is not None else frozenset()
         log_event(
             _logger,
             "tool_call",
             session_id=request.session_id,
             turn_id=request.turn_id,
             request_id=request.request_id,
-            tool_name=request.tool_name,
+            tool_name=request.tool_name if tool is not None else "<unregistered>",
             tool_latency_ms=round(latency_ms, 3),
             status=status.value,
-            argument_keys=sorted(request.arguments),
+            argument_keys=sorted(key for key in request.arguments if key in declared),
+            undeclared_argument_count=sum(1 for key in request.arguments if key not in declared),
             error_type=error_type,
         )
         return ToolResult(

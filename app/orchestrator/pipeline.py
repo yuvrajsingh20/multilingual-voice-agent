@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from contextlib import nullcontext
 from datetime import date
 from typing import Any, Iterable
 
@@ -57,6 +58,7 @@ from app.models.conversation import ConversationState
 from app.models.customer import AccountContext
 from app.models.enums import (
     EventKind,
+    Intent,
     Language,
     RequiredAction,
     ToolStatus,
@@ -78,7 +80,14 @@ from app.orchestrator.result import (
     TurnStage,
 )
 from app.runtime import Runtime
-from app.services.llm import LlmError, LlmMessage, LlmNotConfigured, LlmToolCall
+from app.services.llm import (
+    LlmError,
+    LlmMessage,
+    LlmNotConfigured,
+    LlmToolCall,
+    incomplete_reason,
+    is_usable_call_id,
+)
 from app.services.stt import TranscriptSegment
 from app.services.validation import DraftResponse, GroundingFacts
 
@@ -155,6 +164,17 @@ _WRITE_TOOL_PRECONDITIONS: dict[str, tuple[str, str]] = {
     "record_payment_promise": ("payment_promise", "the customer has not made a payment promise"),
     "create_dispute": ("dispute", "the customer has not disputed the dues"),
     "escalate_case": ("escalation_required", "no escalation has been requested or required"),
+}
+
+#: The signal that authorises each write. A state flag, once raised, stays
+#: raised, so the flag alone would let one promise be written again and again -
+#: in a later round of the same turn, or on any later turn. Each time the
+#: customer says it authorises one write of that kind: a write is refused if
+#: one already succeeded since the most recent event carrying this intent.
+_WRITE_TOOL_INTENTS: dict[str, Intent] = {
+    "record_payment_promise": Intent.PAYMENT_PROMISE,
+    "create_dispute": Intent.DISPUTE,
+    "escalate_case": Intent.ESCALATION_REQUEST,
 }
 
 
@@ -659,6 +679,17 @@ class ConversationOrchestrator:
             return None
         work.llm_ms += _elapsed(started)
         work.llm_calls += 1
+        # The HTTP adapter refuses a cut-off generation itself; this holds the
+        # same line for any other LlmService, so that no implementation can
+        # hand the pipeline a fragment marked as one and have it spoken.
+        cut_off = incomplete_reason(generation.finish_reason)
+        if cut_off is not None:
+            work.fail(
+                TurnErrorCategory.LLM_INCOMPLETE_RESPONSE,
+                TurnStage.LLM,
+                f"Model call failed: llm_incomplete_response ({cut_off}).",
+            )
+            return None
         return generation
 
     def _run_tools(
@@ -680,130 +711,143 @@ class ConversationOrchestrator:
         for call in calls:
             request_id = call.call_id or uuid.uuid4().hex
 
-            arguments, refusal = self._bind(call, session, account)
-            declared = self._tool_properties.get(call.tool_name, frozenset())
-            if refusal is None and call.tool_name in _WRITE_TOOL_PRECONDITIONS and len(calls) > 1:
-                # A write commits before the round's policy re-evaluation can see
-                # what the round's reads returned. Keeping a write alone means the
-                # decision immediately before it is the freshest one available.
-                refusal = "a write must be the only tool call in its round"
-            # Only keys the tool's own schema declares. The rest were invented by
-            # the model, and a model-authored key name is not something to copy
-            # into an audit record.
-            argument_keys = tuple(
-                sorted(k for k in (arguments if refusal is None else call.arguments) if k in declared)
+            # A write is not authorised until this whole check-execute-record
+            # sequence has completed: two concurrent turns on this session must
+            # not both pass the check before either's write is on record. Reads
+            # need no such lock, so only a write tool call takes it.
+            write_lock = (
+                self._runtime.sessions.write_lock(session.session_id)
+                if call.tool_name in _WRITE_TOOL_PRECONDITIONS
+                else nullcontext()
             )
+            with write_lock:
+                arguments, refusal = self._bind(call, session, account)
+                declared = self._tool_properties.get(call.tool_name, frozenset())
+                if refusal is None and call.tool_name in _WRITE_TOOL_PRECONDITIONS and len(calls) > 1:
+                    # A write commits before the round's policy re-evaluation can see
+                    # what the round's reads returned. Keeping a write alone means the
+                    # decision immediately before it is the freshest one available.
+                    refusal = "a write must be the only tool call in its round"
+                # Only keys the tool's own schema declares. The rest were invented by
+                # the model, and a model-authored key name is not something to copy
+                # into an audit record.
+                argument_keys = tuple(
+                    sorted(k for k in (arguments if refusal is None else call.arguments) if k in declared)
+                )
 
-            if refusal is not None:
-                work.tools.append(
-                    ToolAttempt(
-                        request_id=request_id,
-                        tool_name=call.tool_name,
-                        dispatched=False,
-                        argument_keys=argument_keys,
-                        refusal_reason=refusal,
+                if refusal is not None:
+                    work.tools.append(
+                        ToolAttempt(
+                            request_id=request_id,
+                            tool_name=call.tool_name,
+                            dispatched=False,
+                            argument_keys=argument_keys,
+                            refusal_reason=refusal,
+                        )
                     )
-                )
-                work.fail(
-                    TurnErrorCategory.INVALID_TOOL_REQUEST,
-                    TurnStage.TOOLS,
-                    f"Refused tool request {call.tool_name!r}: {refusal}",
-                )
+                    work.fail(
+                        TurnErrorCategory.INVALID_TOOL_REQUEST,
+                        TurnStage.TOOLS,
+                        f"Refused tool request {call.tool_name!r}: {refusal}",
+                    )
+                    self._record_tool_event(session, work, EventKind.TOOL_CALL, {
+                        "tool_name": call.tool_name,
+                        "request_id": request_id,
+                        "dispatched": False,
+                        "argument_keys": list(argument_keys),
+                    })
+                    failed = True
+                    break
+
+                try:
+                    request = ToolRequest(
+                        request_id=request_id,
+                        session_id=session.session_id,
+                        turn_id=session.state.turn_count,
+                        tool_name=call.tool_name,
+                        arguments=arguments,
+                        requested_by="llm",
+                    )
+                except ValidationError:
+                    work.tools.append(
+                        ToolAttempt(
+                            request_id=request_id,
+                            tool_name=call.tool_name,
+                            dispatched=False,
+                            argument_keys=argument_keys,
+                            refusal_reason="tool request envelope is malformed",
+                        )
+                    )
+                    work.fail(
+                        TurnErrorCategory.INVALID_TOOL_REQUEST,
+                        TurnStage.TOOLS,
+                        f"Tool request envelope for {call.tool_name!r} is malformed.",
+                    )
+                    failed = True
+                    break
+
                 self._record_tool_event(session, work, EventKind.TOOL_CALL, {
                     "tool_name": call.tool_name,
                     "request_id": request_id,
-                    "dispatched": False,
+                    "dispatched": True,
                     "argument_keys": list(argument_keys),
                 })
-                failed = True
-                break
 
-            try:
-                request = ToolRequest(
-                    request_id=request_id,
-                    session_id=session.session_id,
-                    turn_id=session.state.turn_count,
-                    tool_name=call.tool_name,
-                    arguments=arguments,
-                    requested_by="llm",
-                )
-            except ValidationError:
+                started = time.perf_counter()
+                result = self._runtime.tools.execute(request)
+                work.tool_ms += _elapsed(started)
+
                 work.tools.append(
                     ToolAttempt(
                         request_id=request_id,
                         tool_name=call.tool_name,
-                        dispatched=False,
+                        dispatched=True,
+                        status=result.status,
                         argument_keys=argument_keys,
-                        refusal_reason="tool request envelope is malformed",
+                        latency_ms=result.latency_ms,
                     )
                 )
-                work.fail(
-                    TurnErrorCategory.INVALID_TOOL_REQUEST,
-                    TurnStage.TOOLS,
-                    f"Tool request envelope for {call.tool_name!r} is malformed.",
-                )
-                failed = True
-                break
+                self._record_tool_event(session, work, EventKind.TOOL_RESULT, {
+                    "tool_name": call.tool_name,
+                    "request_id": request_id,
+                    "status": result.status.value,
+                    "tool_latency_ms": round(result.latency_ms, 3),
+                })
 
-            self._record_tool_event(session, work, EventKind.TOOL_CALL, {
-                "tool_name": call.tool_name,
-                "request_id": request_id,
-                "dispatched": True,
-                "argument_keys": list(argument_keys),
-            })
+                usable = True
+                if result.status is ToolStatus.OK:
+                    account, usable = self._absorb(
+                        call.tool_name, request.arguments, result, account, work
+                    )
 
-            started = time.perf_counter()
-            result = self._runtime.tools.execute(request)
-            work.tool_ms += _elapsed(started)
+                messages.append(self._tool_message(request_id, result, usable=usable))
 
-            work.tools.append(
-                ToolAttempt(
-                    request_id=request_id,
-                    tool_name=call.tool_name,
-                    dispatched=True,
-                    status=result.status,
-                    argument_keys=argument_keys,
-                    latency_ms=result.latency_ms,
-                )
-            )
-            self._record_tool_event(session, work, EventKind.TOOL_RESULT, {
-                "tool_name": call.tool_name,
-                "request_id": request_id,
-                "status": result.status.value,
-                "tool_latency_ms": round(result.latency_ms, 3),
-            })
-
-            if result.status is ToolStatus.OK:
-                account = self._absorb(call.tool_name, request.arguments, result, account, work)
-
-            messages.append(self._tool_message(request_id, result))
-
-            if result.status is ToolStatus.NOT_IMPLEMENTED:
-                # Explicit, structured unavailability. The turn continues; the
-                # model is told the fact could not be read and must not state it.
-                work.fail(
-                    TurnErrorCategory.TOOL_BACKEND_NOT_IMPLEMENTED,
-                    TurnStage.TOOLS,
-                    f"Tool {call.tool_name!r} has no backend behind it; the fact is unavailable.",
-                    safety_critical=False,
-                )
-                continue
-            if result.status in (ToolStatus.NOT_FOUND, ToolStatus.INVALID_REQUEST):
-                work.fail(
-                    TurnErrorCategory.INVALID_TOOL_REQUEST,
-                    TurnStage.TOOLS,
-                    f"Registry rejected tool request {call.tool_name!r} as {result.status.value}.",
-                )
-                failed = True
-                break
-            if result.status is not ToolStatus.OK:
-                work.fail(
-                    TurnErrorCategory.TOOL_EXECUTION_FAILED,
-                    TurnStage.TOOLS,
-                    f"Tool {call.tool_name!r} failed with status {result.status.value}.",
-                )
-                failed = True
-                break
+                if result.status is ToolStatus.NOT_IMPLEMENTED:
+                    # Explicit, structured unavailability. The turn continues; the
+                    # model is told the fact could not be read and must not state it.
+                    work.fail(
+                        TurnErrorCategory.TOOL_BACKEND_NOT_IMPLEMENTED,
+                        TurnStage.TOOLS,
+                        f"Tool {call.tool_name!r} has no backend behind it; the fact is unavailable.",
+                        safety_critical=False,
+                    )
+                    continue
+                if result.status in (ToolStatus.NOT_FOUND, ToolStatus.INVALID_REQUEST):
+                    work.fail(
+                        TurnErrorCategory.INVALID_TOOL_REQUEST,
+                        TurnStage.TOOLS,
+                        f"Registry rejected tool request {call.tool_name!r} as {result.status.value}.",
+                    )
+                    failed = True
+                    break
+                if result.status is not ToolStatus.OK:
+                    work.fail(
+                        TurnErrorCategory.TOOL_EXECUTION_FAILED,
+                        TurnStage.TOOLS,
+                        f"Tool {call.tool_name!r} failed with status {result.status.value}.",
+                    )
+                    failed = True
+                    break
 
         return account, messages, failed
 
@@ -843,6 +887,11 @@ class ConversationOrchestrator:
             flag, reason = precondition
             if not getattr(session.state, flag, False):
                 return arguments, f"{reason}, so this write must not be made"
+            if self._already_written(session.session_id, call.tool_name):
+                return arguments, (
+                    "this was already recorded for what the customer last said; "
+                    "a second write needs the customer to say it again"
+                )
 
         for name in _SCOPED_ARGUMENTS:
             if name not in properties:
@@ -868,7 +917,33 @@ class ConversationOrchestrator:
 
         return arguments, None
 
-    def _tool_message(self, request_id: str, result: ToolResult) -> LlmMessage:
+    def _already_written(self, session_id: str, tool_name: str) -> bool:
+        """True if this write succeeded after the customer last authorised it.
+
+        Read from the session's own event log - the audit trail - newest first:
+        a successful TOOL_RESULT for this tool met before any event carrying the
+        authorising intent means the authorisation has been used. A failed or
+        unavailable write does not use it.
+        """
+        current = self._runtime.sessions.get(session_id)
+        if current is None:  # pragma: no cover - the session was deleted mid-turn
+            return True
+        intent = _WRITE_TOOL_INTENTS[tool_name].value
+        for event in reversed(current.events):
+            data = event.data or {}
+            if (
+                event.kind is EventKind.TOOL_RESULT
+                and data.get("tool_name") == tool_name
+                and data.get("status") == ToolStatus.OK.value
+            ):
+                return True
+            if data.get("intent") == intent:
+                return False
+        return False
+
+    def _tool_message(
+        self, request_id: str, result: ToolResult, *, usable: bool = True
+    ) -> LlmMessage:
         """Render a tool result for the model: an outcome, never a payload.
 
         No backend value enters the prompt. Not the amounts - they are in minor
@@ -882,9 +957,16 @@ class ConversationOrchestrator:
         and rebuilt into the FACTS block of the next round's system message.
 
         A failure is likewise reported as a status, never as the backend's
-        message, which routinely carries identifiers.
+        message, which routinely carries identifiers. So is a payload that
+        arrived but could not be used: the FACTS block did not change, and the
+        model is not told that it did.
         """
-        if result.status is ToolStatus.OK:
+        if result.status is ToolStatus.OK and not usable:
+            content = (
+                f"{result.tool_name} returned data that could not be used. "
+                "Do not state this fact; say you will check."
+            )
+        elif result.status is ToolStatus.OK:
             content = (
                 f"{result.tool_name} ok. The FACTS block below is now up to date; "
                 "state figures only from there."
@@ -903,14 +985,18 @@ class ConversationOrchestrator:
         result: ToolResult,
         account: AccountContext | None,
         work: _Working,
-    ) -> AccountContext | None:
+    ) -> tuple[AccountContext | None, bool]:
         """Fold a successful tool result into backend context and grounding.
 
         Nothing is constructed from nothing: a partial payload cannot build an
         :class:`AccountContext` that was never loaded, and this returns ``None``
         unchanged rather than inventing the fields the payload lacks.
+
+        Also returns whether the payload was usable - ``False`` only when it
+        does not fit the account context and was discarded.
         """
         data = result.data or {}
+        usable = True
 
         allowed = _ACCOUNT_PROJECTION.get(tool_name)
         if allowed and account is not None:
@@ -919,6 +1005,7 @@ class ConversationOrchestrator:
                 try:
                     account = AccountContext.model_validate({**account.model_dump(), **update})
                 except ValidationError:
+                    usable = False
                     work.fail(
                         TurnErrorCategory.TOOL_EXECUTION_FAILED,
                         TurnStage.TOOLS,
@@ -951,7 +1038,7 @@ class ConversationOrchestrator:
                 else:
                     work.sources.add(GroundingSource.TOOL_RESULT)
 
-        return account
+        return account, usable
 
     def _grounding(self, account: AccountContext | None, work: _Working) -> GroundingFacts:
         """The only figures the agent may state this turn.
@@ -1121,7 +1208,16 @@ class ConversationOrchestrator:
             ),
             policy_checkpoints=[e.checkpoint.value for e in result.policy_evaluations],
             tool_count=len(result.tools),
-            tool_name=result.tools[-1].tool_name if result.tools else None,
+            # A name the registry does not know is model text; it is not logged.
+            tool_name=(
+                (
+                    result.tools[-1].tool_name
+                    if result.tools[-1].tool_name in self._runtime.tools.names
+                    else "<unregistered>"
+                )
+                if result.tools
+                else None
+            ),
             tool_statuses=[t.status.value for t in result.tools if t.status is not None],
             tool_latency_ms=round(result.latency.tool_ms, 3),
             model_latency_ms=round(result.latency.llm_ms, 3),
@@ -1152,12 +1248,14 @@ def _identified(
     The id is what a tool result answers, on the wire and in the audit trail. A
     model that sent none, or reused one - including an index-style id that a
     server restarts at ``call_0`` every round - has not identified the call, so
-    one is minted, as a missing id always was. A usable model id is kept.
+    one is minted, as a missing id always was. So is an id that is not a short
+    plain token (:func:`~app.services.llm.is_usable_call_id`): it is copied into
+    the audit trail and the logs. A usable model id is kept.
     """
     identified: list[LlmToolCall] = []
     for call in calls:
         call_id = call.call_id
-        if not call_id or call_id in used:
+        if not call_id or call_id in used or not is_usable_call_id(call_id):
             call_id = uuid.uuid4().hex
         used.add(call_id)
         identified.append(

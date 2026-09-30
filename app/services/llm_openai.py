@@ -57,8 +57,12 @@ that actually happened is what the caller gets.
 from __future__ import annotations
 
 import contextvars
+import ipaddress
 import json
 import math
+import re
+import socket
+import ssl
 import time
 import uuid
 from datetime import datetime, timezone
@@ -84,9 +88,13 @@ from app.services.llm import (
     LlmTimeout,
     LlmToolCall,
     LlmToolSpec,
+    LlmNotConfigured,
     LlmUpstreamError,
     LlmUsage,
     contains_non_finite_number,
+    incomplete_reason,
+    is_usable_call_id,
+    normalise_finish_reason,
 )
 
 _logger = get_logger(__name__)
@@ -111,15 +119,39 @@ _BACKOFF_CAP_SECONDS = 1.0
 #: server documents it.
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
 
-#: ``finish_reason`` values that mean the model did not finish: the output-token
-#: cap cut it off, or a filter withheld part of it. Mapped to the adapter's own
-#: strings so the error records a constant, never the server's text. Any other
-#: value - ``stop``, ``tool_calls``, or a server's own word for a normal stop
-#: such as TGI's ``eos_token`` - is a completed generation.
-_INCOMPLETE_FINISH_REASONS: dict[str, str] = {
-    "length": "length",
-    "content_filter": "content_filter",
-}
+#: The least share of the configured budget a *retry* must still have after its
+#: wait. A retry sent with a few milliseconds left cannot produce an answer; it
+#: can only turn the 503 or refused connection that prompted it into a timeout.
+#: PROVISIONAL: chosen, not measured, because no real model has answered yet.
+_RETRY_MIN_SHARE = 0.25
+
+#: Largest decoded response body read, in bytes. A chat completion capped at a
+#: few hundred output tokens is a few kilobytes; this bounds memory and parsing
+#: time against a server - or a compressed body - that sends far more.
+_MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+#: Longest budget accepted for one call. Beyond it the timeout means nothing on
+#: a live call, and past about 1e9 s the socket layer cannot represent it.
+_MAX_TIMEOUT_SECONDS = 600.0
+
+#: What a tool name may look like: OpenAI's own rule for function names. A
+#: name outside it is not a tool anything registered, and it would otherwise be
+#: model-authored text copied into logs and audit records.
+_TOOL_NAME = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+#: Markers of a tool call the server failed to parse and left in the text. Such
+#: a reply is not speech, and the call it holds would silently not run. The
+#: list is the common chat-template tokens, not every possible format.
+_TOOL_CALL_MARKUP: tuple[str, ...] = (
+    "<tool_call>",
+    "</tool_call>",
+    "<|tool_call|>",
+    "<|tool_calls_begin|>",
+    "[TOOL_CALLS]",
+    "<|python_tag|>",
+    "<function=",
+    "<functioncall>",
+)
 
 #: Largest slice handed to one socket write. httpcore2 sends a buffer in a loop
 #: under a single timeout, so a peer that drains slowly could otherwise stretch
@@ -136,7 +168,7 @@ def _raise(error: LlmError, cause: BaseException | None = None) -> NoReturn:
     holds the request it failed on, headers and body included, and so the API
     key and the customer's words; a JSON error holds the whole document it
     could not parse. ``cause``, when given, is a stand-in built by
-    :func:`_scrubbed`. The same pattern as :func:`app.services.decision_jev._raise`.
+    :func:`_scrubbed`.
     """
     try:
         raise error from cause
@@ -187,13 +219,29 @@ def _time_left(timeout: float | None, expired: type[Exception]) -> float | None:
     return left if timeout is None else min(timeout, left)
 
 
+def _resolve(host: str, port: int) -> list[str]:
+    """The addresses to try for ``host``, in resolver order, without repeats.
+
+    An IP literal is returned as it is, with no lookup.
+    """
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        return [host]
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    return list(dict.fromkeys(str(info[4][0]) for info in infos))
+
+
 class _DeadlineStream(httpcore2.NetworkStream):
     """A connection whose every read and write stops at the call's deadline.
 
     httpx2's timeouts are per phase and, within a phase, per socket operation:
-    the read timeout restarts with every byte that arrives. A server that
-    dribbles its response - or a connect that is slow and a read that is slow -
-    could otherwise hold one attempt for several times the configured budget.
+    the read timeout restarts with every byte that arrives. A slow connect
+    followed by a slow read could otherwise hold one attempt for a multiple of
+    the configured budget, and a server that dribbles its response could hold
+    it without bound.
     """
 
     def __init__(self, inner: httpcore2.NetworkStream) -> None:
@@ -204,10 +252,41 @@ class _DeadlineStream(httpcore2.NetworkStream):
 
     def write(self, buffer: bytes, timeout: float | None = None) -> None:
         view = memoryview(buffer)
-        while view:
-            piece = view[:_WRITE_SLICE_BYTES]
-            self._inner.write(bytes(piece), _time_left(timeout, httpcore2.WriteTimeout))
-            view = view[len(piece):]
+        sock = self._own_socket()
+        if sock is None:
+            # TLS inside a proxy tunnel: the inner stream must do the
+            # encryption, so it is handed slices, each re-clamped.
+            while view:
+                piece = view[:_WRITE_SLICE_BYTES]
+                self._inner.write(bytes(piece), _time_left(timeout, httpcore2.WriteTimeout))
+                view = view[len(piece):]
+            return
+        # The socket carries the bytes itself (plain TCP, or an SSLSocket that
+        # encrypts on send): every send() gets what is left, because httpcore2
+        # would loop partial sends under one timeout.
+        try:
+            while view:
+                sock.settimeout(_time_left(timeout, httpcore2.WriteTimeout))
+                sent = sock.send(view[:_WRITE_SLICE_BYTES])
+                view = view[sent:]
+        except socket.timeout as exc:
+            raise httpcore2.WriteTimeout(exc) from exc
+        except OSError as exc:
+            raise httpcore2.WriteError(exc) from exc
+
+    def _own_socket(self) -> socket.socket | None:
+        """The socket, if writing to it directly sends the stream's bytes.
+
+        True for plain TCP (no TLS object) and for an ``SSLSocket`` (which
+        encrypts in ``send``). Not for TLS carried inside another TLS
+        connection, where the socket belongs to the outer layer.
+        """
+        sock = self._inner.get_extra_info("socket")
+        if not isinstance(sock, socket.socket):
+            return None
+        if isinstance(sock, ssl.SSLSocket) or self._inner.get_extra_info("ssl_object") is None:
+            return sock
+        return None
 
     def close(self) -> None:
         self._inner.close()
@@ -237,9 +316,14 @@ class _DeadlineBackend(httpcore2.NetworkBackend):
     waits between them together stop at the configured budget. Inert outside a
     model call: with no deadline set, every timeout passes through unchanged.
 
-    Not bounded: DNS resolution, which happens inside ``connect_tcp`` before
-    any timeout applies. A connection that opens after the deadline because
-    the lookup was slow is closed at once and reported as a connect timeout.
+    A host name is resolved here, once, and each of its addresses is tried in
+    turn under the time still left, because the standard library's
+    ``create_connection`` would give every address the whole timeout: three
+    unreachable addresses would cost three budgets.
+
+    Not bounded: DNS resolution itself, which no socket timeout covers. A
+    connection that opens after the deadline because the lookup was slow is
+    closed at once and reported as a connect timeout.
     """
 
     def __init__(self, inner: httpcore2.NetworkBackend) -> None:
@@ -253,10 +337,27 @@ class _DeadlineBackend(httpcore2.NetworkBackend):
         local_address: str | None = None,
         socket_options: Any = None,
     ) -> httpcore2.NetworkStream:
-        stream = self._inner.connect_tcp(
-            host, port, _time_left(timeout, httpcore2.ConnectTimeout), local_address, socket_options
-        )
-        return self._still_in_time(stream)
+        if _CALL_DEADLINE.get() is None:
+            return self._inner.connect_tcp(host, port, timeout, local_address, socket_options)
+        try:
+            addresses = _resolve(host, port)
+        except OSError as exc:
+            raise httpcore2.ConnectError(exc) from exc
+        failure: Exception = httpcore2.ConnectError("no address to connect to")
+        for address in addresses:
+            try:
+                stream = self._inner.connect_tcp(
+                    address,
+                    port,
+                    _time_left(timeout, httpcore2.ConnectTimeout),
+                    local_address,
+                    socket_options,
+                )
+            except (httpcore2.ConnectError, httpcore2.ConnectTimeout) as exc:
+                failure = exc
+                continue
+            return self._still_in_time(stream)
+        raise failure
 
     def connect_unix_socket(
         self, path: str, timeout: float | None = None, socket_options: Any = None
@@ -322,12 +423,45 @@ def _enforce_deadline(client: httpx2.Client) -> None:
 
 
 def _require_positive_seconds(name: str, value: float) -> float:
-    """Reject a timeout that is missing, non-numeric, non-finite or not positive."""
+    """Reject a timeout that is missing, non-numeric, non-finite, not positive or absurd."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a positive number")
     if not math.isfinite(value) or value <= 0:
         raise ValueError(f"{name} must be positive")
+    if value > _MAX_TIMEOUT_SECONDS:
+        raise ValueError(f"{name} must be at most {_MAX_TIMEOUT_SECONDS:g} seconds")
     return float(value)
+
+
+def _require_usable_url(url: str) -> bool:
+    """Refuse a URL httpx2 could not send to. Returns whether it carries userinfo.
+
+    Checked once at construction, and the error never quotes the URL: a
+    base URL may carry a password, and an unencoded ``/`` or ``#`` in it is
+    exactly what makes the standard parser misread it as a port or a path.
+    """
+    if any(not ("!" <= char <= "~") for char in url):
+        raise ValueError("base_url must be printable ASCII with no whitespace")
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+        parsed = httpx2.URL(url)
+    except (ValueError, UnicodeError, httpx2.InvalidURL):
+        raise ValueError("base_url is not a usable URL") from None
+    if parts.scheme not in ("http", "https") or not parts.hostname or not parsed.host:
+        raise ValueError("base_url must be an http(s) URL with a host")
+    if port is not None and not 0 < port < 65536:
+        raise ValueError("base_url has an invalid port")
+    # A DNS name with an empty label ("a..b") can never resolve. Checked on
+    # dot-separated labels only, so an IPv4 literal's labels and an IPv6
+    # literal's single colon-separated hostname are unaffected. A single
+    # trailing dot is the standard FQDN-root marker and is not a label.
+    labels = parts.hostname.split(".")
+    if labels and labels[-1] == "" and len(labels) > 1:
+        labels = labels[:-1]
+    if any(label == "" for label in labels):
+        raise ValueError("base_url has an empty DNS label")
+    return bool(parts.username or parts.password)
 
 
 def _parse_retry_after(raw: str | None) -> float | None:
@@ -416,8 +550,31 @@ class OpenAiCompatibleLlmService:
             connect_timeout_seconds = _require_positive_seconds(
                 "connect_timeout_seconds", connect_timeout_seconds
             )
+        if max_output_tokens is not None and (
+            isinstance(max_output_tokens, bool)
+            or not isinstance(max_output_tokens, int)
+            or max_output_tokens <= 0
+        ):
+            raise ValueError("max_output_tokens must be a positive integer")
+        if temperature is not None and (
+            isinstance(temperature, bool)
+            or not isinstance(temperature, (int, float))
+            or not math.isfinite(temperature)
+            or not 0.0 <= temperature <= 2.0
+        ):
+            raise ValueError("temperature must be a number between 0 and 2")
 
         self._base_url = base_url.strip().rstrip("/")
+        self._url = f"{self._base_url}{_CHAT_COMPLETIONS_PATH}"
+        # Parsed now, and reported without the value, which can carry a
+        # password. A URL httpx2 cannot use would otherwise fail on every call,
+        # with the URL - and, from inside httpx2, the headers - in the error.
+        userinfo = _require_usable_url(self._url)
+        if userinfo and api_key and api_key.strip():
+            # httpx2 turns URL credentials into Basic auth, which silently
+            # replaces the Bearer key. Two credentials for one endpoint is a
+            # deployment mistake, not a choice to make on the operator's behalf.
+            raise ValueError("base_url carries credentials and api_key is set; use one")
         self._model = model.strip()
         self._max_output_tokens = max_output_tokens
         self._temperature = temperature
@@ -433,7 +590,14 @@ class OpenAiCompatibleLlmService:
         # is never put on the instance's repr, in a log field or in an exception.
         self._headers = {"Content-Type": "application/json"}
         if api_key and api_key.strip():
-            self._headers["Authorization"] = f"Bearer {api_key.strip()}"
+            key = api_key.strip()
+            # Checked here, once, and reported without the value. A key the
+            # header cannot carry - a pasted curly quote, an inner space - would
+            # otherwise fail inside httpx2 on every call, as an encoding error
+            # whose payload is the whole "Bearer <key>" string.
+            if not all("!" <= char <= "~" for char in key):
+                raise ValueError("api_key must be printable ASCII with no whitespace")
+            self._headers["Authorization"] = f"Bearer {key}"
 
         self._timeout = httpx2.Timeout(
             self._timeout_seconds,
@@ -441,7 +605,15 @@ class OpenAiCompatibleLlmService:
         )
         self._owns_client = client is None
         if client is None:
-            client = httpx2.Client(timeout=self._timeout)
+            try:
+                client = httpx2.Client(timeout=self._timeout)
+            except ImportError as exc:
+                # A SOCKS proxy in the environment needs a package that is not
+                # installed. Refused at startup, as a configuration error.
+                raise LlmConfigurationError(
+                    "The environment configures a proxy this deployment cannot use "
+                    "(a SOCKS proxy needs the socksio package, which is not installed)."
+                ) from None
             try:
                 _enforce_deadline(client)
             except BaseException:
@@ -473,15 +645,45 @@ class OpenAiCompatibleLlmService:
     # -- LlmService ---------------------------------------------------------
 
     def generate(self, request: LlmRequest) -> LlmGeneration:
-        """One model call. Raises an :class:`~app.services.llm.LlmError` subclass on any failure."""
-        payload = self._build_payload(request)
-        correlation_id = uuid.uuid4().hex
-        url = f"{self._base_url}{_CHAT_COMPLETIONS_PATH}"
+        """One model call. Raises an :class:`~app.services.llm.LlmError` subclass on any failure.
 
+        Only an ``LlmError`` leaves this method. Anything else raised inside it
+        - a defect here, or in httpx2 - is logged by type and replaced by a
+        plain ``LlmError`` with nothing chained, because an unexpected
+        exception is exactly the kind that carries the request it failed on.
+        """
+        correlation_id = uuid.uuid4().hex
         started = time.perf_counter()
+        try:
+            return self._generate(request, correlation_id, started)
+        except LlmError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - the boundary: nothing untyped escapes
+            error_type = type(exc).__name__
+        self._log(
+            correlation_id,
+            outcome="failed",
+            error_type=error_type,
+            error_category=LlmError.category,
+            latency_ms=(time.perf_counter() - started) * 1000.0,
+        )
+        raise LlmError("model call failed unexpectedly")
+
+    def _generate(
+        self, request: LlmRequest, correlation_id: str, started: float
+    ) -> LlmGeneration:
+        if self._client.is_closed:
+            # After shutdown: there is no endpoint to call, rather than an
+            # endpoint that failed.
+            raise LlmNotConfigured("the model client has been closed")
+        content = self._encode(self._build_payload(request))
+        url = self._url
+
         # One clock for the whole call. Attempts and the waits between them
         # spend the same budget; a retry does not receive a fresh timeout.
         deadline = time.monotonic() + self._timeout_seconds
+        # A retry is sent only if this much is still left after its wait.
+        retry_floor = max(_MIN_ATTEMPT_SECONDS, _RETRY_MIN_SHARE * self._timeout_seconds)
         attempt = 0
         # The failure a wait was taken after. Kept because the wait can overrun
         # (a sleep is a lower bound, not an exact duration): if no attempt fits
@@ -505,14 +707,14 @@ class OpenAiCompatibleLlmService:
                 )
                 raise LlmTimeout("model server did not respond within the configured timeout")
             try:
-                generation = self._attempt(url, payload, started, deadline)
+                generation = self._attempt(url, content, started, deadline)
             except (LlmTimeout, LlmConnectionFailed, LlmUpstreamError) as exc:
                 if self._retryable(exc) and attempt <= self._max_retries:
                     delay = self._retry_delay(exc, attempt)
-                    # Wait only if a real attempt can still follow the wait.
-                    # The complement of the refusal above: a wait that left
-                    # less than _MIN_ATTEMPT_SECONDS would be spent for nothing.
-                    if delay + _MIN_ATTEMPT_SECONDS <= deadline - time.monotonic():
+                    # Wait only if an attempt with a real chance can follow:
+                    # a retry sent with almost nothing left would only turn
+                    # this 503, or this refused connection, into a timeout.
+                    if delay + retry_floor <= deadline - time.monotonic():
                         self._log(
                             correlation_id,
                             attempt=attempt,
@@ -566,7 +768,7 @@ class OpenAiCompatibleLlmService:
     # -- one HTTP exchange ---------------------------------------------------
 
     def _attempt(
-        self, url: str, payload: dict[str, Any], started: float, deadline: float
+        self, url: str, content: bytes, started: float, deadline: float
     ) -> LlmGeneration:
         remaining = deadline - time.monotonic()
         # Passed on the request, not taken from the client. An injected client
@@ -579,9 +781,7 @@ class OpenAiCompatibleLlmService:
         # _DeadlineBackend, so the phases cannot add up past the deadline.
         token = _CALL_DEADLINE.set(deadline)
         try:
-            response = self._client.post(
-                url, json=payload, headers=self._headers, timeout=timeout
-            )
+            status, retry_after, raw = self._exchange(url, content, timeout)
         except httpx2.TimeoutException as exc:
             _raise(
                 LlmTimeout("model server did not respond within the configured timeout"),
@@ -594,25 +794,81 @@ class OpenAiCompatibleLlmService:
         finally:
             _CALL_DEADLINE.reset(token)
 
-        if response.status_code >= 400:
-            raise LlmUpstreamError(
-                response.status_code,
-                retry_after_seconds=_parse_retry_after(response.headers.get("retry-after")),
-            )
+        if raw is None:
+            # A status other than 200 is not a completion, whatever its body
+            # says - a 3xx is not followed, and a 202 or 204 answers nothing.
+            raise LlmUpstreamError(status, retry_after_seconds=retry_after)
 
         try:
-            body = response.json()
+            body = json.loads(raw, object_pairs_hook=_JsonObject.from_pairs)
         except (json.JSONDecodeError, ValueError, UnicodeDecodeError, RecursionError):
             # The decode error holds the whole body it could not parse.
             _raise(LlmMalformedResponse("model server returned a body that is not JSON"))
+        del raw
 
         generation = _parse_completion(body, fallback_model=self._model)
+        if time.monotonic() > deadline:
+            # Reading and decoding happen between socket operations. A reply
+            # completed after the budget is not returned as if it were in time.
+            raise LlmTimeout("model server did not respond within the configured timeout")
         return generation.model_copy(
             update={"latency_ms": (time.perf_counter() - started) * 1000.0}
         )
 
+    def _exchange(
+        self, url: str, content: bytes, timeout: httpx2.Timeout
+    ) -> tuple[int, float | None, bytes | None]:
+        """Send one request. Returns the status, a parsed Retry-After, and the body.
+
+        The body is read only for a 200, and only up to
+        :data:`_MAX_RESPONSE_BYTES` after decompression: an error body is
+        discarded unread, so a slow or huge one can neither turn a 503 into a
+        timeout nor fill memory. The response is closed before returning, and
+        no httpx2 object leaves this method.
+        """
+        request = self._client.build_request(
+            "POST", url, content=content, headers=self._headers, timeout=timeout
+        )
+        response = self._client.send(request, stream=True)
+        try:
+            status = response.status_code
+            if status != 200:
+                return status, _parse_retry_after(response.headers.get("retry-after")), None
+            chunks: list[bytes] = []
+            size = 0
+            for chunk in response.iter_bytes():
+                size += len(chunk)
+                if size > _MAX_RESPONSE_BYTES:
+                    return status, None, b""  # parsed as not JSON: malformed
+                chunks.append(chunk)
+            return status, None, b"".join(chunks)
+        finally:
+            response.close()
+
+    @staticmethod
+    def _encode(payload: dict[str, Any]) -> bytes:
+        """The request body, as the adapter's own JSON bytes.
+
+        Serialised here rather than by httpx2 so that the text is ASCII:
+        non-ASCII characters are escaped, which is valid JSON and cannot fail
+        to encode - a lone surrogate in a transcript would otherwise raise an
+        encoding error holding the entire request, prompt and customer words
+        included.
+        """
+        try:
+            return json.dumps(
+                payload, ensure_ascii=True, allow_nan=False, separators=(",", ":")
+            ).encode("ascii")
+        except (TypeError, ValueError, RecursionError):
+            _raise(LlmError("the model request could not be serialised"))
+
     def _retryable(self, exc: Exception) -> bool:
-        """Only failures that happened before the request was sent.
+        """Transient failures only: a connection that never opened, or a "later" status.
+
+        A connect error, a proxy error and a connect or pool timeout happened
+        before anything was sent. A 408, 429, 500, 502, 503 or 504 is different:
+        the server received the request - the customer's words - and a retry
+        sends them again, which is one reason retries are off by default.
 
         A read timeout, a write timeout, a mid-body network error and a protocol
         error are not retried. The request may already have reached the model,
@@ -637,7 +893,9 @@ class OpenAiCompatibleLlmService:
         hinted = getattr(exc, "retry_after_seconds", None)
         if isinstance(hinted, (int, float)) and not isinstance(hinted, bool):
             if math.isfinite(hinted) and hinted > 0:
-                return float(hinted)
+                # A hint shorter than the floor is raised to it: the server may
+                # ask for later, never for sooner than the adapter's own minimum.
+                return max(float(hinted), _MIN_ATTEMPT_SECONDS)
         delay = _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
         return min(max(delay, _MIN_ATTEMPT_SECONDS), _BACKOFF_CAP_SECONDS)
 
@@ -797,19 +1055,35 @@ def _parse_completion(body: Any, *, fallback_model: str) -> LlmGeneration:
     finish_reason = choice.get("finish_reason")
     if finish_reason is not None and not isinstance(finish_reason, str):
         raise LlmMalformedResponse("response finish_reason is not a string")
-    incomplete = _INCOMPLETE_FINISH_REASONS.get(finish_reason) if finish_reason else None
+    incomplete = incomplete_reason(finish_reason)
     if incomplete is not None:
         raise LlmIncompleteResponse(incomplete)
+    if finish_reason is not None:
+        # Only an allowlisted value reaches here, so what is recorded - and
+        # logged - is one of a known handful of words, never server text.
+        finish_reason = normalise_finish_reason(finish_reason)
+
+    if message.get("function_call") is not None:
+        # The legacy single-function form. Tools are offered as `tools` and
+        # read from `tool_calls`; a call in the old field would be dropped
+        # without a word while the turn went on as if none had been asked for.
+        raise LlmInvalidToolCall("response uses the legacy function_call field")
 
     content = message.get("content")
     if content is not None and not isinstance(content, str):
         raise LlmMalformedResponse("response message content is not a string")
 
     tool_calls = _parse_tool_calls(message.get("tool_calls"))
+    if finish_reason == "tool_calls" and not tool_calls:
+        raise LlmMalformedResponse("finish_reason says tool_calls but no tool call was sent")
 
     text = content if content else None
     if text is not None and not text.strip():
         text = None
+    if text is not None and _is_unparsed_tool_call(text):
+        # A tool call the server failed to parse, left in the reply. It is not
+        # speech, and the call inside it would silently never run.
+        raise LlmMalformedResponse("response text holds a tool call the server did not parse")
     if text is None and not tool_calls:
         raise LlmEmptyResponse("model returned neither text nor a tool call")
 
@@ -825,6 +1099,57 @@ def _parse_completion(body: Any, *, fallback_model: str) -> LlmGeneration:
     )
 
 
+def _is_unparsed_tool_call(text: str) -> bool:
+    """True if ``text`` is a tool call in disguise rather than something to say.
+
+    Either it contains a chat template's tool-call marker, or the whole reply
+    is a JSON object or array - data, not a spoken turn.
+    """
+    lowered = text.lower()
+    if any(marker.lower() in lowered for marker in _TOOL_CALL_MARKUP):
+        return True
+    stripped = text.strip()
+    if stripped[:1] in ("{", "["):
+        try:
+            return isinstance(json.loads(stripped), (dict, list))
+        except (ValueError, RecursionError):
+            return False
+    return False
+
+
+class _JsonObject(dict):
+    """A decoded JSON object that remembers whether a key appeared in it twice.
+
+    Python's parser keeps the last of two equal keys without a word, so
+    ``{"amount_minor": NaN, "amount_minor": 1}`` would lose the NaN it was sent
+    and look like a clean argument. Used as the ``object_pairs_hook`` for the
+    response body and for a tool call's arguments string.
+    """
+
+    repeated_key = False
+
+    @classmethod
+    def from_pairs(cls, pairs: list[tuple[str, Any]]) -> "_JsonObject":
+        obj = cls(pairs)
+        if len(obj) != len(pairs):
+            obj.repeated_key = True
+        return obj
+
+
+def _has_repeated_key(value: Any) -> bool:
+    """True if any object inside ``value`` was decoded with a repeated key."""
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            if getattr(item, "repeated_key", False):
+                return True
+            stack.extend(item.values())
+        elif isinstance(item, list):
+            stack.extend(item)
+    return False
+
+
 def _parse_tool_calls(raw: Any) -> tuple[LlmToolCall, ...]:
     """Read the ``tool_calls`` array. Absent or empty is normal, not an error."""
     if raw is None:
@@ -836,27 +1161,36 @@ def _parse_tool_calls(raw: Any) -> tuple[LlmToolCall, ...]:
     for entry in raw:
         if not isinstance(entry, dict):
             raise LlmInvalidToolCall("a tool call is not an object")
+        kind = entry.get("type")
+        if kind is not None and kind != "function":
+            raise LlmInvalidToolCall("a tool call is not a function call")
         function = entry.get("function")
         if not isinstance(function, dict):
             raise LlmInvalidToolCall("a tool call carries no function object")
 
+        # Exactly OpenAI's rule for a function name, and not repaired: a name
+        # outside it names no registered tool, and would otherwise be model
+        # text copied into logs and the audit trail.
         name = function.get("name")
-        if not isinstance(name, str) or not name.strip():
-            raise LlmInvalidToolCall("a tool call carries no tool name")
+        if not isinstance(name, str) or not _TOOL_NAME.fullmatch(name):
+            raise LlmInvalidToolCall("a tool call carries no usable tool name")
 
         # An absent id is tolerated: the orchestrator mints a request id when the
-        # model does not supply one. An id of the wrong type is not tolerated,
-        # because it would be carried into the audit record.
+        # model does not supply one, and it does the same for an id that is not
+        # a short plain token, since the id is copied into the audit record. An
+        # id of the wrong type is not tolerated.
         call_id = entry.get("id")
         if call_id is None:
             call_id = ""
         elif not isinstance(call_id, str):
             raise LlmInvalidToolCall("a tool call id is not a string")
+        elif not is_usable_call_id(call_id):
+            call_id = ""
 
         calls.append(
             LlmToolCall(
                 call_id=call_id,
-                tool_name=name.strip(),
+                tool_name=name,
                 arguments=_parse_arguments(function.get("arguments")),
             )
         )
@@ -880,10 +1214,10 @@ def _parse_arguments(raw: Any) -> dict[str, Any]:
     if raw is None or raw == "":
         return {}
     if isinstance(raw, dict):
-        parsed: Any = dict(raw)
+        parsed: Any = raw
     elif isinstance(raw, str):
         try:
-            parsed = json.loads(raw)
+            parsed = json.loads(raw, object_pairs_hook=_JsonObject.from_pairs)
         except (json.JSONDecodeError, ValueError, RecursionError):
             # Not chained: the decode error holds the raw arguments string.
             _raise(LlmInvalidToolCall("tool call arguments are not valid JSON"))
@@ -891,9 +1225,11 @@ def _parse_arguments(raw: Any) -> dict[str, Any]:
             raise LlmInvalidToolCall("tool call arguments did not decode to an object")
     else:
         raise LlmInvalidToolCall("tool call arguments are neither an object nor a JSON string")
+    if _has_repeated_key(parsed):
+        raise LlmInvalidToolCall("tool call arguments repeat a key")
     if contains_non_finite_number(parsed):
         raise LlmInvalidToolCall("tool call arguments contain a number JSON cannot represent")
-    return parsed
+    return dict(parsed)
 
 
 def _parse_usage(raw: Any) -> LlmUsage | None:

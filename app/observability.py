@@ -123,14 +123,7 @@ class JsonFormatter(logging.Formatter):
 #: fields, and a formatted message has none. Level is therefore the only control
 #: that works, and the application logs its own sanitised record for every model
 #: call anyway (see :mod:`app.services.llm_openai`).
-#:
-#: ``typesafe_sdk`` is the Jev decision SDK. At INFO it logs every request URL,
-#: and at DEBUG the full request and response bodies - which carry the
-#: customer's words - unredacted. Its one WARNING line quotes provider text, so
-#: the Jev adapter additionally drops every SDK record with a filter (see
-#: :mod:`app.services.decision_jev`). The decision coordinator logs its own
-#: sanitised record per decision (see :mod:`app.orchestrator.decisions`).
-QUIET_LOGGERS: tuple[str, ...] = ("httpx", "httpx2", "httpcore", "httpcore2", "typesafe_sdk")
+QUIET_LOGGERS: tuple[str, ...] = ("httpx", "httpx2", "httpcore", "httpcore2")
 
 
 def configure_logging(level: str = "INFO", stream: Any = None) -> None:

@@ -29,7 +29,6 @@ What is being pinned
   runs through httpx2 or httpcore2.
 - The logs of each failure, and the TurnResult the orchestrator records for it,
   carry none of it.
-- The Jev decision adapter, which already raised this way, still chains nothing.
 
 What is deliberately not walked
 -------------------------------
@@ -39,14 +38,14 @@ construction lives. Whoever holds a traceback's frames holds the running
 program. That residual is documented separately. What is pinned here is every
 path to the secret that is not a frame.
 
-One gap is left open by the fix and is pinned as a strict xfail near the end:
-a key that httpx2 cannot encode into a header escapes inside an unmapped
-``UnicodeEncodeError``.
+A key that httpx2 cannot encode into a header would have escaped inside an
+unmapped ``UnicodeEncodeError`` carrying ``Bearer <key>``. The adapter now
+refuses such a key at construction without quoting it; that is pinned near the
+end.
 """
 
 from __future__ import annotations
 
-import asyncio
 import collections
 import dataclasses
 import json
@@ -55,7 +54,7 @@ import types
 import weakref
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Iterator
+from typing import Callable, Iterator
 
 import httpx2
 import pytest
@@ -737,23 +736,14 @@ def test_a_turn_failed_at_the_model_records_and_logs_no_key_and_nothing_the_body
         assert sentinel not in logged
 
 
-# --- FIX GAP: a key the header cannot carry ---------------------------------
+# --- a key the header cannot carry ------------------------------------------
 #
-# Marked xfail(strict=True) because the gap is real in the fixed code and the
-# test file must still pass. Once the adapter refuses such a key, or maps the
-# failure, this XPASSes, the strict marker fails the run, and the marker should
-# be removed.
+# Found while writing this file: such a key passed Settings and the
+# constructor, and every generate() then raised an unmapped UnicodeEncodeError
+# whose .object and args[1] were 'Bearer <the whole key>'. The constructor now
+# refuses it, without quoting it.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "FIX GAP (finding D): a MODEL_API_KEY with a non-ASCII character passes Settings and "
-        "the adapter's constructor. Every generate() then raises an unmapped "
-        "UnicodeEncodeError from httpx2's header encoding. Its .object and args[1] are "
-        "'Bearer <the whole key>', and its traceback runs through httpx2."
-    ),
-)
 def test_an_api_key_the_header_cannot_encode_never_surfaces_inside_an_exception() -> None:
     """A curly quote pasted into the key: a misconfiguration, but not a reason to hand the key out.
 
@@ -774,52 +764,9 @@ def test_an_api_key_the_header_cannot_encode_never_surfaces_inside_an_exception(
     assert _library_frames(surfaced) == []
 
 
-# --- the Jev adapter, for comparison ----------------------------------------
-
-
-def _jev_refusing(request: httpx2.Request) -> httpx2.Response:
-    raise httpx2.ConnectError(
-        f"{request.url} refused; sent {request.headers.get('authorization')}", request=request
-    )
-
-
-def _jev_echoing_401(request: httpx2.Request) -> httpx2.Response:
-    return httpx2.Response(401, json={"error": ECHO}, headers=_ECHOING_HEADERS)
-
-
-@pytest.mark.parametrize(
-    "handler", [_jev_refusing, _jev_echoing_401], ids=["connect-error", "401-echo"]
-)
-def test_the_jev_adapter_chains_nothing_to_the_decision_error_it_raises(handler) -> None:
-    """The pattern the model adapter now follows, still holding where it began."""
-    from app.services.decision import (
-        DecisionContext,
-        DecisionError,
-        DecisionName,
-        DecisionRequest,
-    )
-    from app.services.decision_jev import JevDecisionService
-
-    service = JevDecisionService(
-        api_key=API_KEY,
-        model="jev-1.13.0",
-        timeout_seconds=0.5,
-        transport=httpx2.MockTransport(handler),
-    )
-    request = DecisionRequest(
-        name=DecisionName.CUSTOMER_INTENT,
-        context=DecisionContext(utterance=f"{TRANSCRIPT}, maine kal hi pay kar diya"),
-    )
-
-    async def _run() -> Any:
-        try:
-            return await service.decide(request)
-        finally:
-            await service.aclose()
-
-    with pytest.raises(DecisionError) as caught:
-        asyncio.run(_run())
-
-    assert caught.value.__cause__ is None
-    assert caught.value.__context__ is None
-    assert _secrets_reachable_from(caught.value) == []
+@pytest.mark.parametrize("bad", ["’", " inner space", "\t", "é", "\x7f"])
+def test_a_key_the_header_cannot_carry_is_refused_at_construction_without_quoting_it(bad) -> None:
+    with pytest.raises(ValueError) as refused:
+        _service(_answering(200, body=openai_text_completion("ok")), api_key=f"{API_KEY}{bad}x")
+    assert _secrets_reachable_from(refused.value) == []
+    assert API_KEY not in str(refused.value)

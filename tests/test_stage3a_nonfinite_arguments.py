@@ -22,26 +22,36 @@ What is being pinned
   ``"Infinity"`` and ``"1e400"`` all come through exactly as sent.
 - Nesting the parser cannot handle is a typed failure: ``LlmInvalidToolCall``
   inside the arguments string, ``LlmMalformedResponse`` for the body itself.
-- ``contains_non_finite_number`` finds NaN and ±Infinity floats in dicts, lists
-  and tuples, terminates on a cycle, and walks 200 000 levels without recursing.
-  Only ``float`` instances count as numbers; nothing else is looked into.
+- ``contains_non_finite_number`` finds NaN and ±Infinity - a ``float`` or a
+  ``Decimal`` - in dicts, lists, tuples and sets, terminates on a cycle, and
+  walks 200 000 levels without recursing. A string is text, never a number, and
+  nothing is converted.
 - The registry refuses non-finite arguments itself - ``INVALID_REQUEST``,
-  logged as ``NonFiniteArgument`` - before validation, so the tool's ``run`` is
-  never called. Finite floats and the ``datetime.date`` the orchestrator binds
-  pass through untouched.
+  logged as ``NonFiniteArgument`` - and the tool's ``run`` is never called. It
+  checks twice. Before validation, on the raw arguments, because a lax schema
+  could otherwise turn a NaN into the text ``"nan"`` or drop it unseen. After
+  validation, on what validation produced, because a float field turns the JSON
+  *string* ``"NaN"`` into a float NaN, and a set, a tuple or a ``Decimal`` field
+  can hold one just as well. Finite floats and the ``datetime.date`` the
+  orchestrator binds pass through untouched.
 - The orchestrator never lets such a call reach the banking backend, ends the
   turn as ``invalid_tool_request``, and never sends another model request whose
-  assistant echo could carry the number. An echo that does go on the wire is
-  JSON proper.
+  assistant echo could carry the number. A NaN in an argument the application
+  binds is overwritten and left out of the echo. An echo that does go on the
+  wire is JSON proper.
 
 Nothing sleeps and no socket is opened: the endpoint is ``httpx2.MockTransport``
 and the model is either that or a script. Bodies are written as raw text where
 the literal ``NaN`` token matters, because ``json.dumps`` of a Python ``nan``
 is exactly the thing being tested for.
 
-Tests marked ``xfail(strict=True)`` with ``FIX GAP`` demonstrate a case the fix
-does not cover. They are expected to fail until the gap is closed, and fail the
-suite loudly (XPASS) once it is, so the marker can be removed.
+Writing this file found cases the first fix missed. A tool with a float field
+accepts the JSON *string* ``"NaN"`` (or ``"1e400"``, or a ``Decimal``) and
+pydantic converts it to a non-finite float after the registry's check of the
+raw arguments. The registry now checks the validated arguments too; the tests
+that found it are kept below. So is the one that found the walk ignoring dict
+*keys* (``dict[float, int]``) and ``deque[float]``, which the same conversion
+reaches, and a ``complex`` field, which turns ``"nan"`` into ``nan+0j``.
 """
 
 from __future__ import annotations
@@ -49,13 +59,14 @@ from __future__ import annotations
 import json
 import math
 import sys
+from collections import deque
 from datetime import date
 from decimal import Decimal
 from typing import Any, NoReturn
 
 import httpx2
 import pytest
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.session import EventSignals
 from app.models.customer import ComplianceContext
@@ -208,7 +219,9 @@ _NON_FINITE_ARGUMENTS = [
     pytest.param('{"amount_minor": 1E400}', id="overflow-capital-e"),
     pytest.param('{"amount_minor": 2e308}', id="overflow-just-past-float-max"),
     pytest.param('{"amount": {"minor": NaN}}', id="nested-in-a-dict"),
+    pytest.param('{"amount": {"minor": -Infinity}}', id="minus-infinity-in-a-dict"),
     pytest.param('{"amounts": [1, 2, Infinity]}', id="in-a-list"),
+    pytest.param('{"amounts": [{"minor": 1e400}, 3]}', id="overflow-in-a-list-of-dicts"),
     pytest.param('{"a": {"b": [1, {"c": [NaN]}]}}', id="deep-inside"),
     pytest.param('{"ok": 250000, "also": "fine", "bad": [[[[-Infinity]]]]}', id="beside-valid-keys"),
     pytest.param(
@@ -226,6 +239,54 @@ def test_a_non_finite_number_in_tool_arguments_is_an_invalid_tool_call(form, arg
 
     assert type(caught.value) is LlmInvalidToolCall
     assert caught.value.category == "llm_invalid_tool_call"
+
+
+def _several_calls(arguments: list[str], *, as_object: bool) -> str:
+    """A body with one tool call per entry of ``arguments``, each written as in ``_string_form``/``_object_form``."""
+    body = _tool_body("")
+    template = body["choices"][0]["message"]["tool_calls"][0]
+    calls = []
+    for index, text in enumerate(arguments):
+        call = json.loads(json.dumps(template))
+        call["id"] = f"call_{index}"
+        call["function"]["arguments"] = f"__RAW_{index}__" if as_object else text
+        calls.append(call)
+    body["choices"][0]["message"]["tool_calls"] = calls
+    raw = json.dumps(body)
+    if as_object:
+        for index, text in enumerate(arguments):
+            raw = raw.replace(json.dumps(f"__RAW_{index}__"), text)
+    return raw
+
+
+@pytest.mark.parametrize("as_object", [False, True], ids=["string", "object"])
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        pytest.param(['{"amount_minor": 250000}', '{"amount_minor": NaN}'], id="last"),
+        pytest.param(['{"amount_minor": -Infinity}', '{"amount_minor": 250000}'], id="first"),
+        pytest.param(['{"a": 1}', '{"b": [1e400]}', '{"c": "ok"}'], id="middle"),
+    ],
+)
+def test_one_non_finite_call_among_several_refuses_the_whole_response(
+    arguments, as_object
+) -> None:
+    """No partial generation: the valid calls beside it are not handed on either."""
+    with pytest.raises(LlmInvalidToolCall):
+        _generate(_several_calls(arguments, as_object=as_object))
+
+
+@pytest.mark.parametrize("as_object", [False, True], ids=["string", "object"])
+def test_several_finite_calls_all_come_through(as_object) -> None:
+    """The control for the test above."""
+    generation = _generate(
+        _several_calls(['{"a": 1}', '{"b": [1e308]}', '{"c": "NaN"}'], as_object=as_object)
+    )
+    assert [call.arguments for call in generation.tool_calls] == [
+        {"a": 1},
+        {"b": [1e308]},
+        {"c": "NaN"},
+    ]
 
 
 @_FORMS
@@ -262,6 +323,7 @@ def test_a_non_finite_argument_is_logged_as_a_category_and_carries_no_argument(
 
 _FINITE_ARGUMENTS = [
     pytest.param('{"n": 0}', {"n": 0}, id="zero"),
+    pytest.param('{"n": -0.0}', {"n": -0.0}, id="negative-zero"),
     pytest.param('{"n": -1}', {"n": -1}, id="minus-one"),
     pytest.param('{"n": 1.5}', {"n": 1.5}, id="fraction"),
     pytest.param('{"n": -2.25}', {"n": -2.25}, id="negative-fraction"),
@@ -481,19 +543,23 @@ def test_two_hundred_thousand_levels_of_nesting_are_walked_without_recursion(
     assert _contains_non_finite_number(deep) is expected
 
 
-def test_only_float_instances_count_as_numbers() -> None:
-    """Documented behaviour: nothing is converted, and only dict, list and tuple are entered.
+def test_only_numbers_count_and_nothing_is_converted() -> None:
+    """Floats and Decimals are numbers; sets are entered; anything else passes.
 
-    ``Decimal("NaN")`` is not a float, and a set is not descended into. JSON
-    produces neither, so the model boundary never sees one. The registry can,
-    from an ``LlmService`` that does not parse JSON - see the FIX GAP test below.
+    JSON produces neither a Decimal nor a set, so the model boundary never sees
+    one, but validating arguments into a tool's model can produce both, and the
+    registry checks what validation produced.
     """
     assert _contains_non_finite_number(date(2026, 10, 5)) is False
-    assert _contains_non_finite_number(Decimal("NaN")) is False
-    assert _contains_non_finite_number(Decimal("Infinity")) is False
-    assert _contains_non_finite_number({float("nan")}) is False
-    assert _contains_non_finite_number(frozenset({float("inf")})) is False
+    assert _contains_non_finite_number(Decimal("NaN")) is True
+    assert _contains_non_finite_number(Decimal("Infinity")) is True
+    assert _contains_non_finite_number(Decimal("-Infinity")) is True
+    assert _contains_non_finite_number(Decimal("1.5")) is False
+    assert _contains_non_finite_number({float("nan")}) is True
+    assert _contains_non_finite_number(frozenset({float("inf")})) is True
+    assert _contains_non_finite_number({1.5, 2.0}) is False
     assert _contains_non_finite_number(object()) is False
+    assert _contains_non_finite_number("NaN") is False
 
     class _Rate(float):
         pass
@@ -566,6 +632,12 @@ def _execute(registry: ToolRegistry, arguments: dict[str, Any], tool_name: str =
         {"details": {"x": [1, {"y": float("inf")}]}},
         {"details": {"pair": (1.0, float("-inf"))}},
         {"rate": 1.5, "details": {"deep": _nest(1_000, float("nan"))}},
+        # Not from JSON, but an LlmService need not parse JSON, and a free-form
+        # field keeps whatever it is given - through validation and into run().
+        {"details": {"x": Decimal("NaN")}},
+        {"details": {"x": [Decimal("-Infinity")]}},
+        {"details": {"x": {1.5, float("nan")}}},
+        {"details": {"x": frozenset({float("inf")})}},
     ],
     ids=[
         "top-level-nan",
@@ -575,6 +647,10 @@ def _execute(registry: ToolRegistry, arguments: dict[str, Any], tool_name: str =
         "free-form-deep",
         "free-form-tuple",
         "beside-a-valid-float",
+        "free-form-decimal-nan",
+        "free-form-decimal-minus-infinity",
+        "free-form-set",
+        "free-form-frozenset",
     ],
 )
 def test_the_registry_refuses_a_non_finite_argument_and_never_runs_the_tool(
@@ -633,28 +709,215 @@ def test_a_string_that_spells_nan_in_a_free_form_field_is_text_and_runs() -> Non
     assert tool.calls[0].details == {"note": "NaN", "other": "Infinity"}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "FIX GAP: ToolRegistry.execute checks the raw arguments only. pydantic's lax float "
-        "coerces the JSON string 'NaN'/'Infinity'/'1e400' (legal JSON the adapter rightly "
-        "preserves) and Decimal('NaN') into a non-finite float, so a tool with a float field "
-        "still runs with NaN/Infinity. Latent: no banking tool has a float field today."
-    ),
-)
 @pytest.mark.parametrize(
     "value",
-    ["NaN", "Infinity", "-Infinity", "1e400", Decimal("NaN"), Decimal("Infinity")],
-    ids=["str-nan", "str-infinity", "str-minus-infinity", "str-1e400", "decimal-nan", "decimal-inf"],
+    ["NaN", "Infinity", "-Infinity", "1e400", "-1e400", Decimal("NaN"), Decimal("Infinity")],
+    ids=[
+        "str-nan",
+        "str-infinity",
+        "str-minus-infinity",
+        "str-1e400",
+        "str-minus-1e400",
+        "decimal-nan",
+        "decimal-inf",
+    ],
 )
-def test_fix_gap_a_float_field_coerced_to_non_finite_is_still_refused(value) -> None:
+def test_a_float_field_that_validation_makes_non_finite_is_still_refused(
+    value, log_stream
+) -> None:
+    """The string is legitimate JSON; the float pydantic makes of it is not."""
     registry, tool = _registry()
 
     result = _execute(registry, {"rate": value})
 
     assert tool.calls == [], f"run() received rate={tool.calls[0].rate!r}"
     assert result.status is ToolStatus.INVALID_REQUEST
+    assert result.data is None
+    record = [r for r in _captured(log_stream) if r.get("event") == "tool_call"][-1]
+    assert record["error_type"] == "NonFiniteArgument"
+
+
+class _ContainerArgs(BaseModel):
+    """Fields validation fills with floats or Decimals from JSON *text*."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    bag: set[float] = set()
+    frozen: frozenset[float] = frozenset()
+    rates: tuple[float, ...] = ()
+    exact: Decimal = Field(default=Decimal(0), allow_inf_nan=True)
+    weights: dict[float, int] = {}
+    window: deque[float] = deque()
+    phase: complex = 0j
+
+
+class _ContainerTool(Tool):
+    name = "set_rates"
+    description = "Record several rates. Test double."
+    args_model = _ContainerArgs
+
+    def __init__(self) -> None:
+        self.calls: list[_ContainerArgs] = []
+
+    def run(self, args: BaseModel) -> dict[str, Any]:
+        self.calls.append(args)  # type: ignore[arg-type]
+        return {"recorded": True}
+
+
+def _container_registry() -> tuple[ToolRegistry, _ContainerTool]:
+    tool = _ContainerTool()
+    registry = ToolRegistry()
+    registry.register(tool)
+    return registry, tool
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"bag": [1.5, "NaN"]},
+        {"frozen": ["Infinity"]},
+        {"rates": [1.5, "-Infinity"]},
+        {"rates": ["1e400"]},
+        {"exact": "NaN"},
+        {"exact": "Infinity"},
+        {"exact": "-Infinity"},
+    ],
+    ids=[
+        "set",
+        "frozenset",
+        "tuple",
+        "tuple-overflow",
+        "decimal-nan",
+        "decimal-infinity",
+        "decimal-minus-infinity",
+    ],
+)
+def test_validation_that_puts_a_non_finite_number_in_a_set_a_tuple_or_a_decimal_is_refused(
+    arguments, log_stream
+) -> None:
+    """Only strings go in, so only the check of what validation produced can see it."""
+    json.dumps(arguments, allow_nan=False)  # the raw arguments are JSON proper
+    registry, tool = _container_registry()
+
+    result = _execute(registry, arguments, tool_name="set_rates")
+
+    assert tool.calls == [], f"run() received {tool.calls[0].model_dump(exclude_defaults=True)!r}"
+    assert result.status is ToolStatus.INVALID_REQUEST
+    record = [r for r in _captured(log_stream) if r.get("event") == "tool_call"][-1]
+    assert record["error_type"] == "NonFiniteArgument"
+
+
+def test_finite_values_in_those_fields_reach_the_tool() -> None:
+    """The control for the test above: a set, a tuple, a Decimal and a float key are not suspect in themselves."""
+    registry, tool = _container_registry()
+
+    result = _execute(
+        registry,
+        {
+            "bag": [1.5, "2.5"],
+            "frozen": [0, -0.0],
+            "rates": [1e308, "-2.25"],
+            "exact": "1.25",
+            "weights": {"1.5": 1},
+            "window": [2.0, "3"],
+        },
+        tool_name="set_rates",
+    )
+
+    assert result.status is ToolStatus.OK
+    assert len(tool.calls) == 1
+    args = tool.calls[0]
+    assert args.bag == {1.5, 2.5}
+    assert args.frozen == frozenset({0.0})
+    assert args.rates == (1e308, -2.25)
+    assert args.exact == Decimal("1.25")
+    assert args.weights == {1.5: 1}
+    assert args.window == deque([2.0, 3.0])
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"weights": {"NaN": 1}},
+        {"weights": {"1.5": 1, "-Infinity": 2}},
+        {"window": ["NaN"]},
+        {"window": [1.5, "Infinity"]},
+        {"phase": "nan"},
+        {"phase": "1+infj"},
+    ],
+    ids=[
+        "dict-key-nan",
+        "dict-key-minus-infinity",
+        "deque-nan",
+        "deque-infinity",
+        "complex-nan",
+        "complex-infinite-imaginary",
+    ],
+)
+def test_a_non_finite_number_validation_puts_in_a_dict_key_a_deque_or_a_complex_is_refused(
+    arguments,
+) -> None:
+    """The same coercion as the float field above, into places the first walk did not look.
+
+    pydantic turns ``{"NaN": 1}`` into ``{nan: 1}`` for a ``dict[float, int]``
+    field, ``["NaN"]`` into ``deque([nan])`` for a ``deque[float]``, and
+    ``"nan"`` into ``nan+0j`` for a ``complex``. The walk now reads dict keys,
+    enters deques and treats a complex as a number. Latent before: no banking
+    tool has such a field.
+    """
+    registry, tool = _container_registry()
+
+    result = _execute(registry, arguments, tool_name="set_rates")
+
+    assert tool.calls == [], f"run() received {tool.calls[0].model_dump(exclude_defaults=True)!r}"
+    assert result.status is ToolStatus.INVALID_REQUEST
+
+
+class _LaxArgs(BaseModel):
+    """A schema that would launder a NaN: it drops unknown keys and turns numbers into text."""
+
+    model_config = ConfigDict(extra="ignore", coerce_numbers_to_str=True)
+
+    note: str = ""
+
+
+class _LaxTool(Tool):
+    name = "take_note"
+    description = "Record a note. Test double."
+    args_model = _LaxArgs
+
+    def __init__(self) -> None:
+        self.calls: list[_LaxArgs] = []
+
+    def run(self, args: BaseModel) -> dict[str, Any]:
+        self.calls.append(args)  # type: ignore[arg-type]
+        return {"recorded": True}
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"note": float("nan")},
+        {"note": float("inf")},
+        {"note": float("-inf")},
+        {"note": "fine", "dropped": float("nan")},
+    ],
+    ids=["nan-becomes-text", "inf-becomes-text", "minus-inf-becomes-text", "dropped-key"],
+)
+def test_a_raw_non_finite_value_that_validation_would_hide_is_still_refused(
+    arguments, log_stream
+) -> None:
+    """Why the raw check exists at all: after validation this is the string "nan", or nothing."""
+    tool = _LaxTool()
+    registry = ToolRegistry()
+    registry.register(tool)
+
+    result = _execute(registry, arguments, tool_name="take_note")
+
+    assert tool.calls == [], f"run() received {tool.calls[0].model_dump()!r}"
+    assert result.status is ToolStatus.INVALID_REQUEST
+    record = [r for r in _captured(log_stream) if r.get("event") == "tool_call"][-1]
+    assert record["error_type"] == "NonFiniteArgument"
 
 
 # --- the orchestrator -------------------------------------------------------
@@ -670,6 +933,7 @@ class _RecordingBackend(InMemoryBankingBackend):
             compliance={"ACC-1": ComplianceContext(grievance_pending=False)},
         )
         self.calls: list[str] = []
+        self.account_refs: list[Any] = []
 
     def get_customer(self, customer_ref):
         self.calls.append("get_customer")
@@ -677,6 +941,7 @@ class _RecordingBackend(InMemoryBankingBackend):
 
     def get_account(self, account_ref):
         self.calls.append("get_account")
+        self.account_refs.append(account_ref)
         return super().get_account(account_ref)
 
     def get_compliance(self, account_ref):
@@ -942,16 +1207,8 @@ def test_the_adapter_never_puts_a_non_finite_echo_argument_on_the_wire(value) ->
     assert seen == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason=(
-        "FIX GAP: end to end over HTTP. The model sends the JSON string \"NaN\" for a float "
-        "field; the adapter preserves it as a string (correctly), the registry's raw-argument "
-        "check passes it, and pydantic coerces it to float('nan') before run()."
-    ),
-)
-def test_fix_gap_over_http_a_string_nan_for_a_float_field_still_reaches_the_tool() -> None:
+def test_over_http_a_string_nan_for_a_float_field_never_reaches_the_tool(log_stream) -> None:
+    """The adapter keeps the string "NaN" (correctly); the registry refuses the float it becomes."""
     endpoint = _Endpoint(
         _string_form('{"rate": "NaN"}', tool_name="set_rate"),
         json.dumps(openai_text_completion(GROUNDED_REPLY)),
@@ -965,3 +1222,39 @@ def test_fix_gap_over_http_a_string_nan_for_a_float_field_still_reaches_the_tool
 
     assert tool.calls == [], f"run() received rate={tool.calls[0].rate!r}"
     assert result.tools[0].status is ToolStatus.INVALID_REQUEST
+    assert result.outcome is TurnOutcome.FAILED
+    assert TurnErrorCategory.INVALID_TOOL_REQUEST in result.error_categories
+    assert len(endpoint.requests) == 1  # the turn ended; nothing was echoed
+    assert _refused_as_non_finite(log_stream)
+
+
+@pytest.mark.parametrize(
+    "value", [float("nan"), float("inf"), Decimal("NaN")], ids=["nan", "inf", "decimal-nan"]
+)
+def test_a_non_finite_value_in_an_app_bound_argument_is_overwritten_and_never_echoed(
+    value,
+) -> None:
+    """The one path where the registry does not refuse: the application's value replaces it first.
+
+    ``account_ref`` is bound from the session, so the backend reads the
+    borrower's own account, and the echo leaves bound arguments out, so the
+    model's NaN never goes back on the wire.
+    """
+    endpoint = _Endpoint(json.dumps(openai_text_completion(GROUNDED_REPLY)))
+    backend = _RecordingBackend()
+    llm = _FirstRoundScripted(
+        tool_generation("get_dpd", {"account_ref": value}, call_id="call-dpd"),
+        http_llm(endpoint),
+    )
+    runtime = make_runtime(backend=backend, llm=llm)
+    session = open_session(runtime)
+
+    result = ConversationOrchestrator(runtime).process_turn(session.session_id, say())
+
+    assert result.tools[0].status is ToolStatus.OK
+    assert backend.account_refs == ["ACC-1"]
+    assert len(endpoint.requests) == 1
+    body = _strict_json(json.dumps(endpoint.requests[0]))
+    echoes = [m for m in body["messages"] if m["role"] == "assistant" and m.get("tool_calls")]
+    assert [call["id"] for call in echoes[0]["tool_calls"]] == ["call-dpd"]
+    assert _strict_json(echoes[0]["tool_calls"][0]["function"]["arguments"]) == {}

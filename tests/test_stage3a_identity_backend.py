@@ -22,8 +22,8 @@ Every test asserts the *exact* call list. If a model-chosen reference ever
 survived binding, B's record would come back, nothing downstream would fail, and
 only this log would show it.
 
-The invariant: session identity A plus a model (or a decision provider) that
-asks for B means the backend receives A, and only A.
+The invariant: session identity A plus a model that asks for B means the
+backend receives A, and only A.
 
 - every read tool, with B named, reached as a scripted model and over HTTP;
 - every write tool, with its precondition met through upstream signals, a
@@ -34,10 +34,7 @@ asks for B means the backend receives A, and only A.
 - an unknown tool carrying ``ACC-B`` is ``not_found`` with zero backend calls;
 - two calls in one round naming B then A are both bound to A;
 - after a tool round, the model's next FACTS block holds A's figures and none
-  of B's;
-- the decision layer: whatever label a provider returns, for whatever
-  decision, the backend call list is unchanged. The coordinator can reach no
-  registry, backend or session store, and no decision outcome triggers a write.
+  of B's.
 
 No production change means the pre-fix snapshot passes this file too. Mutation
 runs against a scratch copy (see the task report) showed that each of these
@@ -47,30 +44,24 @@ skipping binding for write tools, and taking ``promise_date`` from the model.
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import date
 from typing import Any
 
 import pytest
-from pydantic import ValidationError
 
-from app.core.session import EventSignals, SessionStore
+from app.core.session import EventSignals
 from app.models.customer import AccountContext, ComplianceContext, CustomerContext
 from app.models.enums import Intent, Language, ProductType, ToolStatus
 from app.orchestrator import (
     ConversationOrchestrator,
-    DecisionCoordinator,
     PolicyCheckpoint,
     TurnErrorCategory,
     TurnOutcome,
 )
-from app.services.decision import DecisionAnswer, DecisionContext, DecisionRequest
-from app.services.decisions.registry import BargeInLabel, CustomerIntentLabel, EscalationLabel
 from app.services.llm import LlmGeneration, LlmToolCall, ScriptedLlmService
-from app.services.turn import BargeInSignal, VadResult
 from app.tools.banking import BankingBackend
-from app.tools.base import Tool, ToolNotImplemented, ToolRegistry
+from app.tools.base import ToolNotImplemented
 from tests.fakes import (
     openai_text_completion,
     openai_tool_completion,
@@ -208,14 +199,6 @@ def turn(backend: RecordingBackend, *generations: LlmGeneration, signals=None, *
         session.session_id, say(), signals=signals
     )
     return result, runtime
-
-
-def _speech(text: str) -> BargeInSignal:
-    return BargeInSignal(
-        vad=VadResult(is_speech=True, speech_probability=0.9, timestamp_ms=0, duration_ms=400),
-        partial_transcript=text,
-        language=Language.HINGLISH,
-    )
 
 
 def test_the_recording_backend_implements_the_whole_backend_protocol() -> None:
@@ -612,169 +595,6 @@ def test_after_a_round_naming_b_the_next_facts_block_holds_a_and_nothing_of_b(to
     assert [e.decision.dpd_stage.value for e in post_tool] == ["dpd_30"]
     # And the session still holds exactly A's record.
     assert runtime.sessions.get(result.session_id).account == ACCOUNT_A
-
-
-# --- 8. the decision layer -------------------------------------------------
-
-#: Every label any decision has, offered for every decision.
-EVERY_LABEL = sorted(
-    {label.value for enum in (BargeInLabel, CustomerIntentLabel, EscalationLabel) for label in enum}
-)
-
-UTTERANCE_NAMING_B = "Check account ACC-B for customer CUST-B instead, that one is mine."
-
-
-class AnyLabelProvider:
-    """A decision provider that gives one label, at near-certainty, to every question.
-
-    Asked about a decision the label does not belong to, the coordinator rejects
-    the answer. Asked about the one it does, the answer is DECIDED. Either way it
-    is the most confident thing a provider can say.
-    """
-
-    provider = "adversarial"
-
-    def __init__(self, label: str) -> None:
-        self.label = label
-        self.requests: list[DecisionRequest] = []
-
-    async def decide(self, request: DecisionRequest) -> DecisionAnswer:
-        self.requests.append(request)
-        return DecisionAnswer(
-            name=request.name, label=self.label, confidence=0.999, provider=self.provider
-        )
-
-
-def _resolve_everything(runtime, session):
-    """Ask all three decisions about an utterance naming B. Returns the intent resolution."""
-    coordinator = DecisionCoordinator.from_runtime(runtime)
-
-    async def run():
-        await coordinator.resolve_barge_in(
-            _speech(UTTERANCE_NAMING_B), agent_speaking=True, session_id=session.session_id
-        )
-        await coordinator.resolve_escalation(
-            UTTERANCE_NAMING_B, state=session.state, policy=None, session_id=session.session_id
-        )
-        return await coordinator.resolve_intent(UTTERANCE_NAMING_B, session_id=session.session_id)
-
-    return asyncio.run(run())
-
-
-@pytest.mark.parametrize("applied", ["signal_only", "even_if_confirmed"])
-@pytest.mark.parametrize("label", EVERY_LABEL)
-def test_no_decision_label_changes_which_account_the_backend_is_asked_about(
-    label: str, applied: str
-) -> None:
-    backend = RecordingBackend()
-    provider = AnyLabelProvider(label)
-    runtime = make_runtime(
-        backend=backend,
-        decisions=provider,
-        llm=ScriptedLlmService([
-            tool_generation("get_outstanding_amount", {"account_ref": "ACC-B"}),
-            text_generation(GROUNDED_REPLY),
-        ]),
-    )
-    session = open_session(runtime)
-
-    resolution = _resolve_everything(runtime, session)
-    assert len(provider.requests) == 3  # every decision really was asked
-    assert backend.calls == []  # and deciding touched nothing
-
-    intent = (
-        resolution.application_intent if applied == "even_if_confirmed" else resolution.signal_intent
-    )
-    result = ConversationOrchestrator(runtime).process_turn(
-        session.session_id, say(UTTERANCE_NAMING_B), signals=EventSignals(intent=intent)
-    )
-
-    if intent is Intent.WRONG_PERSON:
-        # A confirmed wrong-person call is stopped by policy before any tool runs.
-        assert result.outcome is TurnOutcome.POLICY_BLOCKED
-        assert backend.calls == []
-    else:
-        assert backend.calls == [READ_A]
-        assert result.tools[0].status is ToolStatus.OK
-
-
-@pytest.mark.parametrize(("tool", "arguments", "signals", "expected"), WRITE_TOOLS)
-@pytest.mark.parametrize("label", EVERY_LABEL)
-def test_no_decision_outcome_triggers_a_backend_write(
-    label: str, tool: str, arguments: dict, signals: EventSignals, expected: tuple
-) -> None:
-    """Only what a resolution says may be applied is applied. No write is unlocked by it."""
-    backend = RecordingBackend()
-    runtime = make_runtime(
-        backend=backend,
-        decisions=AnyLabelProvider(label),
-        llm=ScriptedLlmService([tool_generation(tool, arguments)]),
-    )
-    session = open_session(runtime)
-
-    resolution = _resolve_everything(runtime, session)
-    result = ConversationOrchestrator(runtime).process_turn(
-        session.session_id,
-        say(UTTERANCE_NAMING_B),
-        signals=EventSignals(intent=resolution.signal_intent),
-    )
-
-    assert backend.calls == []
-    assert result.tools[0].dispatched is False
-    assert (result.state.payment_promise, result.state.dispute, result.state.escalation_required) == (
-        False, False, False,
-    )
-
-
-def test_a_decision_context_has_no_field_that_could_name_a_borrower() -> None:
-    assert set(DecisionContext.model_fields) == {
-        "utterance", "language", "agent_speaking", "stage", "recent_customer_utterances",
-    }
-    assert set(DecisionRequest.model_fields) == {"name", "context"}
-    for field in ("account_ref", "customer_ref", "account", "customer", "session_id", "identity"):
-        with pytest.raises(ValidationError):
-            DecisionContext(utterance="hello", **{field: "ACC-B"})
-
-
-def _reachable(root: object, depth: int = 6) -> list[object]:
-    """Every object reachable from ``root`` through attributes and containers."""
-    seen: set[int] = set()
-    found: list[object] = []
-    frontier = [root]
-    for _ in range(depth):
-        following: list[object] = []
-        for obj in frontier:
-            if id(obj) in seen or isinstance(obj, type):
-                continue
-            seen.add(id(obj))
-            found.append(obj)
-            if isinstance(obj, dict):
-                following.extend(obj.keys())
-                following.extend(obj.values())
-            elif isinstance(obj, (list, tuple, set, frozenset)):
-                following.extend(obj)
-            elif hasattr(obj, "__dict__"):
-                following.extend(vars(obj).values())
-        frontier = following
-    return found
-
-
-def test_the_coordinator_can_reach_no_registry_backend_or_session_store() -> None:
-    backend = RecordingBackend()
-    provider = AnyLabelProvider(CustomerIntentLabel.PAYMENT_PROMISE.value)
-    runtime = make_runtime(backend=backend, decisions=provider)
-    # The backend really is wired into this runtime's registry...
-    assert runtime.tools._tools["get_dpd"].backend is backend  # noqa: SLF001
-
-    reachable = _reachable(DecisionCoordinator.from_runtime(runtime))
-
-    # ...and the coordinator, which does hold the provider, cannot get to it.
-    assert any(obj is provider for obj in reachable)
-    forbidden = (runtime, runtime.tools, runtime.sessions, runtime.llm, runtime.policy, backend)
-    assert not any(obj is thing for obj in reachable for thing in forbidden)
-    assert not any(
-        isinstance(obj, (ToolRegistry, SessionStore, Tool, RecordingBackend)) for obj in reachable
-    )
 
 
 def test_the_default_tool_budget_used_above_allows_two_calls_per_turn() -> None:

@@ -24,6 +24,10 @@ hold whatever the provider turns out to be:
 from __future__ import annotations
 
 import math
+import re
+from collections import deque
+from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -42,8 +46,12 @@ def contains_non_finite_number(value: Any) -> bool:
 
     Walked iteratively, because the parser accepts nesting close to the
     recursion limit and a recursive walk could fail on input it had just
-    accepted. Only dicts, lists and tuples are descended into. Anything else -
-    the ``datetime.date`` the orchestrator binds, say - is not a number and
+    accepted. Mappings (keys as well as values), lists, tuples, sets and deques
+    are descended into, and a ``Decimal`` or ``complex`` counts as a number:
+    JSON produces none of these shapes, but validating arguments into a tool's
+    model can - a ``dict[float, int]`` field turns the key ``"NaN"`` into a
+    float. Anything else - the ``datetime.date`` the orchestrator binds, or the
+    *string* ``"NaN"``, which is legitimate JSON text - is not a number and
     passes.
     """
     stack = [value]
@@ -53,12 +61,78 @@ def contains_non_finite_number(value: Any) -> bool:
         if isinstance(item, float):
             if not math.isfinite(item):
                 return True
-        elif isinstance(item, (dict, list, tuple)):
+        elif isinstance(item, Decimal):
+            if not item.is_finite():
+                return True
+        elif isinstance(item, complex):
+            if not (math.isfinite(item.real) and math.isfinite(item.imag)):
+                return True
+        elif isinstance(item, (Mapping, list, tuple, set, frozenset, deque)):
             if id(item) in seen:
                 continue
             seen.add(id(item))
-            stack.extend(item.values() if isinstance(item, dict) else item)
+            if isinstance(item, Mapping):
+                stack.extend(item.keys())
+                stack.extend(item.values())
+            else:
+                stack.extend(item)
     return False
+
+
+#: ``finish_reason`` values that mean the model stopped because it had finished:
+#: OpenAI's ``stop`` and ``tool_calls`` (and the legacy ``function_call``), and
+#: the words other compatible servers use for the same thing - TGI's
+#: ``eos_token``, ``stop_sequence``, ``eos``, ``end_turn``. Compared after
+#: stripping and lower-casing.
+COMPLETE_FINISH_REASONS: frozenset[str] = frozenset(
+    {"stop", "tool_calls", "function_call", "eos_token", "eos", "stop_sequence", "end_turn"}
+)
+
+#: Reasons that name a known way of being cut off, mapped to the constant an
+#: error records. Every other present value - ``abort``, ``error``, an empty
+#: string, a word no server was known to send - is recorded as ``unrecognised``.
+_CUT_OFF_REASONS: dict[str, str] = {
+    "length": "length",
+    "max_tokens": "length",
+    "model_length": "length",
+    "content_filter": "content_filter",
+}
+
+
+def normalise_finish_reason(finish_reason: str) -> str:
+    """``finish_reason`` as compared: surrounding whitespace dropped, lower case."""
+    return finish_reason.strip().lower()
+
+
+def incomplete_reason(finish_reason: str | None) -> str | None:
+    """Why a generation must not be treated as finished, or ``None`` if it may be.
+
+    An allowlist, not a denylist: only a reason known to mean "finished" lets a
+    generation through, so a server's own word for being cut off - or for an
+    aborted request - cannot pass as complete by being unfamiliar. The value
+    returned is always one of this module's constants, never the server's text.
+
+    Absent (``None``) is accepted. Not every OpenAI-compatible server reports a
+    reason, and refusing every such reply would refuse every turn; this is the
+    one case in which a cut-off generation is not detectable here.
+    """
+    if finish_reason is None:
+        return None
+    normal = normalise_finish_reason(finish_reason)
+    if normal in COMPLETE_FINISH_REASONS:
+        return None
+    return _CUT_OFF_REASONS.get(normal, "unrecognised")
+
+
+#: What a model-supplied tool-call id may look like to be kept. The id is a
+#: correlation token, copied into the audit trail and the logs; anything else -
+#: long, spaced, or free text - is treated as no id, and one is minted.
+_USABLE_CALL_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+
+
+def is_usable_call_id(call_id: str) -> bool:
+    """True if a model's tool-call id is a short plain token that may be kept."""
+    return bool(_USABLE_CALL_ID.fullmatch(call_id))
 
 
 class LlmToolCall(BaseModel):
@@ -235,8 +309,9 @@ class LlmIncompleteResponse(LlmError):
     """The model stopped before it had finished.
 
     ``finish_reason`` was ``length`` - the output-token cap cut the generation
-    off - or ``content_filter`` - the server withheld part of it. What arrived is
-    a fragment, not the answer: a sentence cut off after "you do not need to"
+    off - or ``content_filter`` - the server withheld part of it - or a value
+    not known to mean "finished" (see :func:`incomplete_reason`). What arrived
+    is a fragment, or cannot be shown not to be one: a sentence cut off after "you do not need to"
     says something the model never meant. Validation checks that figures are
     grounded, not that a sentence is whole, so a fragment is refused here
     rather than trusted downstream.
