@@ -121,6 +121,7 @@ def _assert_is_the_shipped_configuration(settings: Settings) -> None:
     assert settings.model_connect_timeout_seconds is None
     assert settings.model_max_output_tokens is None
     assert settings.model_temperature is None
+    assert settings.model_reasoning_effort is None
     assert settings.max_recovery_calls_per_day is None
     # The required numbers are the documented ones.
     assert settings.model_timeout_seconds == 20.0

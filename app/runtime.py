@@ -89,6 +89,7 @@ def build_llm_service(settings: Settings) -> LlmService:
         connect_timeout_seconds=settings.model_connect_timeout_seconds,
         max_output_tokens=settings.model_max_output_tokens,
         temperature=settings.model_temperature,
+        reasoning_effort=settings.model_reasoning_effort,
         max_retries=settings.model_max_retries,
         provider=settings.model_provider,
     )

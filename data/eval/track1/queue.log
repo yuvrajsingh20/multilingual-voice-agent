@@ -1,0 +1,468 @@
+[2026-09-30T17:51:06+05:30] START .venv/bin/python scripts/track1_ps3.py run --model qwen-voice-4b
+[4/200] ps3-S01-mr-en ttft=17477.6 total=39845.4 calls=['log_disposition'] err=None
+[5/200] ps3-S02-en ttft=27728.9 total=27873.2 calls=['capture_ptp'] err=None
+[6/200] ps3-S02-hi-en ttft=27845.8 total=27983.8 calls=['capture_ptp'] err=None
+[7/200] ps3-S02-mr ttft=20608.3 total=37574.3 calls=['capture_ptp'] err=None
+[8/200] ps3-S02-mr-en ttft=19109.6 total=30204.6 calls=['send_payment_link'] err=None
+[9/200] ps3-S03-en ttft=27962.3 total=28130.5 calls=['capture_ptp'] err=None
+[10/200] ps3-S03-hi-en ttft=29006.0 total=29149.7 calls=['capture_ptp'] err=None
+[11/200] ps3-S03-mr ttft=21164.3 total=36559.5 calls=[] err=None
+[12/200] ps3-S03-mr-en ttft=20734.9 total=36833.5 calls=[] err=None
+[13/200] ps3-S04-en ttft=29091.8 total=29263.5 calls=['capture_ptp'] err=None
+[14/200] ps3-S04-hi-en ttft=29949.1 total=30093.0 calls=['capture_ptp'] err=None
+[15/200] ps3-S04-mr ttft=21432.6 total=30873.2 calls=[] err=None
+[16/200] ps3-S04-mr-en ttft=20295.0 total=25966.1 calls=[] err=None
+[17/200] ps3-S05-en ttft=29583.7 total=29732.5 calls=['capture_ptp'] err=None
+[18/200] ps3-S05-hi-en ttft=28861.9 total=29009.3 calls=['capture_ptp'] err=None
+[19/200] ps3-S06-en ttft=25359.4 total=25494.6 calls=['capture_ptp'] err=None
+[20/200] ps3-S06-hi-en ttft=25984.9 total=26119.0 calls=['capture_ptp'] err=None
+[21/200] ps3-S07-en ttft=27433.3 total=27573.6 calls=['capture_ptp'] err=None
+[22/200] ps3-S07-hi-en ttft=18788.8 total=31719.7 calls=['send_payment_link'] err=None
+[23/200] ps3-S07-mr ttft=20519.4 total=39543.9 calls=[] err=None
+[24/200] ps3-S07-mr-en ttft=19161.9 total=23513.1 calls=[] err=None
+[25/200] ps3-S08-en ttft=26662.9 total=26807.9 calls=['capture_ptp'] err=None
+[26/200] ps3-S08-hi-en ttft=27374.6 total=27549.2 calls=['capture_ptp'] err=None
+[27/200] ps3-S09-en ttft=27121.9 total=27269.4 calls=['capture_ptp'] err=None
+[28/200] ps3-S09-hi-en ttft=18037.8 total=32514.7 calls=['send_payment_link'] err=None
+[29/200] ps3-S09-mr ttft=19004.2 total=39144.8 calls=['capture_ptp'] err=None
+[30/200] ps3-S09-mr-en ttft=17476.7 total=24119.8 calls=[] err=None
+[31/200] ps3-S10-en ttft=30008.5 total=30158.8 calls=['capture_ptp'] err=None
+[32/200] ps3-S10-hi-en ttft=29701.8 total=29844.3 calls=['capture_ptp'] err=None
+[33/200] ps3-S11-en ttft=26486.1 total=26638.5 calls=['capture_ptp'] err=None
+[34/200] ps3-S11-hi-en ttft=17246.1 total=28733.5 calls=[] err=None
+[35/200] ps3-S11-mr ttft=18318.4 total=33032.8 calls=['capture_ptp'] err=None
+[36/200] ps3-S11-mr-en ttft=17306.9 total=28284.4 calls=[] err=None
+[37/200] ps3-S12-en ttft=25192.7 total=25330.8 calls=['capture_ptp'] err=None
+[38/200] ps3-S12-hi-en ttft=26290.5 total=26427.7 calls=['capture_ptp'] err=None
+[39/200] ps3-S12-mr ttft=27396.8 total=27538.1 calls=['capture_ptp'] err=None
+[40/200] ps3-S12-mr-en ttft=16908.4 total=34361.4 calls=[] err=None
+[41/200] ps3-S13-en ttft=27316.3 total=27461.5 calls=['capture_ptp'] err=None
+[42/200] ps3-S13-hi-en ttft=18083.7 total=41060.5 calls=['capture_ptp'] err=None
+[2026-09-30T18:11:10+05:30] START .venv/bin/python scripts/track1_ps3.py run --model qwen-voice-4b
+[43/200] ps3-S14-en ttft=10635.5 total=10773.5 calls=['capture_ptp'] err=None
+[44/200] ps3-S14-hi-en ttft=28022.8 total=28179.2 calls=['capture_ptp'] err=None
+[2026-10-01T10:34:47+05:30] RESUME after machine shutdown at 2026-09-30T18:50; queue reordered (4B block first)
+[2026-10-01T10:34:47+05:30] START .venv/bin/python scripts/track1_ps3.py run --model qwen-voice-4b
+[45/200] ps3-S15-en ttft=48422.1 total=48552.1 calls=['capture_ptp'] err=None
+[46/200] ps3-S15-hi-en ttft=28300.8 total=28433.4 calls=['capture_ptp'] err=None
+[47/200] ps3-S15-mr ttft=19562.4 total=35229.8 calls=['capture_ptp'] err=None
+[48/200] ps3-S15-mr-en ttft=18723.7 total=28129.7 calls=[] err=None
+[49/200] ps3-S16-en ttft=25442.7 total=25584.2 calls=['capture_ptp'] err=None
+[50/200] ps3-S16-hi-en ttft=17678.3 total=28586.2 calls=[] err=None
+[51/200] ps3-S17-en ttft=28927.3 total=29062.4 calls=['capture_ptp'] err=None
+[52/200] ps3-S17-hi-en ttft=28139.7 total=28276.0 calls=['capture_ptp'] err=None
+[53/200] ps3-S17-mr ttft=29815.7 total=29970.7 calls=['capture_ptp'] err=None
+[54/200] ps3-S17-mr-en ttft=26740.4 total=26878.0 calls=['mark_dispute'] err=None
+[55/200] ps3-S18-en ttft=26100.8 total=26269.6 calls=['capture_ptp'] err=None
+[56/200] ps3-S18-hi-en ttft=23664.7 total=34157.4 calls=[] err=None
+[57/200] ps3-S19-en ttft=21685.3 total=21819.6 calls=['send_payment_link'] err=None
+[58/200] ps3-S19-hi-en ttft=22286.8 total=22420.5 calls=['send_payment_link'] err=None
+[59/200] ps3-S19-mr ttft=23240.2 total=23377.0 calls=['send_payment_link'] err=None
+[60/200] ps3-S19-mr-en ttft=29835.7 total=29979.7 calls=['send_payment_link'] err=None
+[61/200] ps3-S20-en ttft=22856.7 total=22993.5 calls=['send_payment_link'] err=None
+[62/200] ps3-S20-hi-en ttft=23494.1 total=23630.4 calls=['send_payment_link'] err=None
+[63/200] ps3-S20-mr ttft=23583.2 total=23721.4 calls=['send_payment_link'] err=None
+[64/200] ps3-S20-mr-en ttft=22213.6 total=22350.6 calls=['send_payment_link'] err=None
+[65/200] ps3-S21-en ttft=23360.2 total=23501.0 calls=['send_payment_link'] err=None
+[66/200] ps3-S21-hi-en ttft=24186.1 total=24327.5 calls=['send_payment_link'] err=None
+[67/200] ps3-S22-en ttft=23003.6 total=23139.9 calls=['send_payment_link'] err=None
+[68/200] ps3-S22-hi-en ttft=24508.7 total=24649.5 calls=['send_payment_link'] err=None
+[69/200] ps3-S22-mr ttft=26412.1 total=26554.6 calls=['send_payment_link'] err=None
+[70/200] ps3-S22-mr-en ttft=25417.4 total=25574.5 calls=['send_payment_link'] err=None
+[71/200] ps3-S23-en ttft=24229.2 total=24368.1 calls=['send_payment_link'] err=None
+[72/200] ps3-S23-hi-en ttft=23156.8 total=23293.2 calls=['send_payment_link'] err=None
+[73/200] ps3-S24-en ttft=17308.7 total=33464.3 calls=['log_disposition'] err=None
+[74/200] ps3-S24-hi-en ttft=23656.8 total=23802.1 calls=['send_payment_link'] err=None
+[75/200] ps3-S24-mr ttft=19228.3 total=36447.7 calls=['send_payment_link'] err=None
+[76/200] ps3-S24-mr-en ttft=22251.8 total=22388.1 calls=['send_payment_link'] err=None
+[77/200] ps3-S25-en ttft=23372.2 total=23520.8 calls=['send_payment_link'] err=None
+[78/200] ps3-S25-hi-en ttft=24737.4 total=24880.8 calls=['send_payment_link'] err=None
+[79/200] ps3-S26-en ttft=23391.4 total=23539.7 calls=['send_payment_link'] err=None
+[80/200] ps3-S26-hi-en ttft=25028.2 total=25168.8 calls=['send_payment_link'] err=None
+[81/200] ps3-S26-mr ttft=30839.9 total=30997.5 calls=['send_payment_link'] err=None
+[82/200] ps3-S26-mr-en ttft=29532.0 total=29688.4 calls=['send_payment_link'] err=None
+[83/200] ps3-S27-en ttft=27671.1 total=27892.7 calls=['mark_dispute'] err=None
+[84/200] ps3-S27-hi-en ttft=30124.9 total=30259.3 calls=['mark_dispute'] err=None
+[85/200] ps3-S27-mr ttft=27506.4 total=27639.3 calls=['mark_dispute'] err=None
+[86/200] ps3-S27-mr-en ttft=25481.9 total=25611.5 calls=['mark_dispute'] err=None
+[87/200] ps3-S28-en ttft=24480.2 total=24613.3 calls=['mark_dispute'] err=None
+[88/200] ps3-S28-hi-en ttft=27664.0 total=27800.4 calls=['mark_dispute'] err=None
+[89/200] ps3-S28-mr ttft=17710.0 total=30495.6 calls=[] err=None
+[90/200] ps3-S28-mr-en ttft=21879.5 total=45973.8 calls=['log_disposition'] err=None
+[91/200] ps3-S29-en ttft=30407.4 total=30547.7 calls=['mark_dispute'] err=None
+[92/200] ps3-S29-hi-en ttft=27917.8 total=28058.5 calls=['capture_ptp'] err=None
+[93/200] ps3-S29-mr ttft=36092.7 total=36324.5 calls=['mark_dispute'] err=None
+[94/200] ps3-S29-mr-en ttft=33593.0 total=33733.8 calls=['mark_dispute'] err=None
+[95/200] ps3-S30-en ttft=26419.9 total=26560.5 calls=['mark_dispute'] err=None
+[96/200] ps3-S30-hi-en ttft=28715.0 total=28854.1 calls=['mark_dispute'] err=None
+[97/200] ps3-S31-en ttft=23659.8 total=33246.5 calls=['mark_dispute', 'log_disposition'] err=None
+[98/200] ps3-S31-hi-en ttft=16170.8 total=25376.6 calls=[] err=None
+[99/200] ps3-S31-mr ttft=17419.2 total=22529.8 calls=[] err=None
+[100/200] ps3-S31-mr-en ttft=16804.2 total=25871.4 calls=[] err=None
+[101/200] ps3-S32-en ttft=24895.6 total=25033.4 calls=['mark_dispute'] err=None
+[102/200] ps3-S32-hi-en ttft=28052.8 total=28208.0 calls=['mark_dispute'] err=None
+[103/200] ps3-S33-en ttft=24921.2 total=33645.8 calls=['mark_dispute', 'log_disposition'] err=None
+[104/200] ps3-S33-hi-en ttft=27377.9 total=27520.8 calls=['mark_dispute'] err=None
+[105/200] ps3-S33-mr ttft=30627.6 total=30764.0 calls=['mark_dispute'] err=None
+[106/200] ps3-S33-mr-en ttft=27170.6 total=27312.7 calls=['mark_dispute'] err=None
+[107/200] ps3-S34-en ttft=23388.3 total=23518.2 calls=['mark_dispute'] err=None
+[108/200] ps3-S34-hi-en ttft=23487.6 total=23620.3 calls=['mark_dispute'] err=None
+[109/200] ps3-S35-en ttft=25954.9 total=26087.4 calls=['mark_dispute'] err=None
+[110/200] ps3-S35-hi-en ttft=16355.8 total=35939.1 calls=['mark_dispute'] err=None
+[111/200] ps3-S35-mr ttft=17710.9 total=28328.1 calls=[] err=None
+[112/200] ps3-S35-mr-en ttft=16783.1 total=33609.3 calls=['log_disposition'] err=None
+[113/200] ps3-S36-en ttft=24640.1 total=24776.9 calls=['mark_dispute'] err=None
+[114/200] ps3-S36-hi-en ttft=25531.4 total=25670.6 calls=['mark_dispute'] err=None
+[115/200] ps3-S37-en ttft=20359.3 total=20494.3 calls=['escalate_human'] err=None
+[116/200] ps3-S37-hi-en ttft=21888.1 total=22025.6 calls=['escalate_human'] err=None
+[117/200] ps3-S37-mr ttft=17882.0 total=39665.2 calls=[] err=None
+[118/200] ps3-S37-mr-en ttft=16716.2 total=25480.2 calls=[] err=None
+[119/200] ps3-S38-en ttft=16531.2 total=25700.8 calls=['escalate_human'] err=None
+[120/200] ps3-S38-hi-en ttft=21827.5 total=21957.4 calls=['escalate_human'] err=None
+[121/200] ps3-S38-mr ttft=17267.1 total=33136.5 calls=['send_payment_link'] err=None
+[122/200] ps3-S38-mr-en ttft=16568.7 total=32848.2 calls=['log_disposition'] err=None
+[123/200] ps3-S39-en ttft=19166.7 total=19300.2 calls=['escalate_human'] err=None
+[124/200] ps3-S39-hi-en ttft=20402.0 total=20534.3 calls=['escalate_human'] err=None
+[125/200] ps3-S39-mr ttft=21268.1 total=21405.5 calls=['escalate_human'] err=None
+[126/200] ps3-S39-mr-en ttft=16558.4 total=25171.4 calls=[] err=None
+[127/200] ps3-S40-en ttft=19334.9 total=19463.0 calls=['escalate_human'] err=None
+[128/200] ps3-S40-hi-en ttft=19606.7 total=19740.5 calls=['escalate_human'] err=None
+[129/200] ps3-S41-en ttft=19376.6 total=19507.1 calls=['escalate_human'] err=None
+[130/200] ps3-S41-hi-en ttft=20031.2 total=20161.5 calls=['escalate_human'] err=None
+[131/200] ps3-S41-mr ttft=21589.1 total=21722.5 calls=['escalate_human'] err=None
+[132/200] ps3-S41-mr-en ttft=20210.5 total=20343.8 calls=['escalate_human'] err=None
+[133/200] ps3-S42-en ttft=19467.5 total=19603.5 calls=['escalate_human'] err=None
+[134/200] ps3-S42-hi-en ttft=16568.4 total=26896.3 calls=[] err=None
+[135/200] ps3-S43-en ttft=18526.6 total=18657.6 calls=['escalate_human'] err=None
+[136/200] ps3-S43-hi-en ttft=19670.3 total=19801.4 calls=['escalate_human'] err=None
+[137/200] ps3-S43-mr ttft=16688.3 total=26262.6 calls=['escalate_human'] err=None
+[138/200] ps3-S43-mr-en ttft=16130.4 total=23032.5 calls=[] err=None
+[139/200] ps3-S44-en ttft=19819.0 total=19955.7 calls=['escalate_human'] err=None
+[140/200] ps3-S44-hi-en ttft=20541.7 total=20679.1 calls=['escalate_human'] err=None
+[141/200] ps3-S45-en ttft=23063.4 total=23196.8 calls=['log_disposition'] err=None
+[142/200] ps3-S45-hi-en ttft=22540.3 total=22670.6 calls=['log_disposition'] err=None
+[143/200] ps3-S45-mr ttft=23026.3 total=23162.3 calls=['log_disposition'] err=None
+[144/200] ps3-S45-mr-en ttft=23669.8 total=23810.4 calls=['log_disposition'] err=None
+[145/200] ps3-S46-en ttft=19567.2 total=19697.0 calls=['escalate_human'] err=None
+[146/200] ps3-S46-hi-en ttft=22244.3 total=22378.8 calls=['send_payment_link'] err=None
+[147/200] ps3-S46-mr ttft=17447.5 total=35577.0 calls=['capture_ptp'] err=None
+[148/200] ps3-S46-mr-en ttft=16487.3 total=27375.5 calls=[] err=None
+[149/200] ps3-S47-en ttft=19458.9 total=19593.7 calls=['escalate_human'] err=None
+[150/200] ps3-S47-hi-en ttft=23097.6 total=23229.0 calls=['log_disposition'] err=None
+[151/200] ps3-S47-mr ttft=23282.8 total=23415.6 calls=['log_disposition'] err=None
+[152/200] ps3-S47-mr-en ttft=16057.6 total=29369.4 calls=[] err=None
+[153/200] ps3-S48-en ttft=25183.9 total=25315.6 calls=['log_disposition'] err=None
+[154/200] ps3-S48-hi-en ttft=25388.2 total=25523.0 calls=['log_disposition'] err=None
+[155/200] ps3-S49-en ttft=24644.7 total=24780.1 calls=['capture_ptp'] err=None
+[156/200] ps3-S49-hi-en ttft=20489.9 total=20620.8 calls=['escalate_human'] err=None
+[157/200] ps3-S49-mr ttft=16661.7 total=29878.9 calls=['log_disposition'] err=None
+[158/200] ps3-S49-mr-en ttft=20158.4 total=20295.9 calls=['escalate_human'] err=None
+[159/200] ps3-S50-en ttft=19674.5 total=27699.2 calls=['escalate_human', 'log_disposition'] err=None
+[160/200] ps3-S50-hi-en ttft=25293.5 total=32946.8 calls=['mark_dispute', 'log_disposition'] err=None
+[161/200] ps3-S51-en ttft=21647.2 total=21778.4 calls=['log_disposition'] err=None
+[162/200] ps3-S51-hi-en ttft=19704.8 total=19834.6 calls=['escalate_human'] err=None
+[163/200] ps3-S52-en ttft=24127.7 total=24258.3 calls=['log_disposition'] err=None
+[164/200] ps3-S52-hi-en ttft=24805.8 total=24939.7 calls=['log_disposition'] err=None
+[165/200] ps3-S53-en ttft=15865.7 total=24438.2 calls=[] err=None
+[166/200] ps3-S53-hi-en ttft=16770.4 total=27324.0 calls=[] err=None
+[167/200] ps3-S53-mr ttft=17588.5 total=26707.1 calls=[] err=None
+[168/200] ps3-S53-mr-en ttft=16476.8 total=22304.4 calls=[] err=None
+[169/200] ps3-S54-en ttft=15082.6 total=22197.7 calls=[] err=None
+[170/200] ps3-S54-hi-en ttft=15410.7 total=25142.8 calls=[] err=None
+[171/200] ps3-S55-en ttft=15446.3 total=25535.8 calls=[] err=None
+[172/200] ps3-S55-hi-en ttft=16358.5 total=27310.2 calls=[] err=None
+[173/200] ps3-S55-mr ttft=17188.1 total=29812.0 calls=[] err=None
+[174/200] ps3-S55-mr-en ttft=16264.6 total=24168.2 calls=[] err=None
+[175/200] ps3-S56-en ttft=15159.1 total=21463.1 calls=[] err=None
+[176/200] ps3-S56-hi-en ttft=16151.3 total=22364.0 calls=[] err=None
+[177/200] ps3-S57-en ttft=25063.3 total=25200.6 calls=['capture_ptp'] err=None
+[178/200] ps3-S57-hi-en ttft=25444.3 total=25598.4 calls=['capture_ptp'] err=None
+[179/200] ps3-S57-mr ttft=17322.9 total=34338.1 calls=[] err=None
+[180/200] ps3-S57-mr-en ttft=16586.0 total=36146.7 calls=['mark_dispute'] err=None
+[181/200] ps3-S58-en ttft=24951.5 total=25088.9 calls=['capture_ptp'] err=None
+[182/200] ps3-S58-hi-en ttft=16534.0 total=27728.9 calls=[] err=None
+[183/200] ps3-S59-en ttft=24500.6 total=24641.0 calls=['mark_dispute'] err=None
+[184/200] ps3-S59-hi-en ttft=26524.9 total=26665.4 calls=['mark_dispute'] err=None
+[185/200] ps3-S59-mr ttft=18325.7 total=31879.6 calls=[] err=None
+[186/200] ps3-S59-mr-en ttft=16285.5 total=30465.1 calls=['log_disposition'] err=None
+[187/200] ps3-S60-en ttft=15542.1 total=22177.2 calls=[] err=None
+[188/200] ps3-S60-hi-en ttft=16623.3 total=24723.0 calls=[] err=None
+[189/200] ps3-S61-en ttft=23350.2 total=23480.4 calls=['mark_dispute'] err=None
+[190/200] ps3-S61-hi-en ttft=16472.4 total=31950.2 calls=['log_disposition'] err=None
+[191/200] ps3-S61-mr ttft=25527.6 total=25659.5 calls=['mark_dispute'] err=None
+[192/200] ps3-S61-mr-en ttft=16233.0 total=20981.9 calls=[] err=None
+[193/200] ps3-S62-en ttft=16061.4 total=22295.4 calls=[] err=None
+[194/200] ps3-S62-hi-en ttft=16767.7 total=27285.6 calls=[] err=None
+[195/200] ps3-S62-mr ttft=17437.0 total=32665.1 calls=[] err=None
+[196/200] ps3-S62-mr-en ttft=15927.9 total=23091.2 calls=[] err=None
+[197/200] ps3-S63-en ttft=15696.5 total=21522.2 calls=[] err=None
+[198/200] ps3-S63-hi-en ttft=16861.8 total=28089.8 calls=[] err=None
+[199/200] ps3-S64-en ttft=24934.0 total=25074.9 calls=['capture_ptp'] err=None
+[200/200] ps3-S64-hi-en ttft=17081.3 total=36968.7 calls=[] err=None
+[2026-10-01T11:43:09+05:30] END .venv/bin/python scripts/track1_ps3.py run --model qwen-voice-4b
+[2026-10-01T11:43:09+05:30] START .venv/bin/python scripts/track1_ps3.py score --model qwen-voice-4b
+{
+  "model": "qwen-voice-4b",
+  "scored": 200,
+  "correct_tool": 0.7195,
+  "arg_accuracy": 0.5854,
+  "strict": 0.6136,
+  "spurious": 0.1023,
+  "missed": 0.1646,
+  "malformed": 0.0066,
+  "en_vs_hinglish_correct_tool": {
+    "pairs": 52,
+    "en_rate": 0.9231,
+    "hi-en_rate": 0.7692,
+    "delta_en_minus_other": 0.1538,
+    "discordant_en_only": 10,
+    "discordant_other_only": 2,
+    "mcnemar_p": 0.0386
+  }
+}
+[2026-10-01T11:43:09+05:30] END .venv/bin/python scripts/track1_ps3.py score --model qwen-voice-4b
+[2026-10-01T11:43:09+05:30] START .venv/bin/python scripts/track1_ps2.py run --model qwen-voice-4b
+[ps2-hi-en-dpd5 turn 0] ttft=10722.2 total=19458.4 err=None
+[ps2-hi-en-dpd5 turn 1] ttft=4001.7 total=20779.6 err=None
+[ps2-hi-en-dpd5 turn 2] ttft=6150.1 total=24714.9 err=None
+[ps2-hi-en-dpd5 turn 3] ttft=6414.8 total=21958.6 err=None
+[ps2-hi-en-dpd5 turn 4] ttft=5581.8 total=23059.2 err=None
+[ps2-hi-en-dpd5 turn 5] ttft=6330.3 total=26648.8 err=None
+[ps2-hi-en-dpd5 turn 6] ttft=7431.8 total=24090.4 err=None
+[ps2-hi-en-dpd5 turn 7] ttft=5794.8 total=20674.6 err=None
+[ps2-hi-en-dpd30 turn 0] ttft=11332.6 total=20220.8 err=None
+[ps2-hi-en-dpd30 turn 1] ttft=3917.9 total=14026.4 err=None
+[ps2-hi-en-dpd30 turn 2] ttft=4316.5 total=17782.6 err=None
+[ps2-hi-en-dpd30 turn 3] ttft=5123.1 total=15003.8 err=None
+[ps2-hi-en-dpd30 turn 4] ttft=3930.5 total=14062.4 err=None
+[ps2-hi-en-dpd30 turn 5] ttft=4258.0 total=16399.5 err=None
+[ps2-hi-en-dpd30 turn 6] ttft=5182.3 total=17325.9 err=None
+[ps2-hi-en-dpd30 turn 7] ttft=4583.9 total=18532.8 err=None
+[ps2-hi-en-dpd90 turn 0] ttft=12035.1 total=21066.2 err=None
+[ps2-hi-en-dpd90 turn 1] ttft=3775.1 total=15200.4 err=None
+[ps2-hi-en-dpd90 turn 2] ttft=4758.7 total=17878.8 err=None
+[ps2-hi-en-dpd90 turn 3] ttft=4995.0 total=13992.2 err=None
+[ps2-hi-en-dpd90 turn 4] ttft=3768.3 total=18969.3 err=None
+[ps2-hi-en-dpd90 turn 5] ttft=5577.0 total=21227.7 err=None
+[ps2-hi-en-dpd90 turn 6] ttft=5907.9 total=22014.8 err=None
+[ps2-hi-en-dpd90 turn 7] ttft=5746.9 total=22548.9 err=None
+[ps2-mr-en-dpd5 turn 0] ttft=10469.3 total=18429.5 err=None
+[ps2-mr-en-dpd5 turn 1] ttft=3381.3 total=16326.1 err=None
+[ps2-mr-en-dpd5 turn 2] ttft=5084.9 total=20915.6 err=None
+[ps2-mr-en-dpd5 turn 3] ttft=5618.5 total=20624.8 err=None
+[ps2-mr-en-dpd5 turn 4] ttft=5421.6 total=21166.2 err=None
+[ps2-mr-en-dpd5 turn 5] ttft=5656.2 total=21308.0 err=None
+[ps2-mr-en-dpd5 turn 6] ttft=6096.1 total=20021.7 err=None
+[ps2-mr-en-dpd5 turn 7] ttft=4879.0 total=21185.2 err=None
+[ps2-mr-en-dpd30 turn 0] ttft=10969.9 total=18940.8 err=None
+[ps2-mr-en-dpd30 turn 1] ttft=3494.4 total=16497.3 err=None
+[ps2-mr-en-dpd30 turn 2] ttft=5194.0 total=23406.2 err=None
+[ps2-mr-en-dpd30 turn 3] ttft=6609.1 total=23708.3 err=None
+[ps2-mr-en-dpd30 turn 4] ttft=6082.3 total=23063.4 err=None
+[ps2-mr-en-dpd30 turn 5] ttft=5903.5 total=23429.6 err=None
+[ps2-mr-en-dpd30 turn 6] ttft=6471.3 total=23282.8 err=None
+[ps2-mr-en-dpd30 turn 7] ttft=5868.8 total=23388.8 err=None
+[ps2-mr-en-dpd90 turn 0] ttft=11011.9 total=19356.9 err=None
+[ps2-mr-en-dpd90 turn 1] ttft=3627.6 total=20643.7 err=None
+[ps2-mr-en-dpd90 turn 2] ttft=6314.9 total=28330.0 err=None
+[ps2-mr-en-dpd90 turn 3] ttft=7784.5 total=24702.9 err=None
+[ps2-mr-en-dpd90 turn 4] ttft=5570.5 total=24036.6 err=None
+[ps2-mr-en-dpd90 turn 5] ttft=6232.5 total=28253.3 err=None
+[ps2-mr-en-dpd90 turn 6] ttft=8124.7 total=27217.5 err=None
+[ps2-mr-en-dpd90 turn 7] ttft=6363.8 total=25413.5 err=None
+[2026-10-01T11:59:50+05:30] END .venv/bin/python scripts/track1_ps2.py run --model qwen-voice-4b
+[2026-10-01T11:59:50+05:30] START .venv/bin/python scripts/track1_ps2.py score --model qwen-voice-4b
+{
+  "model": "qwen-voice-4b",
+  "calls": 6,
+  "turns": 48,
+  "script_by_language": {
+    "hi-en": {
+      "latin": 24
+    },
+    "mr-en": {
+      "latin": 24
+    }
+  },
+  "failure_modes": {
+    "tone_collapse_under_refusal": {
+      "calls": 4,
+      "of_calls": 6,
+      "call_ids": [
+        "ps2-hi-en-dpd30",
+        "ps2-hi-en-dpd90",
+        "ps2-mr-en-dpd5",
+        "ps2-mr-en-dpd90"
+      ]
+    },
+    "numeral_currency_handling": {
+      "turns": 2,
+      "of_turns": 48
+    },
+    "script_inconsistency": {
+      "turns": 0,
+      "of_turns": 48,
+      "calls_switching": 0
+    },
+    "long_turns": {
+      "turns": 25,
+      "of_turns": 48
+    },
+    "register_drift_bucket": {
+      "languages_with_identical_markers_across_buckets": []
+    }
+  },
+  "tts": {
+    "blocked": 48
+  }
+}
+[2026-10-01T11:59:50+05:30] END .venv/bin/python scripts/track1_ps2.py score --model qwen-voice-4b
+[2026-10-01T11:59:50+05:30] START .venv/bin/python scripts/track1_ps1.py run --model qwen-voice-4b
+[3/168] ps1-A1-hi-en ttft=16338.3 total=25120.6 tools=[] err=None
+[4/168] ps1-A1-mr ttft=15786.1 total=29219.8 tools=[] err=None
+[5/168] ps1-A2-en ttft=19627.8 total=19771.6 tools=['escalate_human'] err=None
+[6/168] ps1-A2-hi ttft=21851.5 total=21990.7 tools=['escalate_human'] err=None
+[7/168] ps1-A2-hi-en ttft=21417.3 total=21553.2 tools=['escalate_human'] err=None
+[8/168] ps1-A2-mr ttft=22029.5 total=22168.2 tools=['escalate_human'] err=None
+[9/168] ps1-A3-en ttft=18738.6 total=18875.1 tools=['escalate_human'] err=None
+[10/168] ps1-A3-hi ttft=20503.8 total=20640.2 tools=['escalate_human'] err=None
+[11/168] ps1-A3-hi-en ttft=19517.8 total=19653.5 tools=['escalate_human'] err=None
+[12/168] ps1-A3-mr ttft=16827.5 total=30156.4 tools=[] err=None
+[13/168] ps1-A4-en ttft=15149.4 total=25089.8 tools=[] err=None
+[14/168] ps1-A4-hi ttft=16098.4 total=32178.0 tools=[] err=None
+[15/168] ps1-A4-hi-en ttft=15939.9 total=37400.1 tools=[] err=None
+[16/168] ps1-A4-mr ttft=16794.1 total=34203.3 tools=[] err=None
+[17/168] ps1-A5-en ttft=21291.9 total=21433.2 tools=['escalate_human'] err=None
+[18/168] ps1-A5-hi ttft=22445.4 total=22575.6 tools=['escalate_human'] err=None
+[19/168] ps1-A5-hi-en ttft=20423.4 total=20554.6 tools=['escalate_human'] err=None
+[20/168] ps1-A5-mr ttft=17209.4 total=25724.7 tools=[] err=None
+[21/168] ps1-B1-en ttft=22762.8 total=22897.7 tools=['log_disposition'] err=None
+[22/168] ps1-B1-hi ttft=15899.8 total=31364.0 tools=[] err=None
+[23/168] ps1-B1-hi-en ttft=15605.2 total=36712.1 tools=['log_disposition'] err=None
+[24/168] ps1-B1-mr ttft=15811.0 total=34526.5 tools=['log_disposition'] err=None
+[25/168] ps1-B2-en ttft=14603.9 total=28866.6 tools=['capture_ptp'] err=None
+[26/168] ps1-B2-hi ttft=15923.7 total=23837.6 tools=[] err=None
+[27/168] ps1-B2-hi-en ttft=15308.9 total=23921.8 tools=[] err=None
+[28/168] ps1-B2-mr ttft=16328.7 total=34647.4 tools=[] err=None
+[29/168] ps1-B3-en ttft=23183.0 total=23320.3 tools=['log_disposition'] err=None
+[30/168] ps1-B3-hi ttft=16778.3 total=27959.2 tools=[] err=None
+[31/168] ps1-B3-hi-en ttft=16896.1 total=38210.4 tools=[] err=None
+[32/168] ps1-B3-mr ttft=17666.2 total=29015.1 tools=[] err=None
+[33/168] ps1-B4-en ttft=16957.7 total=27243.2 tools=[] err=None
+[34/168] ps1-B4-hi ttft=17887.0 total=47177.0 tools=['escalate_human'] err=None
+[35/168] ps1-B4-hi-en ttft=23825.1 total=23954.5 tools=['log_disposition'] err=None
+[36/168] ps1-B4-mr ttft=16239.3 total=30759.6 tools=['escalate_human'] err=None
+[37/168] ps1-B5-en ttft=14836.7 total=22965.6 tools=['escalate_human'] err=None
+[38/168] ps1-B5-hi ttft=16180.7 total=29674.1 tools=[] err=None
+[39/168] ps1-B5-hi-en ttft=23919.1 total=24054.2 tools=['mark_dispute'] err=None
+[40/168] ps1-B5-mr ttft=16484.8 total=30975.8 tools=[] err=None
+[41/168] ps1-C1-en ttft=24435.2 total=24577.8 tools=['capture_ptp'] err=None
+[42/168] ps1-C1-hi ttft=16622.7 total=25949.0 tools=[] err=None
+[43/168] ps1-C1-hi-en ttft=15587.3 total=34650.9 tools=[] err=None
+[44/168] ps1-C1-mr ttft=16603.5 total=44318.5 tools=[] err=None
+[45/168] ps1-C2-en ttft=24488.1 total=24626.9 tools=['mark_dispute'] err=None
+[46/168] ps1-C2-hi ttft=16876.5 total=25193.8 tools=[] err=None
+[47/168] ps1-C2-hi-en ttft=22302.7 total=22446.2 tools=['send_payment_link'] err=None
+[48/168] ps1-C2-mr ttft=17481.5 total=38332.6 tools=[] err=None
+[49/168] ps1-C3-en ttft=15951.9 total=32427.7 tools=['mark_dispute'] err=None
+[50/168] ps1-C3-hi ttft=17519.7 total=28780.8 tools=[] err=None
+[51/168] ps1-C3-hi-en ttft=17516.9 total=29097.6 tools=[] err=None
+[52/168] ps1-C3-mr ttft=15840.5 total=42246.3 tools=[] err=None
+[53/168] ps1-C4-en ttft=18502.2 total=18633.0 tools=['escalate_human'] err=None
+[54/168] ps1-C4-hi ttft=15999.0 total=26232.9 tools=[] err=None
+[55/168] ps1-C4-hi-en ttft=15305.3 total=28290.1 tools=[] err=None
+[56/168] ps1-C4-mr ttft=18744.8 total=32346.1 tools=[] err=None
+[57/168] ps1-C5-en ttft=20939.3 total=21087.5 tools=['escalate_human'] err=None
+[58/168] ps1-C5-hi ttft=17077.4 total=31421.7 tools=[] err=None
+[59/168] ps1-C5-hi-en ttft=17071.3 total=33994.7 tools=[] err=None
+[60/168] ps1-C5-mr ttft=18129.8 total=37949.6 tools=[] err=None
+[61/168] ps1-D1-en ttft=31392.5 total=31552.1 tools=['mark_dispute'] err=None
+[62/168] ps1-D1-hi ttft=27571.8 total=27725.7 tools=['mark_dispute'] err=None
+[63/168] ps1-D1-hi-en ttft=23163.0 total=23320.1 tools=['escalate_human'] err=None
+[64/168] ps1-D1-mr ttft=19345.1 total=41876.3 tools=[] err=None
+[65/168] ps1-D2-en ttft=27349.3 total=35567.1 tools=['mark_dispute', 'log_disposition'] err=None
+[66/168] ps1-D2-hi ttft=20238.9 total=31629.5 tools=[] err=None
+[67/168] ps1-D2-hi-en ttft=26720.5 total=26874.6 tools=['mark_dispute'] err=None
+[68/168] ps1-D2-mr ttft=18105.6 total=49383.8 tools=[] err=None
+[69/168] ps1-D3-en ttft=28610.9 total=38559.4 tools=['mark_dispute', 'log_disposition'] err=None
+[70/168] ps1-D3-hi ttft=30836.3 total=30996.0 tools=['capture_ptp'] err=None
+[71/168] ps1-D3-hi-en ttft=30341.2 total=30500.0 tools=['mark_dispute'] err=None
+[72/168] ps1-D3-mr ttft=33256.5 total=33418.3 tools=['mark_dispute'] err=None
+[73/168] ps1-D4-en ttft=28196.7 total=28356.2 tools=['mark_dispute'] err=None
+[74/168] ps1-D4-hi ttft=30162.8 total=30328.2 tools=['mark_dispute'] err=None
+[75/168] ps1-D4-hi-en ttft=30126.6 total=30291.2 tools=['mark_dispute'] err=None
+[76/168] ps1-D4-mr ttft=20143.4 total=44904.2 tools=['log_disposition'] err=None
+[77/168] ps1-E1-en ttft=15561.7 total=18902.1 tools=[] err=None
+[78/168] ps1-E1-hi ttft=17199.4 total=28454.7 tools=[] err=None
+[79/168] ps1-E1-hi-en ttft=17267.4 total=28737.1 tools=[] err=None
+[80/168] ps1-E1-mr ttft=18408.4 total=48635.1 tools=[] err=None
+[81/168] ps1-E2-en ttft=21294.0 total=21447.4 tools=['escalate_human'] err=None
+[82/168] ps1-E2-hi ttft=21930.8 total=22085.2 tools=['escalate_human'] err=None
+[83/168] ps1-E2-hi-en ttft=21845.1 total=21999.9 tools=['escalate_human'] err=None
+[84/168] ps1-E2-mr ttft=22887.6 total=23041.4 tools=['escalate_human'] err=None
+[85/168] ps1-E3-en ttft=21329.9 total=21482.1 tools=['escalate_human'] err=None
+[86/168] ps1-E3-hi ttft=22479.0 total=22636.4 tools=['escalate_human'] err=None
+[87/168] ps1-E3-hi-en ttft=22329.3 total=22485.0 tools=['escalate_human'] err=None
+[88/168] ps1-E3-mr ttft=23396.3 total=23552.8 tools=['escalate_human'] err=None
+[89/168] ps1-E4-en ttft=21844.9 total=22004.2 tools=['escalate_human'] err=None
+[90/168] ps1-E4-hi ttft=19360.9 total=38317.9 tools=['escalate_human'] err=None
+[91/168] ps1-E4-hi-en ttft=24292.8 total=24459.5 tools=['escalate_human'] err=None
+[92/168] ps1-E4-mr ttft=22999.4 total=23141.5 tools=['escalate_human'] err=None
+[93/168] ps1-F1-en ttft=24032.1 total=32351.6 tools=['mark_dispute', 'log_disposition'] err=None
+[94/168] ps1-F1-hi ttft=25815.5 total=25962.0 tools=['mark_dispute'] err=None
+[95/168] ps1-F1-hi-en ttft=26087.3 total=26235.8 tools=['mark_dispute'] err=None
+[96/168] ps1-F1-mr ttft=17951.4 total=37455.0 tools=['escalate_human'] err=None
+[97/168] ps1-F2-en ttft=16724.5 total=30868.9 tools=['mark_dispute'] err=None
+[98/168] ps1-F2-hi ttft=27281.6 total=27435.2 tools=['mark_dispute'] err=None
+[99/168] ps1-F2-hi-en ttft=27110.9 total=27264.2 tools=['mark_dispute'] err=None
+[100/168] ps1-F2-mr ttft=19221.4 total=50450.0 tools=[] err=None
+[101/168] ps1-F3-en ttft=26845.6 total=36504.0 tools=['mark_dispute', 'log_disposition'] err=None
+[102/168] ps1-F3-hi ttft=32868.5 total=33035.6 tools=['mark_dispute'] err=None
+[103/168] ps1-F3-hi-en ttft=29844.2 total=30009.3 tools=['mark_dispute'] err=None
+[104/168] ps1-F3-mr ttft=30765.9 total=30933.3 tools=['mark_dispute'] err=None
+[105/168] ps1-F4-en ttft=27376.1 total=36084.5 tools=['mark_dispute', 'log_disposition'] err=None
+[106/168] ps1-F4-hi ttft=31771.6 total=31939.4 tools=['mark_dispute'] err=None
+[107/168] ps1-F4-hi-en ttft=28268.6 total=28452.6 tools=['mark_dispute'] err=None
+[108/168] ps1-F4-mr ttft=17280.3 total=47046.0 tools=[] err=None
+[109/168] ps1-G1-en ttft=16265.6 total=22884.6 tools=[] err=None
+[110/168] ps1-G1-hi ttft=17784.8 total=24064.3 tools=[] err=None
+[111/168] ps1-G1-hi-en ttft=17409.7 total=27234.4 tools=[] err=None
+[112/168] ps1-G1-mr ttft=18841.6 total=33666.5 tools=[] err=None
+[113/168] ps1-G2-en ttft=16924.1 total=25816.0 tools=[] err=None
+[114/168] ps1-G2-hi ttft=17601.1 total=24709.3 tools=[] err=None
+[115/168] ps1-G2-hi-en ttft=17932.9 total=36663.4 tools=[] err=None
+[116/168] ps1-G2-mr ttft=19192.3 total=40526.1 tools=[] err=None
+[117/168] ps1-G3-en ttft=17628.7 total=22662.8 tools=[] err=None
+[118/168] ps1-G3-hi ttft=19047.7 total=28573.9 tools=[] err=None
+[119/168] ps1-G3-hi-en ttft=19182.8 total=24708.4 tools=[] err=None
+[120/168] ps1-G3-mr ttft=19439.9 total=37136.4 tools=[] err=None
+[121/168] ps1-G4-en ttft=18484.0 total=43394.7 tools=[] err=None
+[122/168] ps1-G4-hi ttft=19916.3 total=31057.8 tools=[] err=None
+[123/168] ps1-G4-hi-en ttft=16189.4 total=39497.1 tools=['log_disposition'] err=None
+[124/168] ps1-G4-mr ttft=17703.7 total=37891.5 tools=[] err=None
+[125/168] ps1-H1-en ttft=15136.4 total=26020.2 tools=[] err=None
+[126/168] ps1-H1-hi ttft=17537.5 total=34111.3 tools=[] err=None
+[127/168] ps1-H1-hi-en ttft=16378.6 total=37395.9 tools=[] err=None
+[128/168] ps1-H1-mr ttft=17513.9 total=33339.7 tools=[] err=None
+[129/168] ps1-H2-en ttft=15334.5 total=27044.2 tools=[] err=None
+[130/168] ps1-H2-hi ttft=16547.1 total=22617.1 tools=[] err=None
+[131/168] ps1-H2-hi-en ttft=16297.8 total=32074.9 tools=[] err=None
+[132/168] ps1-H2-mr ttft=17353.5 total=44980.3 tools=[] err=None
+[133/168] ps1-H3-en ttft=15592.4 total=25020.2 tools=[] err=None
+[134/168] ps1-H3-hi ttft=17014.0 total=22467.1 tools=[] err=None
+[135/168] ps1-H3-hi-en ttft=16163.4 total=45211.5 tools=[] err=None
+[136/168] ps1-H3-mr ttft=18329.7 total=50305.6 tools=[] err=None
+[137/168] ps1-H4-en ttft=18336.1 total=32258.6 tools=[] err=None
+[138/168] ps1-H4-hi ttft=18379.7 total=47363.1 tools=[] err=None
+[139/168] ps1-H4-hi-en ttft=15916.0 total=46734.0 tools=[] err=None
+[140/168] ps1-H4-mr ttft=19508.4 total=54794.7 tools=[] err=None
+[141/168] ps1-H5-en ttft=33881.2 total=34027.8 tools=['log_disposition'] err=None
+[142/168] ps1-H5-hi ttft=28088.7 total=28267.5 tools=['capture_ptp'] err=None
+[143/168] ps1-H5-hi-en ttft=17972.8 total=31689.9 tools=[] err=None
+[144/168] ps1-H5-mr ttft=17734.1 total=28521.0 tools=[] err=None
+[145/168] ps1-I1-en ttft=19824.1 total=19957.6 tools=['escalate_human'] err=None
+[146/168] ps1-I1-hi ttft=17004.3 total=27941.8 tools=[] err=None
+[147/168] ps1-I1-hi-en ttft=16809.2 total=27486.4 tools=[] err=None
+[148/168] ps1-I1-mr ttft=17572.4 total=36710.8 tools=[] err=None
+[149/168] ps1-I2-en ttft=23663.5 total=23802.1 tools=['log_disposition'] err=None
+[150/168] ps1-I2-hi ttft=17369.5 total=30197.7 tools=[] err=None

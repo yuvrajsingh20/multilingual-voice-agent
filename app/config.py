@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator
@@ -77,6 +78,15 @@ class Settings(BaseSettings):
         le=2.0,
         description="Sampling temperature. None leaves LlmRequest's own default in force.",
     )
+    # The OpenAI chat-completions `reasoning_effort` field. Unset sends nothing,
+    # so the request body is exactly what it was before this setting existed.
+    # "none" is how a hybrid-reasoning model is kept out of thinking mode over
+    # this dialect: Ollama maps it to think=false, which Qwen3.5 needs because
+    # it thinks by default and a voice turn cannot wait for it.
+    model_reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = Field(
+        default=None,
+        description="Sent as `reasoning_effort` when set. None omits the field.",
+    )
     # Bounded, and off by default. A retry on a live call is spent out of the
     # customer's silence, so failing fast and ending the turn is the safer
     # default; only clearly transient failures are ever retried. See
@@ -135,6 +145,7 @@ class Settings(BaseSettings):
         "model_connect_timeout_seconds",
         "model_max_output_tokens",
         "model_temperature",
+        "model_reasoning_effort",
         "max_recovery_calls_per_day",
         mode="before",
     )

@@ -1,0 +1,45 @@
+{
+  "challenge_version": "1.0 (issued 2026-08-28)",
+  "problem": "PS-3",
+  "model": "qwen-voice-4b",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "ollama_version": "0.35.0",
+  "ollama_model": {
+    "name": "qwen-voice-4b:latest",
+    "digest": "7112dfd709198c9d9008017440c3c3afbc456461669c0f33a69c9a7f36c3605e",
+    "size_bytes": 3389983437,
+    "quantization": "Q4_K_M",
+    "parameter_size": "4.7B",
+    "family": "qwen35"
+  },
+  "request_settings": {
+    "reasoning_effort": "none",
+    "temperature": 0.0,
+    "seed": 42,
+    "max_tokens": 256,
+    "stream": true
+  },
+  "call_context_message": "Call context: today is Wednesday 2026-09-30, 11:00 IST.",
+  "suite_sha256": "b4c28eaa93c68d4555ff871189687605b44ee21f3fd41702cee6c5bd725e13d5",
+  "suite_cases": 200,
+  "runs": [
+    {
+      "started_at": "2026-09-30T12:13:21+00:00",
+      "limit": 3,
+      "finished_at": "2026-09-30T12:15:06+00:00"
+    },
+    {
+      "started_at": "2026-09-30T12:21:06+00:00",
+      "limit": 0
+    },
+    {
+      "started_at": "2026-09-30T12:41:10+00:00",
+      "limit": 0
+    },
+    {
+      "started_at": "2026-10-01T05:04:47+00:00",
+      "limit": 0,
+      "finished_at": "2026-10-01T06:13:09+00:00"
+    }
+  ]
+}

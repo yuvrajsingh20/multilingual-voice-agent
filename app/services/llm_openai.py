@@ -153,6 +153,10 @@ _TOOL_CALL_MARKUP: tuple[str, ...] = (
     "<functioncall>",
 )
 
+#: Values the chat-completions ``reasoning_effort`` field takes. Matches
+#: ``Settings.model_reasoning_effort``.
+_REASONING_EFFORTS: frozenset[str] = frozenset({"none", "minimal", "low", "medium", "high"})
+
 #: Largest slice handed to one socket write. httpcore2 sends a buffer in a loop
 #: under a single timeout, so a peer that drains slowly could otherwise stretch
 #: one write past the deadline; each slice re-reads the time left.
@@ -533,6 +537,7 @@ class OpenAiCompatibleLlmService:
         connect_timeout_seconds: float | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        reasoning_effort: str | None = None,
         max_retries: int = 0,
         provider: str = "openai-compatible",
         client: httpx2.Client | None = None,
@@ -563,6 +568,10 @@ class OpenAiCompatibleLlmService:
             or not 0.0 <= temperature <= 2.0
         ):
             raise ValueError("temperature must be a number between 0 and 2")
+        if reasoning_effort is not None and reasoning_effort not in _REASONING_EFFORTS:
+            raise ValueError(
+                f"reasoning_effort must be one of {sorted(_REASONING_EFFORTS)}"
+            )
 
         self._base_url = base_url.strip().rstrip("/")
         self._url = f"{self._base_url}{_CHAT_COMPLETIONS_PATH}"
@@ -578,6 +587,7 @@ class OpenAiCompatibleLlmService:
         self._model = model.strip()
         self._max_output_tokens = max_output_tokens
         self._temperature = temperature
+        self._reasoning_effort = reasoning_effort
         self._max_retries = max_retries
         self._timeout_seconds = timeout_seconds
         self._connect_timeout_seconds = (
@@ -928,6 +938,8 @@ class OpenAiCompatibleLlmService:
             "temperature": temperature,
             "stream": False,
         }
+        if self._reasoning_effort is not None:
+            payload["reasoning_effort"] = self._reasoning_effort
         if request.tools:
             payload["tools"] = [_render_tool(t) for t in request.tools]
         return payload

@@ -1,0 +1,12 @@
+# Track 1 primary candidate: Qwen3.5-9B, Q4_K_M, as published by Ollama.
+#
+# The challenge PDF (section 5) specifies `PARAMETER think false` here. Ollama
+# 0.35.0 rejects it ("Error: unknown parameter 'think'"), and qwen3.5 uses a
+# built-in RENDERER rather than a text TEMPLATE, so thinking cannot be switched
+# off inside the Modelfile on this version. It is switched off on every request
+# instead: `"reasoning_effort": "none"` on /v1/chat/completions, which Ollama
+# maps to think=false. See TRACK1_REPORT.md, "Thinking disabled".
+#
+# No sampling parameter is overridden here: every evaluation request sets
+# temperature and seed explicitly, so the numbers do not depend on this file.
+FROM qwen3.5:9b

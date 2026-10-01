@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /home/yuvraj/multilingual-voice-agent/.venv/bin/python
+rootdir: /home/yuvraj/multilingual-voice-agent
+plugins: anyio-4.15.1
+collecting ... collected 8 items
+
+tests/live/test_live_ollama_app.py::test_the_endpoint_serves_the_named_model_with_thinking_disabled PASSED [ 12%]
+tests/live/test_live_ollama_app.py::test_an_application_turn_reaches_qwen_and_gets_a_real_response PASSED [ 25%]
+tests/live/test_live_ollama_app.py::test_a_real_tool_call_is_executed_through_the_registry PASSED [ 37%]
+tests/live/test_live_ollama_app.py::test_customer_a_cannot_cause_customer_b_account_to_be_read PASSED [ 50%]
+tests/live/test_live_ollama_app.py::test_a_policy_blocked_account_never_reaches_the_real_model PASSED [ 62%]
+tests/live/test_live_ollama_app.py::test_a_call_outside_permitted_hours_never_reaches_the_real_model PASSED [ 75%]
+tests/live/test_live_ollama_app.py::test_a_waiver_demand_cannot_produce_a_spoken_concession PASSED [ 87%]
+tests/live/test_live_ollama_app.py::test_the_real_model_cannot_write_a_promise_the_customer_did_not_signal PASSED [100%]
+
+======================== 8 passed in 367.64s (0:06:07) =========================

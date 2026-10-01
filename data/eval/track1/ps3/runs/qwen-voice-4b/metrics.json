@@ -1,0 +1,1503 @@
+{
+  "overall": {
+    "cases": 200,
+    "correct_tool_rate": {
+      "k": 118,
+      "n": 164,
+      "rate": 0.7195,
+      "ci95": [
+        0.6463,
+        0.7826
+      ]
+    },
+    "argument_accuracy": {
+      "k": 96,
+      "n": 164,
+      "rate": 0.5854,
+      "ci95": [
+        0.5089,
+        0.658
+      ]
+    },
+    "argument_accuracy_given_correct_tool": {
+      "k": 96,
+      "n": 118,
+      "rate": 0.8136,
+      "ci95": [
+        0.7338,
+        0.8735
+      ]
+    },
+    "missed_call_rate": {
+      "k": 27,
+      "n": 164,
+      "rate": 0.1646,
+      "ci95": [
+        0.1157,
+        0.2289
+      ]
+    },
+    "wrong_tool_rate": {
+      "k": 19,
+      "n": 164,
+      "rate": 0.1159,
+      "ci95": [
+        0.0754,
+        0.1739
+      ]
+    },
+    "spurious_call_rate": {
+      "k": 18,
+      "n": 176,
+      "rate": 0.1023,
+      "ci95": [
+        0.0657,
+        0.1559
+      ]
+    },
+    "spurious_rate_on_no_call_cases": {
+      "k": 0,
+      "n": 12,
+      "rate": 0.0,
+      "ci95": [
+        0.0,
+        0.2425
+      ]
+    },
+    "malformed_argument_rate": {
+      "malformed_calls": 1,
+      "emitted_calls": 152,
+      "rate": 0.0066
+    },
+    "tool_call_written_as_text_cases": 0,
+    "strict_accuracy": {
+      "k": 108,
+      "n": 176,
+      "rate": 0.6136,
+      "ci95": [
+        0.54,
+        0.6824
+      ]
+    },
+    "confidence_agreement": {
+      "k": 24,
+      "n": 36,
+      "rate": 0.6667,
+      "ci95": [
+        0.5033,
+        0.7979
+      ]
+    }
+  },
+  "by_language": {
+    "en": {
+      "cases": 64,
+      "correct_tool_rate": {
+        "k": 48,
+        "n": 52,
+        "rate": 0.9231,
+        "ci95": [
+          0.8183,
+          0.9697
+        ]
+      },
+      "argument_accuracy": {
+        "k": 41,
+        "n": 52,
+        "rate": 0.7885,
+        "ci95": [
+          0.6597,
+          0.8776
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 41,
+        "n": 48,
+        "rate": 0.8542,
+        "ci95": [
+          0.7283,
+          0.9275
+        ]
+      },
+      "missed_call_rate": {
+        "k": 0,
+        "n": 52,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.0688
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 4,
+        "n": 52,
+        "rate": 0.0769,
+        "ci95": [
+          0.0303,
+          0.1817
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 5,
+        "n": 56,
+        "rate": 0.0893,
+        "ci95": [
+          0.0387,
+          0.1926
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 4,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.4899
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 60,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 45,
+        "n": 56,
+        "rate": 0.8036,
+        "ci95": [
+          0.6816,
+          0.8866
+        ]
+      },
+      "confidence_agreement": {
+        "k": 13,
+        "n": 18,
+        "rate": 0.7222,
+        "ci95": [
+          0.4913,
+          0.875
+        ]
+      }
+    },
+    "hi-en": {
+      "cases": 64,
+      "correct_tool_rate": {
+        "k": 40,
+        "n": 52,
+        "rate": 0.7692,
+        "ci95": [
+          0.6387,
+          0.8628
+        ]
+      },
+      "argument_accuracy": {
+        "k": 30,
+        "n": 52,
+        "rate": 0.5769,
+        "ci95": [
+          0.4419,
+          0.7013
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 30,
+        "n": 40,
+        "rate": 0.75,
+        "ci95": [
+          0.5981,
+          0.8581
+        ]
+      },
+      "missed_call_rate": {
+        "k": 6,
+        "n": 52,
+        "rate": 0.1154,
+        "ci95": [
+          0.054,
+          0.2297
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 6,
+        "n": 52,
+        "rate": 0.1154,
+        "ci95": [
+          0.054,
+          0.2297
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 7,
+        "n": 56,
+        "rate": 0.125,
+        "ci95": [
+          0.0619,
+          0.2363
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 4,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.4899
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 1,
+        "emitted_calls": 50,
+        "rate": 0.02
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 34,
+        "n": 56,
+        "rate": 0.6071,
+        "ci95": [
+          0.4763,
+          0.7242
+        ]
+      },
+      "confidence_agreement": {
+        "k": 8,
+        "n": 12,
+        "rate": 0.6667,
+        "ci95": [
+          0.3906,
+          0.8619
+        ]
+      }
+    },
+    "mr": {
+      "cases": 36,
+      "correct_tool_rate": {
+        "k": 20,
+        "n": 30,
+        "rate": 0.6667,
+        "ci95": [
+          0.4878,
+          0.8077
+        ]
+      },
+      "argument_accuracy": {
+        "k": 15,
+        "n": 30,
+        "rate": 0.5,
+        "ci95": [
+          0.3315,
+          0.6685
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 15,
+        "n": 20,
+        "rate": 0.75,
+        "ci95": [
+          0.5313,
+          0.8881
+        ]
+      },
+      "missed_call_rate": {
+        "k": 8,
+        "n": 30,
+        "rate": 0.2667,
+        "ci95": [
+          0.1418,
+          0.4445
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 2,
+        "n": 30,
+        "rate": 0.0667,
+        "ci95": [
+          0.0185,
+          0.2132
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 2,
+        "n": 32,
+        "rate": 0.0625,
+        "ci95": [
+          0.0173,
+          0.2015
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 2,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.6576
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 23,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 17,
+        "n": 32,
+        "rate": 0.5312,
+        "ci95": [
+          0.3645,
+          0.6913
+        ]
+      },
+      "confidence_agreement": {
+        "k": 3,
+        "n": 6,
+        "rate": 0.5,
+        "ci95": [
+          0.1876,
+          0.8124
+        ]
+      }
+    },
+    "mr-en": {
+      "cases": 36,
+      "correct_tool_rate": {
+        "k": 10,
+        "n": 30,
+        "rate": 0.3333,
+        "ci95": [
+          0.1923,
+          0.5122
+        ]
+      },
+      "argument_accuracy": {
+        "k": 10,
+        "n": 30,
+        "rate": 0.3333,
+        "ci95": [
+          0.1923,
+          0.5122
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 10,
+        "n": 10,
+        "rate": 1.0,
+        "ci95": [
+          0.7225,
+          1.0
+        ]
+      },
+      "missed_call_rate": {
+        "k": 13,
+        "n": 30,
+        "rate": 0.4333,
+        "ci95": [
+          0.2738,
+          0.608
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 7,
+        "n": 30,
+        "rate": 0.2333,
+        "ci95": [
+          0.1179,
+          0.4093
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 4,
+        "n": 32,
+        "rate": 0.125,
+        "ci95": [
+          0.0497,
+          0.2807
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 2,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.6576
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 19,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 12,
+        "n": 32,
+        "rate": 0.375,
+        "ci95": [
+          0.2293,
+          0.5475
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    }
+  },
+  "by_category": {
+    "ambiguous": {
+      "cases": 24,
+      "correct_tool_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "argument_accuracy": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "missed_call_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 11,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    },
+    "capture_ptp": {
+      "cases": 56,
+      "correct_tool_rate": {
+        "k": 36,
+        "n": 56,
+        "rate": 0.6429,
+        "ci95": [
+          0.5119,
+          0.7554
+        ]
+      },
+      "argument_accuracy": {
+        "k": 18,
+        "n": 56,
+        "rate": 0.3214,
+        "ci95": [
+          0.214,
+          0.4518
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 18,
+        "n": 36,
+        "rate": 0.5,
+        "ci95": [
+          0.3447,
+          0.6553
+        ]
+      },
+      "missed_call_rate": {
+        "k": 15,
+        "n": 56,
+        "rate": 0.2679,
+        "ci95": [
+          0.1696,
+          0.3959
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 5,
+        "n": 56,
+        "rate": 0.0893,
+        "ci95": [
+          0.0387,
+          0.1926
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 5,
+        "n": 56,
+        "rate": 0.0893,
+        "ci95": [
+          0.0387,
+          0.1926
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 1,
+        "emitted_calls": 41,
+        "rate": 0.0244
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 18,
+        "n": 56,
+        "rate": 0.3214,
+        "ci95": [
+          0.214,
+          0.4518
+        ]
+      },
+      "confidence_agreement": {
+        "k": 24,
+        "n": 36,
+        "rate": 0.6667,
+        "ci95": [
+          0.5033,
+          0.7979
+        ]
+      }
+    },
+    "escalate_human": {
+      "cases": 26,
+      "correct_tool_rate": {
+        "k": 19,
+        "n": 26,
+        "rate": 0.7308,
+        "ci95": [
+          0.5392,
+          0.863
+        ]
+      },
+      "argument_accuracy": {
+        "k": 19,
+        "n": 26,
+        "rate": 0.7308,
+        "ci95": [
+          0.5392,
+          0.863
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 19,
+        "n": 19,
+        "rate": 1.0,
+        "ci95": [
+          0.8318,
+          1.0
+        ]
+      },
+      "missed_call_rate": {
+        "k": 5,
+        "n": 26,
+        "rate": 0.1923,
+        "ci95": [
+          0.0851,
+          0.3788
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 2,
+        "n": 26,
+        "rate": 0.0769,
+        "ci95": [
+          0.0214,
+          0.2414
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 1,
+        "n": 26,
+        "rate": 0.0385,
+        "ci95": [
+          0.0068,
+          0.1889
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 21,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 19,
+        "n": 26,
+        "rate": 0.7308,
+        "ci95": [
+          0.5392,
+          0.863
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    },
+    "log_disposition": {
+      "cases": 24,
+      "correct_tool_rate": {
+        "k": 14,
+        "n": 24,
+        "rate": 0.5833,
+        "ci95": [
+          0.3883,
+          0.7553
+        ]
+      },
+      "argument_accuracy": {
+        "k": 12,
+        "n": 24,
+        "rate": 0.5,
+        "ci95": [
+          0.3143,
+          0.6857
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 12,
+        "n": 14,
+        "rate": 0.8571,
+        "ci95": [
+          0.6006,
+          0.9599
+        ]
+      },
+      "missed_call_rate": {
+        "k": 2,
+        "n": 24,
+        "rate": 0.0833,
+        "ci95": [
+          0.0232,
+          0.2585
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 8,
+        "n": 24,
+        "rate": 0.3333,
+        "ci95": [
+          0.1797,
+          0.5329
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 10,
+        "n": 24,
+        "rate": 0.4167,
+        "ci95": [
+          0.2447,
+          0.6117
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 24,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 12,
+        "n": 24,
+        "rate": 0.5,
+        "ci95": [
+          0.3143,
+          0.6857
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    },
+    "mark_dispute": {
+      "cases": 32,
+      "correct_tool_rate": {
+        "k": 24,
+        "n": 32,
+        "rate": 0.75,
+        "ci95": [
+          0.5789,
+          0.8675
+        ]
+      },
+      "argument_accuracy": {
+        "k": 24,
+        "n": 32,
+        "rate": 0.75,
+        "ci95": [
+          0.5789,
+          0.8675
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 24,
+        "n": 24,
+        "rate": 1.0,
+        "ci95": [
+          0.862,
+          1.0
+        ]
+      },
+      "missed_call_rate": {
+        "k": 5,
+        "n": 32,
+        "rate": 0.1562,
+        "ci95": [
+          0.0686,
+          0.3175
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 3,
+        "n": 32,
+        "rate": 0.0938,
+        "ci95": [
+          0.0324,
+          0.2422
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 1,
+        "n": 32,
+        "rate": 0.0312,
+        "ci95": [
+          0.0055,
+          0.1574
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 29,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 24,
+        "n": 32,
+        "rate": 0.75,
+        "ci95": [
+          0.5789,
+          0.8675
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    },
+    "no_tool": {
+      "cases": 12,
+      "correct_tool_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "argument_accuracy": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "missed_call_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 0,
+        "n": 12,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.2425
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 12,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.2425
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 0,
+        "rate": null
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 12,
+        "n": 12,
+        "rate": 1.0,
+        "ci95": [
+          0.7575,
+          1.0
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    },
+    "send_payment_link": {
+      "cases": 26,
+      "correct_tool_rate": {
+        "k": 25,
+        "n": 26,
+        "rate": 0.9615,
+        "ci95": [
+          0.8111,
+          0.9932
+        ]
+      },
+      "argument_accuracy": {
+        "k": 23,
+        "n": 26,
+        "rate": 0.8846,
+        "ci95": [
+          0.7102,
+          0.96
+        ]
+      },
+      "argument_accuracy_given_correct_tool": {
+        "k": 23,
+        "n": 25,
+        "rate": 0.92,
+        "ci95": [
+          0.7503,
+          0.9778
+        ]
+      },
+      "missed_call_rate": {
+        "k": 0,
+        "n": 26,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.1287
+        ]
+      },
+      "wrong_tool_rate": {
+        "k": 1,
+        "n": 26,
+        "rate": 0.0385,
+        "ci95": [
+          0.0068,
+          0.1889
+        ]
+      },
+      "spurious_call_rate": {
+        "k": 1,
+        "n": 26,
+        "rate": 0.0385,
+        "ci95": [
+          0.0068,
+          0.1889
+        ]
+      },
+      "spurious_rate_on_no_call_cases": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      },
+      "malformed_argument_rate": {
+        "malformed_calls": 0,
+        "emitted_calls": 26,
+        "rate": 0.0
+      },
+      "tool_call_written_as_text_cases": 0,
+      "strict_accuracy": {
+        "k": 23,
+        "n": 26,
+        "rate": 0.8846,
+        "ci95": [
+          0.7102,
+          0.96
+        ]
+      },
+      "confidence_agreement": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    }
+  },
+  "ambiguous": {
+    "cases": 24,
+    "over_fire_rate": {
+      "k": 3,
+      "n": 12,
+      "rate": 0.25,
+      "ci95": [
+        0.0889,
+        0.5323
+      ]
+    },
+    "under_fire_rate": {
+      "k": 6,
+      "n": 10,
+      "rate": 0.6,
+      "ci95": [
+        0.3127,
+        0.8318
+      ]
+    },
+    "either_fire_rate": {
+      "k": 1,
+      "n": 2,
+      "rate": 0.5,
+      "ci95": [
+        0.0945,
+        0.9055
+      ]
+    }
+  },
+  "ambiguous_by_language": {
+    "en": {
+      "cases": 8,
+      "over_fire_rate": {
+        "k": 2,
+        "n": 4,
+        "rate": 0.5,
+        "ci95": [
+          0.15,
+          0.85
+        ]
+      },
+      "under_fire_rate": {
+        "k": 1,
+        "n": 3,
+        "rate": 0.3333,
+        "ci95": [
+          0.0615,
+          0.7923
+        ]
+      },
+      "either_fire_rate": {
+        "k": 1,
+        "n": 1,
+        "rate": 1.0,
+        "ci95": [
+          0.2065,
+          1.0
+        ]
+      }
+    },
+    "hi-en": {
+      "cases": 8,
+      "over_fire_rate": {
+        "k": 1,
+        "n": 4,
+        "rate": 0.25,
+        "ci95": [
+          0.0456,
+          0.6994
+        ]
+      },
+      "under_fire_rate": {
+        "k": 2,
+        "n": 3,
+        "rate": 0.6667,
+        "ci95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "either_fire_rate": {
+        "k": 0,
+        "n": 1,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.7935
+        ]
+      }
+    },
+    "mr": {
+      "cases": 4,
+      "over_fire_rate": {
+        "k": 0,
+        "n": 2,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.6576
+        ]
+      },
+      "under_fire_rate": {
+        "k": 1,
+        "n": 2,
+        "rate": 0.5,
+        "ci95": [
+          0.0945,
+          0.9055
+        ]
+      },
+      "either_fire_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    },
+    "mr-en": {
+      "cases": 4,
+      "over_fire_rate": {
+        "k": 0,
+        "n": 2,
+        "rate": 0.0,
+        "ci95": [
+          0.0,
+          0.6576
+        ]
+      },
+      "under_fire_rate": {
+        "k": 2,
+        "n": 2,
+        "rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "either_fire_rate": {
+        "k": 0,
+        "n": 0,
+        "rate": null,
+        "ci95": [
+          null,
+          null
+        ]
+      }
+    }
+  },
+  "language_deltas": {
+    "en_vs_hi-en": {
+      "correct_tool": {
+        "pairs": 52,
+        "en_rate": 0.9231,
+        "hi-en_rate": 0.7692,
+        "delta_en_minus_other": 0.1538,
+        "discordant_en_only": 10,
+        "discordant_other_only": 2,
+        "mcnemar_p": 0.0386
+      },
+      "args_correct": {
+        "pairs": 52,
+        "en_rate": 0.7885,
+        "hi-en_rate": 0.5769,
+        "delta_en_minus_other": 0.2115,
+        "discordant_en_only": 13,
+        "discordant_other_only": 2,
+        "mcnemar_p": 0.0074
+      },
+      "strict_correct": {
+        "pairs": 56,
+        "en_rate": 0.8036,
+        "hi-en_rate": 0.6071,
+        "delta_en_minus_other": 0.1964,
+        "discordant_en_only": 13,
+        "discordant_other_only": 2,
+        "mcnemar_p": 0.0074
+      },
+      "spurious": {
+        "pairs": 56,
+        "en_rate": 0.0893,
+        "hi-en_rate": 0.125,
+        "delta_en_minus_other": -0.0357,
+        "discordant_en_only": 2,
+        "discordant_other_only": 4,
+        "mcnemar_p": 0.6875
+      },
+      "missed": {
+        "pairs": 52,
+        "en_rate": 0.0,
+        "hi-en_rate": 0.1154,
+        "delta_en_minus_other": -0.1154,
+        "discordant_en_only": 0,
+        "discordant_other_only": 6,
+        "mcnemar_p": 0.0312
+      }
+    },
+    "en_vs_mr": {
+      "correct_tool": {
+        "pairs": 30,
+        "en_rate": 0.8667,
+        "mr_rate": 0.6667,
+        "delta_en_minus_other": 0.2,
+        "discordant_en_only": 9,
+        "discordant_other_only": 3,
+        "mcnemar_p": 0.146
+      },
+      "args_correct": {
+        "pairs": 30,
+        "en_rate": 0.8,
+        "mr_rate": 0.5,
+        "delta_en_minus_other": 0.3,
+        "discordant_en_only": 11,
+        "discordant_other_only": 2,
+        "mcnemar_p": 0.0225
+      },
+      "strict_correct": {
+        "pairs": 32,
+        "en_rate": 0.8125,
+        "mr_rate": 0.5312,
+        "delta_en_minus_other": 0.2812,
+        "discordant_en_only": 11,
+        "discordant_other_only": 2,
+        "mcnemar_p": 0.0225
+      },
+      "spurious": {
+        "pairs": 32,
+        "en_rate": 0.125,
+        "mr_rate": 0.0625,
+        "delta_en_minus_other": 0.0625,
+        "discordant_en_only": 3,
+        "discordant_other_only": 1,
+        "mcnemar_p": 0.625
+      },
+      "missed": {
+        "pairs": 30,
+        "en_rate": 0.0,
+        "mr_rate": 0.2667,
+        "delta_en_minus_other": -0.2667,
+        "discordant_en_only": 0,
+        "discordant_other_only": 8,
+        "mcnemar_p": 0.0078
+      }
+    },
+    "en_vs_mr-en": {
+      "correct_tool": {
+        "pairs": 30,
+        "en_rate": 0.8667,
+        "mr-en_rate": 0.3333,
+        "delta_en_minus_other": 0.5333,
+        "discordant_en_only": 17,
+        "discordant_other_only": 1,
+        "mcnemar_p": 0.0001
+      },
+      "args_correct": {
+        "pairs": 30,
+        "en_rate": 0.8,
+        "mr-en_rate": 0.3333,
+        "delta_en_minus_other": 0.4667,
+        "discordant_en_only": 15,
+        "discordant_other_only": 1,
+        "mcnemar_p": 0.0005
+      },
+      "strict_correct": {
+        "pairs": 32,
+        "en_rate": 0.8125,
+        "mr-en_rate": 0.375,
+        "delta_en_minus_other": 0.4375,
+        "discordant_en_only": 15,
+        "discordant_other_only": 1,
+        "mcnemar_p": 0.0005
+      },
+      "spurious": {
+        "pairs": 32,
+        "en_rate": 0.125,
+        "mr-en_rate": 0.125,
+        "delta_en_minus_other": 0.0,
+        "discordant_en_only": 3,
+        "discordant_other_only": 3,
+        "mcnemar_p": 1.0
+      },
+      "missed": {
+        "pairs": 30,
+        "en_rate": 0.0,
+        "mr-en_rate": 0.4333,
+        "delta_en_minus_other": -0.4333,
+        "discordant_en_only": 0,
+        "discordant_other_only": 13,
+        "mcnemar_p": 0.0002
+      }
+    }
+  },
+  "error_taxonomy": {
+    "no_call:capture_ptp": 15,
+    "wrong_arg:capture_ptp.promised_date": 12,
+    "spurious:capture_ptp": 7,
+    "spurious:escalate_human": 6,
+    "spurious:send_payment_link": 5,
+    "wrong_arg:capture_ptp.promised_amount": 5,
+    "no_call:mark_dispute": 5,
+    "no_call:escalate_human": 5,
+    "wrong_tool:log_disposition->escalate_human": 5,
+    "wrong_tool:mark_dispute->log_disposition": 4,
+    "no_call:ambiguous": 4,
+    "spurious:log_disposition": 3,
+    "wrong_tool:capture_ptp->send_payment_link": 3,
+    "spurious:mark_dispute": 3,
+    "wrong_arg:send_payment_link.amount": 2,
+    "wrong_tool:log_disposition->capture_ptp": 2,
+    "no_call:log_disposition": 2,
+    "wrong_arg:log_disposition.code": 2,
+    "wrong_tool:capture_ptp->log_disposition": 1,
+    "malformed:bad_date_format:capture_ptp": 1,
+    "wrong_tool:capture_ptp->mark_dispute": 1,
+    "wrong_tool:send_payment_link->log_disposition": 1,
+    "wrong_tool:mark_dispute->capture_ptp": 1,
+    "wrong_tool:escalate_human->send_payment_link": 1,
+    "wrong_tool:escalate_human->log_disposition": 1,
+    "wrong_tool:log_disposition->send_payment_link": 1,
+    "wrong_arg:mark_dispute.dispute_type": 1
+  },
+  "error_taxonomy_by_language": {
+    "en": {
+      "wrong_arg:capture_ptp.promised_date": 6,
+      "spurious:capture_ptp": 4,
+      "spurious:escalate_human": 3,
+      "wrong_tool:log_disposition->escalate_human": 2,
+      "wrong_tool:send_payment_link->log_disposition": 1,
+      "spurious:log_disposition": 1,
+      "wrong_tool:log_disposition->capture_ptp": 1,
+      "wrong_arg:log_disposition.code": 1,
+      "wrong_arg:mark_dispute.dispute_type": 1,
+      "no_call:ambiguous": 1
+    },
+    "hi-en": {
+      "wrong_arg:capture_ptp.promised_date": 5,
+      "no_call:capture_ptp": 4,
+      "spurious:send_payment_link": 3,
+      "wrong_arg:capture_ptp.promised_amount": 2,
+      "wrong_tool:capture_ptp->send_payment_link": 2,
+      "spurious:capture_ptp": 2,
+      "wrong_tool:log_disposition->escalate_human": 2,
+      "spurious:escalate_human": 2,
+      "malformed:bad_date_format:capture_ptp": 1,
+      "wrong_arg:send_payment_link.amount": 1,
+      "wrong_tool:mark_dispute->capture_ptp": 1,
+      "no_call:mark_dispute": 1,
+      "no_call:escalate_human": 1,
+      "wrong_tool:log_disposition->send_payment_link": 1,
+      "wrong_arg:log_disposition.code": 1,
+      "spurious:mark_dispute": 1,
+      "wrong_tool:mark_dispute->log_disposition": 1,
+      "spurious:log_disposition": 1,
+      "no_call:ambiguous": 1
+    },
+    "mr": {
+      "no_call:capture_ptp": 4,
+      "wrong_arg:capture_ptp.promised_amount": 3,
+      "no_call:mark_dispute": 3,
+      "wrong_arg:capture_ptp.promised_date": 1,
+      "wrong_arg:send_payment_link.amount": 1,
+      "no_call:escalate_human": 1,
+      "wrong_tool:escalate_human->send_payment_link": 1,
+      "spurious:send_payment_link": 1,
+      "wrong_tool:log_disposition->capture_ptp": 1,
+      "spurious:capture_ptp": 1,
+      "no_call:ambiguous": 1
+    },
+    "mr-en": {
+      "no_call:capture_ptp": 7,
+      "wrong_tool:mark_dispute->log_disposition": 3,
+      "no_call:escalate_human": 3,
+      "spurious:mark_dispute": 2,
+      "no_call:log_disposition": 2,
+      "wrong_tool:capture_ptp->log_disposition": 1,
+      "spurious:log_disposition": 1,
+      "wrong_tool:capture_ptp->send_payment_link": 1,
+      "spurious:send_payment_link": 1,
+      "wrong_tool:capture_ptp->mark_dispute": 1,
+      "no_call:mark_dispute": 1,
+      "wrong_tool:escalate_human->log_disposition": 1,
+      "wrong_tool:log_disposition->escalate_human": 1,
+      "spurious:escalate_human": 1,
+      "no_call:ambiguous": 1
+    }
+  },
+  "thinking_leaked_calls": 0,
+  "model_errors": 0,
+  "latency_ms": {
+    "ttft": {
+      "n": 200,
+      "p50": 22050.8,
+      "p95": 29841.4,
+      "p99": 36216.0,
+      "max": 49212.4
+    },
+    "total": {
+      "n": 200,
+      "p50": 26266.1,
+      "p95": 36840.3,
+      "p99": 45999.6,
+      "max": 49294.3
+    }
+  },
+  "completion_tokens": {
+    "n": 200,
+    "p50": 68.0,
+    "p95": 132.1,
+    "p99": 154.0,
+    "max": 161
+  },
+  "model": "qwen-voice-4b",
+  "scored_cases": 200,
+  "suite_cases": 200
+}

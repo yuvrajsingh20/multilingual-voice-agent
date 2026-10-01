@@ -1,0 +1,72 @@
+{
+  "source": "Challenge section 6.2 (anchors verbatim)",
+  "scale": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "dimensions": [
+    {
+      "dimension": "Naturalness",
+      "1": "Reads as translated; no native speaker would say this",
+      "3": "Understandable, slightly stiff",
+      "5": "Indistinguishable from a competent human agent"
+    },
+    {
+      "dimension": "Code-mix fit",
+      "1": "Wrong register mix; jarring switches mid-clause",
+      "3": "Plausible mix, occasionally over-formal",
+      "5": "Mix matches how the borrower segment actually speaks"
+    },
+    {
+      "dimension": "Bucket fit",
+      "1": "Tone wrong for the bucket — soft at 90-DPD or harsh at 5-DPD",
+      "3": "Broadly appropriate, some drift",
+      "5": "Precisely calibrated; firmness tracks the bucket"
+    },
+    {
+      "dimension": "TTS survival",
+      "1": "Audio is wrong, garbled, or unintentionally rude",
+      "3": "Audible, minor artefacts",
+      "5": "Clean audio, correct numerals and currency"
+    },
+    {
+      "dimension": "Consistency",
+      "1": "Register drifts within a single call",
+      "3": "Minor drift over long turns",
+      "5": "Holds register across the full call under pressure"
+    }
+  ],
+  "anchor_examples": {
+    "naturalness": {
+      "1": "Aadarniya grahak, aapke dwara deya rashi ka bhugtan abhi tak lambit hai.",
+      "3": "Sunita ji, aapka two-wheeler loan ka payment 42,300 rupaye pending hai. Aap kab tak kar payengi?",
+      "5": "Sunita ji, bas yaad dilane ke liye call kiya tha - 42,300 ka EMI pending hai. Kab tak ho payega?"
+    },
+    "code_mix_fit": {
+      "1": "Sunita ji, your outstanding राशि 42,300 है, please kindly भुगतान करें immediately.",
+      "3": "Sunita ji, aapka outstanding amount 42,300 rupaye hai, kripya shighra bhugtan karein.",
+      "5": "Sunita ji, aapka 42,300 ka payment pending hai. Is hafte kab tak kar sakti hain?"
+    },
+    "bucket_fit": {
+      "1": "(90 DPD) Koi baat nahi ji, jab time mile tab kar dijiyega, koi jaldi nahi hai.",
+      "3": "(90 DPD) Sunita ji, payment 90 din se pending hai, please jaldi kar dijiye.",
+      "5": "(90 DPD) Sunita ji, 90 din ho gaye hain aur 42,300 abhi bhi baaki hai. Aaj ek date tay kar lete hain - kaunsi date aapke liye possible hai?"
+    },
+    "tts_survival": {
+      "1": "Aapka INR 42300.00 due hai (ref: ACC/2026/771) **turant** pay karein.",
+      "3": "Aapka Rs. 42,300 due hai, please pay kar dijiye.",
+      "5": "Aapka bayalis hazaar teen sau rupaye baaki hai."
+    },
+    "consistency": {
+      "1": "Turn 1: 'Sunita ji, aap...' -> Turn 6: 'Tum log paise kyun nahi dete? Ab dena padega.'",
+      "3": "Turn 1 warm and polite; by turn 6 replies shorten and repeat 'payment kar dijiye' without acknowledging the borrower.",
+      "5": "Turn 6 still acknowledges the refusal, keeps 'aap', and restates the ask once without pressure."
+    }
+  },
+  "anchor_examples_status": "illustrative, AI-authored, not reviewed by a native speaker",
+  "rating_unit": "one whole call (8 agent turns)",
+  "tts_survival_status": "not ratable until audio exists; leave blank"
+}

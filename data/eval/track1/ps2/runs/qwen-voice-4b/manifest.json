@@ -1,0 +1,25 @@
+{
+  "challenge_version": "1.0 (issued 2026-08-28)",
+  "problem": "PS-2",
+  "model": "qwen-voice-4b",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "ollama_version": "0.35.0",
+  "ollama_model": {
+    "name": "qwen-voice-4b:latest",
+    "digest": "7112dfd709198c9d9008017440c3c3afbc456461669c0f33a69c9a7f36c3605e",
+    "size_bytes": 3389983437,
+    "quantization": "Q4_K_M",
+    "parameter_size": "4.7B",
+    "family": "qwen35"
+  },
+  "request_settings": {
+    "reasoning_effort": "none",
+    "temperature": 0.0,
+    "seed": 42,
+    "max_tokens": 200,
+    "tools": "none offered (spoken text only)"
+  },
+  "suite_sha256": "c15aba73f63e1bb58fe5a2efb5b2e7aebf67f96519513c6c59415c0b6e2a0176",
+  "run_started_at": "2026-10-01T06:13:09+00:00",
+  "run_finished_at": "2026-10-01T06:29:50+00:00"
+}

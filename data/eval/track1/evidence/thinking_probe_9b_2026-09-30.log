@@ -1,0 +1,9 @@
+               total        used        free      shared  buff/cache   available
+Mem:           15638        7845         345         538        7447        6921
+Swap:           2047         459        1588
+{"model": "qwen-voice-9b", "reasoning_effort": "none", "wall_s": 75.28, "usage": {"prompt_tokens": 264, "prompt_tokens_details": {"cached_tokens": 0}, "completion_tokens": 128, "total_tokens": 392}, "finish": "stop", "reasoning_chars": 0, "content": "भाई, समझता हूँ कि सैलरी की वजह से दिक्कत हो रही है। लेकिन अभी तक का बकाया 18,500 रुपये है। कृपया आज ही कम से कम कुछ राशि जमा करें ताकि अकाउंट अपडेट हो सके। अगर आपकी स्थिति बहुत खराब है, तो बताएं, हम बात कर सकते हैं कि कब और कितना दे सकेंगे।\n\nक्या आप अभी 2000 या 3000 रुपये भेज सकते हैं?"}
+Mem:           15638       13195         311         387        2131        1721
+{"model": "qwen-voice-9b", "reasoning_effort": "none", "wall_s": 31.33, "usage": {"prompt_tokens": 264, "prompt_tokens_details": {"cached_tokens": 260}, "completion_tokens": 128, "total_tokens": 392}, "finish": "stop", "reasoning_chars": 0, "content": "भाई, समझता हूँ कि सैलरी की वजह से दिक्कत हो रही है। लेकिन अभी तक का बकाया 18,500 रुपये है। कृपया आज ही कम से कम कुछ राशि जमा करें ताकि अकाउंट अपडेट हो सके। अगर आपकी स्थिति बहुत खराब है, तो बताएं, हम बात कर सकते हैं कि कब और कितना दे सकेंगे।\n\nक्या आप अभी 2000 या 3000 रुपये भेज सकते हैं?"}
+Mem:           15638       13266         218         402        2153        1636
+{"model": "qwen-voice-9b", "reasoning_effort": "default", "wall_s": 192.47, "usage": {"prompt_tokens": 262, "prompt_tokens_details": {"cached_tokens": 260}, "completion_tokens": 512, "total_tokens": 774}, "finish": "length", "reasoning_chars": 1856, "content": ""}
+Mem:           15638       13801         347         354        1488        1148
