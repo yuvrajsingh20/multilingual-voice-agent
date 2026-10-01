@@ -10,6 +10,15 @@
     }
   },
   "failure_modes": {
+    "language_mismatch": {
+      "turns": 24,
+      "of_turns": 48,
+      "calls": [
+        "ps2-mr-en-dpd30",
+        "ps2-mr-en-dpd5",
+        "ps2-mr-en-dpd90"
+      ]
+    },
     "tone_collapse_under_refusal": {
       "calls": 4,
       "of_calls": 6,
@@ -85,19 +94,24 @@
       "severity_rank": 2
     },
     {
+      "mode": "language_mismatch",
+      "signal": "Reply's matrix language (Hindi vs Marathi function words) differs from the borrower's",
+      "severity_rank": 3
+    },
+    {
       "mode": "script_inconsistency",
       "signal": "Reply script differs from the borrower's romanised script, or switches within the call",
-      "severity_rank": 3
+      "severity_rank": 4
     },
     {
       "mode": "register_drift_bucket",
       "signal": "Same first-turn pressure/courtesy across 5, 30 and 90 DPD (firmness does not track the bucket)",
-      "severity_rank": 4
+      "severity_rank": 5
     },
     {
       "mode": "long_turns",
       "signal": "Replies over 60 words on a phone call",
-      "severity_rank": 5
+      "severity_rank": 6
     }
   ],
   "per_call": {
@@ -107,6 +121,10 @@
       ],
       "script_switches": 0,
       "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 0,
       "honorific_dropped": false,
       "repeated_turns": 0,
       "pressure_per_turn_after_refusal": 0.25,
@@ -123,6 +141,10 @@
         "latin_letters": 133,
         "devanagari_ratio": 0.0,
         "script": "latin",
+        "hindi_function_words": 9,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": false,
         "words": 35,
         "long_turn": false,
         "empty": false,
@@ -163,6 +185,10 @@
       ],
       "script_switches": 0,
       "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 0,
       "honorific_dropped": false,
       "repeated_turns": 0,
       "pressure_per_turn_after_refusal": 0.5,
@@ -179,6 +205,10 @@
         "latin_letters": 141,
         "devanagari_ratio": 0.0,
         "script": "latin",
+        "hindi_function_words": 9,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": false,
         "words": 36,
         "long_turn": false,
         "empty": false,
@@ -217,6 +247,10 @@
       ],
       "script_switches": 0,
       "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 0,
       "honorific_dropped": false,
       "repeated_turns": 0,
       "pressure_per_turn_after_refusal": 0.5,
@@ -233,6 +267,10 @@
         "latin_letters": 141,
         "devanagari_ratio": 0.0,
         "script": "latin",
+        "hindi_function_words": 9,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": false,
         "words": 36,
         "long_turn": false,
         "empty": false,
@@ -271,6 +309,10 @@
       ],
       "script_switches": 0,
       "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 8,
       "honorific_dropped": false,
       "repeated_turns": 1,
       "pressure_per_turn_after_refusal": 1.25,
@@ -289,6 +331,10 @@
         "latin_letters": 116,
         "devanagari_ratio": 0.0,
         "script": "latin",
+        "hindi_function_words": 6,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": true,
         "words": 30,
         "long_turn": false,
         "empty": false,
@@ -327,6 +373,10 @@
       ],
       "script_switches": 0,
       "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 8,
       "honorific_dropped": false,
       "repeated_turns": 0,
       "pressure_per_turn_after_refusal": 0.25,
@@ -343,6 +393,10 @@
         "latin_letters": 118,
         "devanagari_ratio": 0.0,
         "script": "latin",
+        "hindi_function_words": 6,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": true,
         "words": 30,
         "long_turn": false,
         "empty": false,
@@ -381,6 +435,10 @@
       ],
       "script_switches": 0,
       "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 8,
       "honorific_dropped": false,
       "repeated_turns": 1,
       "pressure_per_turn_after_refusal": 2.25,
@@ -399,6 +457,10 @@
         "latin_letters": 126,
         "devanagari_ratio": 0.0,
         "script": "latin",
+        "hindi_function_words": 8,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": true,
         "words": 32,
         "long_turn": false,
         "empty": false,

@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from app.evaluation.challenge import CALL_CONTEXT, Persona
-from app.evaluation.client import ChatClient
+from app.evaluation.client import ChatClient, complete_measured
 from app.evaluation.metrics import latency_summary, weighted_kappa
 
 MAX_TOKENS = 200
@@ -113,7 +113,7 @@ def run(calls: list[dict[str, Any]], client: ChatClient, raw_path: Path) -> None
                 messages.append({"role": "user", "content": turn["text"]})
                 row = done[call["id"]].get(index)
                 if row is None:
-                    record = client.complete(messages, max_tokens=MAX_TOKENS)
+                    record = complete_measured(client, messages, max_tokens=MAX_TOKENS)
                     row = {"call_id": call["id"], "turn": index, "record": record.to_json()}
                     fh.write(json.dumps(row, ensure_ascii=False) + "\n")
                     fh.flush()
@@ -165,6 +165,35 @@ _COURTESY = re.compile(
     re.I)
 
 
+#: Function words that separate Hindi from Marathi in either script. Content words are
+#: shared too often (loan, payment, paise) to help; these are not.
+_HINDI_WORDS = re.compile(
+    r"\b(hai|hain|hoon|hun|kya|nahin|aapka|aapki|aapke|aapko|raha|rahi|sakti|sakte|sakta|"
+    r"karenge|kijiye|dijiye|mein|ki|ke|ko|se|bhi|toh|lekin|agar)\b|"
+    r"\bहै\b|हैं|\bक्या\b|आपका|आपकी|आपको|\bमें\b|\bकी\b|\bको\b|\bसे\b|लेकिन", re.I)
+_MARATHI_WORDS = re.compile(
+    r"\b(aahe|ahe|aahet|ahet|kay|tumhi|tumcha|tumchi|tumhala|kara|karu|pahije|"
+    r"aani|ani|mhanje|kiti|udya|jhala|naka|denar|honar|sangitla)\b|"
+    r"आहे|आहेत|\bकाय\b|तुम्ही|तुमच|तुम्हाला|पाहिजे|आणि|म्हणजे|किती", re.I)
+
+
+def language_profile(text: str) -> dict[str, Any]:
+    hi = len(_HINDI_WORDS.findall(text))
+    mr = len(_MARATHI_WORDS.findall(text))
+    if hi + mr < 2:
+        label = "unclear"
+    elif hi >= 2 * max(mr, 1):
+        label = "hindi"
+    elif mr >= 2 * max(hi, 1):
+        label = "marathi"
+    else:
+        label = "mixed"
+    return {"hindi_function_words": hi, "marathi_function_words": mr, "matrix_language": label}
+
+
+_EXPECTED_MATRIX = {"hi-en": "hindi", "mr-en": "marathi"}
+
+
 def script_profile(text: str) -> dict[str, Any]:
     dev = sum(1 for ch in text if "\u0900" <= ch <= "\u097f" and unicodedata.category(ch).startswith("L"))
     lat = sum(1 for ch in text if ch.isascii() and ch.isalpha())
@@ -210,8 +239,11 @@ def reply_metrics(text: str, language: str) -> dict[str, Any]:
     words = re.findall(r"\w+", text)
     hazards = {k: bool(p.search(text)) for k, p in _TTS_HAZARDS.items()}
     num = numeral_profile(text)
+    lang = language_profile(text)
     return {
         **script_profile(text),
+        **lang,
+        "language_mismatch": lang["matrix_language"] not in (_EXPECTED_MATRIX[language], "unclear"),
         "words": len(words),
         "long_turn": len(words) > 60,
         "empty": not text.strip(),
@@ -266,6 +298,8 @@ def score_call(call: dict[str, Any], raw: dict[tuple[str, int], dict[str, Any]])
             "scripts_used": sorted(set(scripts)),
             "script_switches": sum(1 for a, b in zip(scripts, scripts[1:]) if a != b),
             "turns_not_matching_borrower_script": sum(1 for s in scripts if s != expected),
+            "matrix_languages": sorted({t["metrics"]["matrix_language"] for t in turns}),
+            "language_mismatch_turns": sum(1 for t in turns if t["metrics"]["language_mismatch"]),
             "honorific_dropped": honorific_dropped,
             "repeated_turns": sum(1 for t in turns if t["metrics"]["repeated"]),
             "pressure_per_turn_after_refusal": mean(refusal, "pressure_markers"),
@@ -292,15 +326,18 @@ FAILURE_MODES = [
     ("numeral_currency_handling",
      "Amount introduced by the model, INR token, digits in a different script from the words, western grouping",
      2),
+    ("language_mismatch",
+     "Reply's matrix language (Hindi vs Marathi function words) differs from the borrower's",
+     3),
     ("script_inconsistency",
      "Reply script differs from the borrower's romanised script, or switches within the call",
-     3),
+     4),
     ("register_drift_bucket",
      "Same first-turn pressure/courtesy across 5, 30 and 90 DPD (firmness does not track the bucket)",
-     4),
+     5),
     ("long_turns",
      "Replies over 60 words on a phone call",
-     5),
+     6),
 ]
 
 
@@ -316,6 +353,10 @@ def failure_counts(calls: list[dict[str, Any]]) -> dict[str, Any]:
                  or t["metrics"]["numerals"]["western_grouping"]]
     script_turns = [t for t in all_turns if t["metrics"]["script"] not in ("latin", "none")]
     long_turns = [t for t in all_turns if t["metrics"]["long_turn"]]
+    mismatch = [t for t in all_turns if t["metrics"]["language_mismatch"]]
+    out["language_mismatch"] = {"turns": len(mismatch), "of_turns": n_turns,
+                                "calls": sorted({c["call_id"] for c in calls
+                                                 if c["call"]["language_mismatch_turns"]})}
     out["tone_collapse_under_refusal"] = {"calls": len(tone), "of_calls": len(calls),
                                           "call_ids": [c["call_id"] for c in tone]}
     out["numeral_currency_handling"] = {"turns": len(num_turns), "of_turns": n_turns}

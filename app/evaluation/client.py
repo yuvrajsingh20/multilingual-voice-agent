@@ -205,6 +205,28 @@ class ChatClient:
                 record.finish_reason = choice["finish_reason"]
 
 
+class EndpointUnavailable(RuntimeError):
+    """The endpoint failed twice in a row. Nothing about the model was measured."""
+
+
+def complete_measured(client: ChatClient, messages: list[dict[str, Any]], *,
+                      retry_after_seconds: float = 15.0, **kwargs: Any) -> CallRecord:
+    """``client.complete`` for evaluation runs: an infrastructure error is never a result.
+
+    A transport error, timeout or non-200 says nothing about the model, so it is retried
+    once and then raised instead of being written to ``raw.jsonl``, where a resumed run
+    would treat it as done and the scorer would count it.
+    """
+    record = client.complete(messages, **kwargs)
+    if record.error is None:
+        return record
+    time.sleep(retry_after_seconds)
+    record = client.complete(messages, **kwargs)
+    if record.error is not None:
+        raise EndpointUnavailable(f"{client.endpoint.model}: {record.error}")
+    return record
+
+
 def ollama_version(base_url: str = "http://127.0.0.1:11434") -> str | None:
     try:
         return httpx2.get(f"{base_url}/api/version", timeout=5).json().get("version")

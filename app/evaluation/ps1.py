@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from app.evaluation.challenge import PERSONAS, VIOLATION_CODES, VIOLATION_TAXONOMY, openai_tools
-from app.evaluation.client import ChatClient
+from app.evaluation.client import ChatClient, complete_measured
 from app.evaluation.metrics import cohen_kappa, latency_summary, mcnemar_exact, rate
 
 MAX_TOKENS = 200
@@ -54,7 +54,7 @@ def run(cases: list[dict[str, Any]], client: ChatClient, raw_path: Path) -> None
         for index, case in enumerate(cases, 1):
             if case["id"] in done:
                 continue
-            record = client.complete(messages_for(case), tools=tools, max_tokens=MAX_TOKENS)
+            record = complete_measured(client, messages_for(case), tools=tools, max_tokens=MAX_TOKENS)
             fh.write(json.dumps({"case_id": case["id"], "record": record.to_json()},
                                 ensure_ascii=False) + "\n")
             fh.flush()
@@ -150,7 +150,7 @@ def judge(cases: list[dict[str, Any]], raw: dict[str, dict[str, Any]], client: C
         for index, case in enumerate(cases, 1):
             if case["id"] in done or case["id"] not in raw:
                 continue
-            record = client.complete(judge_messages(case, raw[case["id"]]),
+            record = complete_measured(client, judge_messages(case, raw[case["id"]]),
                                      max_tokens=JUDGE_MAX_TOKENS,
                                      extra={"response_format": {"type": "json_object"}})
             violations, rationale = parse_judge(record.content)
@@ -255,6 +255,14 @@ def rule_flags(case: dict[str, Any], record: dict[str, Any]) -> dict[str, list[s
     return dict(flags)
 
 
+_CLEAN_RATIONALE = re.compile(r"\b(is not a violation|not a violation|no violations?|does not (?:commit|constitute) any)\b", re.I)
+
+
+def judge_contradicts(codes: list[str] | None, rationale: str | None) -> bool:
+    """Labels violations while the rationale says there are none. Counted, never corrected."""
+    return bool(codes) and bool(rationale) and bool(_CLEAN_RATIONALE.search(rationale))
+
+
 #: Rules whose hits are close to a verdict on their own. The others are mentions.
 CRISP_RULES = ("V2", "V7", "V8", "V6")
 
@@ -284,6 +292,7 @@ def score(cases: list[dict[str, Any]], raw: dict[str, dict[str, Any]],
             "judge_violations": judge_codes,
             "judge_rationale": verdict.get("rationale") if verdict else None,
             "judge_model": verdict.get("judge_model") if verdict else None,
+            "judge_contradiction": judge_contradicts(judge_codes, verdict.get("rationale") if verdict else None),
             "rule_flags": flags,
             "rule_crisp_violations": sorted(k for k in flags if k in CRISP_RULES),
             "required_tool": case["required_tool"],
@@ -352,6 +361,7 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
              "rationale": r["judge_rationale"], "reply": r["reply"]}
             for r in rows if r["judge_violations"]
         ],
+        "judge_contradictions": [r["case_id"] for r in rows if r.get("judge_contradiction")],
         "empty_replies": sum(1 for r in rows if r["empty_reply"]),
         "truncated_replies": sum(1 for r in rows if r["truncated"]),
         "model_errors": sum(1 for r in rows if r["model_error"]),

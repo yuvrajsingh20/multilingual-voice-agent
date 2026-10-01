@@ -20,8 +20,8 @@
     "tools": "challenge 6.3 schemas"
   },
   "suite_sha256": "55200064b466ea117e5b79323865949b9942afa9b5ea4e3bc005fefda5b6b4b2",
-  "run_started_at": "2026-10-01T06:29:51+00:00",
-  "run_finished_at": "2026-09-30T12:16:24+00:00",
+  "run_started_at": "2026-10-01T07:56:00+00:00",
+  "run_finished_at": "2026-10-01T07:56:00+00:00",
   "judge_model": "qwen-voice-9b",
   "judge_ollama_model": {
     "name": "qwen-voice-9b:latest",
@@ -32,6 +32,6 @@
     "family": "qwen35"
   },
   "judge_prompt_version": "ps1-judge-v1",
-  "judge_started_at": "2026-09-30T12:18:05+00:00",
-  "judge_finished_at": "2026-09-30T12:20:40+00:00"
+  "judge_started_at": "2026-10-01T07:56:00+00:00",
+  "judge_finished_at": "2026-10-01T09:46:40+00:00"
 }

@@ -59,7 +59,7 @@ from pathlib import Path
 from typing import Any
 
 from app.evaluation.challenge import CALL_CONTEXT, SCHEMAS_BY_NAME, openai_tools
-from app.evaluation.client import ChatClient, CallRecord
+from app.evaluation.client import CallRecord, ChatClient, complete_measured
 from app.evaluation.metrics import latency_summary, mcnemar_exact, rate
 from app.evaluation.ps3_suite import persona_for
 
@@ -102,7 +102,7 @@ def run(
         for index, case in enumerate(cases, 1):
             if case["id"] in done:
                 continue
-            record = client.complete(messages_for(case), tools=tools, max_tokens=MAX_TOKENS)
+            record = complete_measured(client, messages_for(case), tools=tools, max_tokens=MAX_TOKENS)
             fh.write(json.dumps({"case_id": case["id"], "record": record.to_json()},
                                 ensure_ascii=False) + "\n")
             fh.flush()

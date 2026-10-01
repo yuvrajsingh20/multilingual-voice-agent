@@ -184,35 +184,37 @@ def ps1_tables() -> None:
     for m in MODELS:
         d = _load("ps1", m)
         if d:
-            print(f"- {m}: empty replies {d['empty_replies']}; truncated {d['truncated_replies']}; errors {d['model_errors']}; "
+            print(f"- {m}: judge verdicts contradicting their own rationale {len(d.get('judge_contradictions', []))}; "
+                  f"empty replies {d['empty_replies']}; truncated {d['truncated_replies']}; errors {d['model_errors']}; "
                   f"thinking leaked {d['thinking_leaked']}; TTFT {_ms(d['latency_ms']['ttft'])}")
     print()
 
 
 def ps2_tables() -> None:
     print("## PS-2 results (text-side signals; not TTS survival)\n")
-    print("| Model | Calls/turns | Script by language | Tone collapse calls | Numeral/currency turns | Non-Latin-script turns | Long turns |")
-    print("|---|---|---|---|---|---|---|")
+    print("| Model | Calls/turns | Script by language | Language mismatch turns | Tone collapse calls | Numeral/currency turns | Non-Latin-script turns | Long turns |")
+    print("|---|---|---|---|---|---|---|---|")
     for m in MODELS:
         d = _load("ps2", m)
         if not d:
-            print(f"| {m} | not run | | | | | |")
+            print(f"| {m} | not run | | | | | | |")
             continue
         f = d["failure_modes"]
         scripts = "; ".join(f"{k}: " + ", ".join(f"{s} {n}" for s, n in v.items()) for k, v in d["script_by_language"].items())
-        print(f"| {m} | {d['calls']}/{d['turns']} | {scripts} | {f['tone_collapse_under_refusal']['calls']}/{f['tone_collapse_under_refusal']['of_calls']} | "
+        lm = f.get("language_mismatch", {})
+        print(f"| {m} | {d['calls']}/{d['turns']} | {scripts} | {lm.get('turns', 'n/a')}/{lm.get('of_turns', 'n/a')} | {f['tone_collapse_under_refusal']['calls']}/{f['tone_collapse_under_refusal']['of_calls']} | "
               f"{f['numeral_currency_handling']['turns']}/{f['numeral_currency_handling']['of_turns']} | "
               f"{f['script_inconsistency']['turns']}/{f['script_inconsistency']['of_turns']} | "
               f"{f['long_turns']['turns']}/{f['long_turns']['of_turns']} |")
     print("\n### Per call\n")
-    print("| Model | Call | Scripts | Switches | Honorific dropped | Repeated turns | Pressure after refusal / other | Courtesy after refusal / other | Mean words | Introduced amounts |")
-    print("|---|---|---|---|---|---|---|---|---|---|")
+    print("| Model | Call | Scripts | Matrix language | Switches | Honorific dropped | Repeated turns | Pressure after refusal / other | Courtesy after refusal / other | Mean words | Introduced amounts |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|")
     for m in MODELS:
         d = _load("ps2", m)
         if not d:
             continue
         for cid, c in d["per_call"].items():
-            print(f"| {m} | {cid} | {','.join(c['scripts_used'])} | {c['script_switches']} | {c['honorific_dropped']} | "
+            print(f"| {m} | {cid} | {','.join(c['scripts_used'])} | {','.join(c.get('matrix_languages', []))} | {c['script_switches']} | {c['honorific_dropped']} | "
                   f"{c['repeated_turns']} | {_v(c['pressure_per_turn_after_refusal'])} / {_v(c['pressure_per_turn_other'])} | "
                   f"{_v(c['courtesy_per_turn_after_refusal'])} / {_v(c['courtesy_per_turn_other'])} | {_v(c['mean_words'])} | "
                   f"{c['introduced_amounts'] or '-'} |")

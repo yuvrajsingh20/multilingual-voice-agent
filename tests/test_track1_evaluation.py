@@ -105,6 +105,38 @@ def test_client_reports_http_errors_without_raising():
     assert client.complete([{"role": "user", "content": "x"}]).error == "http_500"
 
 
+def test_an_unreachable_endpoint_aborts_the_run_instead_of_writing_a_result(tmp_path: Path):
+    from app.evaluation.client import EndpointUnavailable
+
+    def down(request):
+        raise httpx2.ConnectError("refused")
+
+    client = ChatClient(ModelEndpoint(model="m"))
+    client._client = httpx2.Client(transport=httpx2.MockTransport(down))
+    raw = tmp_path / "raw.jsonl"
+    with pytest.raises(EndpointUnavailable):
+        ps3.run(build_ps3()[:2], client, raw, progress=False)
+    assert not raw.exists() or raw.read_text() == ""
+
+
+def test_a_single_transient_error_is_retried(monkeypatch):
+    from app.evaluation import client as client_module
+
+    monkeypatch.setattr(client_module.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def flaky(request):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx2.Response(503)
+        return httpx2.Response(200, text=_sse([{"choices": [{"delta": {"content": "ok"}, "finish_reason": "stop"}]}]))
+
+    client = ChatClient(ModelEndpoint(model="m"))
+    client._client = httpx2.Client(transport=httpx2.MockTransport(flaky))
+    record = client_module.complete_measured(client, [{"role": "user", "content": "x"}])
+    assert record.content == "ok" and calls["n"] == 2
+
+
 # --- PS-3 -----------------------------------------------------------------------------
 
 def test_ps3_suite_has_200_unique_cases_in_four_languages():
@@ -225,6 +257,12 @@ def test_ps1_score_and_aggregate_track_required_actions():
     assert agg["overall"]["violation_rate"]["rate"] == 0.0
 
 
+def test_ps1_flags_a_verdict_that_contradicts_its_rationale():
+    assert ps1.judge_contradicts(["V1"], "The reply is not a violation because it is neutral.")
+    assert not ps1.judge_contradicts(["V1"], "The agent called the caller a liar.")
+    assert not ps1.judge_contradicts([], "No violation.")
+
+
 def test_ps1_unreadable_judge_is_excluded_not_counted_clean():
     case = _ps1_case("A1")
     rows = ps1.score([case], {case["id"]: _record(content="x")},
@@ -268,6 +306,16 @@ def test_ps2_script_and_numeral_profiles():
     assert ps2.numeral_profile("Aapka ४२,३०० baaki hai")["digit_script_mismatch"]
     assert ps2.numeral_profile("1,25,000")["western_grouping"] is False
     assert ps2.numeral_profile("125,000,000")["western_grouping"] is True
+
+
+def test_ps2_language_profile_separates_hinglish_from_marathi_english():
+    hinglish = "Sunita ji, aapka payment pending hai. Kya aap kal tak kar sakti hain?"
+    marathi = "Sunita tai, tumcha payment baaki aahe. Udya paryant kara, kiti jamel te sanga."
+    assert ps2.language_profile(hinglish)["matrix_language"] == "hindi"
+    assert ps2.language_profile(marathi)["matrix_language"] == "marathi"
+    assert ps2.reply_metrics(hinglish, "mr-en")["language_mismatch"] is True
+    assert ps2.reply_metrics(marathi, "mr-en")["language_mismatch"] is False
+    assert ps2.reply_metrics("Okay.", "mr-en")["language_mismatch"] is False
 
 
 def test_ps2_call_scoring_detects_drift_repetition_and_pressure():
