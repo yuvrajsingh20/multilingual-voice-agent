@@ -318,6 +318,13 @@ def test_ps2_language_profile_separates_hinglish_from_marathi_english():
     assert ps2.reply_metrics("Okay.", "mr-en")["language_mismatch"] is False
 
 
+def test_ps2_language_profile_reads_devanagari_words_ending_in_vowel_signs():
+    hindi = "सुनीता जी, कुल बकाया 42,300 रुपये है। क्या आप आज ही भेज सकते हैं?"
+    marathi = "सुनीता ताई, तुमचे 42,300 रुपये बाकी आहेत. किती जमेल?"
+    assert ps2.language_profile(hindi)["matrix_language"] == "hindi"
+    assert ps2.language_profile(marathi)["matrix_language"] == "marathi"
+
+
 def test_ps2_call_scoring_detects_drift_repetition_and_pressure():
     call = ps2.build_calls()[0]
     replies = ["Sunita ji, aapka 42,300 pending hai.",

@@ -148,12 +148,12 @@ _TTS_HAZARDS = {
     "url_or_email": re.compile(r"https?://|www\.|\S+@\S+"),
 }
 _HONORIFIC = {
-    "hi-en": re.compile(r"\b(aap|aapka|aapki|aapke|aapko|aapne|ji)\b|आप|जी\b", re.I),
+    "hi-en": re.compile(r"\b(aap|aapka|aapki|aapke|aapko|aapne|ji)\b|(?<![\u0900-\u097f])(आप|जी)(?![\u0900-\u097f])", re.I),
     "mr-en": re.compile(r"\b(tumhi|tumcha|tumchi|tumche|tumhala|tumhan[ai]|aapan|aaplya)\b|तुम्ही|तुमच|तुम्हाला|आपण", re.I),
 }
 _INFORMAL = {
-    "hi-en": re.compile(r"\b(tum|tumhara|tumhari|tumhe|tu|tera|teri|tujhe)\b|\bतुम\b|तुम्हारा|\bतू\b|तेरा", re.I),
-    "mr-en": re.compile(r"\b(tu|tula|tuza|tuzi|tuze|tujha|tujhi)\b|\bतू\b|तुला|तुझ", re.I),
+    "hi-en": re.compile(r"\b(tum|tumhara|tumhari|tumhe|tu|tera|teri|tujhe)\b|(?<![\u0900-\u097f])(तुम|तुम्हारा|तू|तेरा)(?![\u0900-\u097f])", re.I),
+    "mr-en": re.compile(r"\b(tu|tula|tuza|tuzi|tuze|tujha|tujhi)\b|(?<![\u0900-\u097f])(तू|तुला|तुझा|तुझी)(?![\u0900-\u097f])", re.I),
 }
 _PRESSURE = re.compile(
     r"\b(turant|abhi|aaj hi|jaldi|immediately|urgent(?:ly)?|last chance|final|consequences?|"
@@ -170,11 +170,11 @@ _COURTESY = re.compile(
 _HINDI_WORDS = re.compile(
     r"\b(hai|hain|hoon|hun|kya|nahin|aapka|aapki|aapke|aapko|raha|rahi|sakti|sakte|sakta|"
     r"karenge|kijiye|dijiye|mein|ki|ke|ko|se|bhi|toh|lekin|agar)\b|"
-    r"\bहै\b|हैं|\bक्या\b|आपका|आपकी|आपको|\bमें\b|\bकी\b|\bको\b|\bसे\b|लेकिन", re.I)
+    r"(?<![\u0900-\u097f])(है|हैं|हूँ|क्या|आपका|आपकी|आपको|में|की|को|से|लेकिन|रहा|सकते|सकती)(?![\u0900-\u097f])", re.I)
 _MARATHI_WORDS = re.compile(
     r"\b(aahe|ahe|aahet|ahet|kay|tumhi|tumcha|tumchi|tumhala|kara|karu|pahije|"
     r"aani|ani|mhanje|kiti|udya|jhala|naka|denar|honar|sangitla)\b|"
-    r"आहे|आहेत|\bकाय\b|तुम्ही|तुमच|तुम्हाला|पाहिजे|आणि|म्हणजे|किती", re.I)
+    r"(?<![\u0900-\u097f])(आहे|आहेत|काय|तुम्ही|तुमचा|तुमची|तुमचे|तुम्हाला|पाहिजे|आणि|म्हणजे|किती)(?![\u0900-\u097f])", re.I)
 
 
 def language_profile(text: str) -> dict[str, Any]:

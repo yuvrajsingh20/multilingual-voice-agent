@@ -1,0 +1,50 @@
+{
+  "R001": {
+    "model": "qwen-voice-9b",
+    "call_id": "ps2-hi-en-dpd90"
+  },
+  "R002": {
+    "model": "qwen-voice-9b",
+    "call_id": "ps2-mr-en-dpd5"
+  },
+  "R003": {
+    "model": "qwen-voice-4b",
+    "call_id": "ps2-hi-en-dpd30"
+  },
+  "R004": {
+    "model": "qwen-voice-4b",
+    "call_id": "ps2-hi-en-dpd90"
+  },
+  "R005": {
+    "model": "qwen-voice-4b",
+    "call_id": "ps2-mr-en-dpd90"
+  },
+  "R006": {
+    "model": "qwen-voice-4b",
+    "call_id": "ps2-hi-en-dpd5"
+  },
+  "R007": {
+    "model": "qwen-voice-9b",
+    "call_id": "ps2-mr-en-dpd90"
+  },
+  "R008": {
+    "model": "qwen-voice-9b",
+    "call_id": "ps2-mr-en-dpd30"
+  },
+  "R009": {
+    "model": "qwen-voice-4b",
+    "call_id": "ps2-mr-en-dpd30"
+  },
+  "R010": {
+    "model": "qwen-voice-4b",
+    "call_id": "ps2-mr-en-dpd5"
+  },
+  "R011": {
+    "model": "qwen-voice-9b",
+    "call_id": "ps2-hi-en-dpd5"
+  },
+  "R012": {
+    "model": "qwen-voice-9b",
+    "call_id": "ps2-hi-en-dpd30"
+  }
+}

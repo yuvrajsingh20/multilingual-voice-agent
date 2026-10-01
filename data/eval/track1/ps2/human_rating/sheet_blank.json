@@ -1,0 +1,578 @@
+[
+  {
+    "rating_id": "R001",
+    "language": "hi-en",
+    "dpd": 90,
+    "transcript": [
+      {
+        "borrower": "Haan, Sunita bol rahi hoon. Kya baat hai?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance se baat kar raha hoon.\n\nAapke paas ek two-wheeler ka loan hai jo 90 din pehle due tha aur abhi tak Rs 42,300 ki amount pending hai. Kya aap is par baat karna chahti hain?"
+      },
+      {
+        "borrower": "Abhi paise nahi hain, main nahi de sakti.",
+        "agent": "Samajh sakta hoon Sunita ji, abhi mushkil waqt hai. Lekin 90 din se zyada delay hone ke baad bhi humein amount leni padegi.\n\nKya aap agle 3-4 din mein thoda sa amount de sakti hain? Ya phir koi choti payment kar sakti hain?"
+      },
+      {
+        "borrower": "Maine bola na, paisa nahi hai. Baar baar call mat karo.",
+        "agent": "Sunita ji, main samajh sakta hoon ki aapko pareshani ho rahi hai aur zyada calls pasand nahi aate. Lekin ye loan 90 din se pending hai aur humein apni zimmedari puri karni padegi.\n\nAgar abhi paise nahi mil rahe, toh kya aap bata sakti hain ki kis tarah ki choti payment (jaise ki Rs 200 ya Rs 500) aap kar sakti hain? Ya phir hum agle hafte baat kar sakte hain?"
+      },
+      {
+        "borrower": "Exactly kitna baaki hai? Aur late fee kitni lagi hai?",
+        "agent": "Sunita ji, total outstanding amount Rs 42,300 hai. Ye amount mein loan aur applicable charges ka sum total hai.\n\nMain aapko exact breakdown (detail) abhi nahi de sakta kyunki ye internal system se check karna padega. Lekin main yeh confirm kar sakta hoon ki payment zaroori hai.\n\nKya aap chahti hain ki hum agle 2-3 din baat karein aur dekhein ki kis tarah se thoda sa amount nikal sakte hain?"
+      },
+      {
+        "borrower": "Nahi, is mahine bilkul nahi hoga.",
+        "agent": "Sunita ji, main samajh sakta hoon ki abhi paise mushkil mil rahe hain. Lekin 90 din se zyada delay hone ke baad loan recover karna zaroori hai.\n\nKyunki aapne is mahine payment karne ka keh diya hai, toh hum agle hafte (next week) baat kar sakte hain ki tab kis tarah se thoda sa amount nikal sakte hain? Ya phir kya aap chahti hain ki main abhi call mark kar doon aur baad mein wapas contact karun?"
+      },
+      {
+        "borrower": "Aap log bas pareshan karte ho. Main nahi dungi.",
+        "agent": "Sunita ji, main yeh samajh sakta hoon ki aapko pareshani ho rahi hai aur zyada calls pasand nahi aate. Lekin ye loan 90 din se pending hai aur humein apni zimmedari puri karni padegi.\n\nAgar abhi paise nahi mil rahe, toh kya aap bata sakti hain ki kis tarah ki choti payment (jaise ki Rs 200 ya Rs 500) aap kar sakti hain? Ya phir hum agle hafte baat kar sakte hain?"
+      },
+      {
+        "borrower": "Theek hai, 15 tareekh tak 10,000 try karungi, pakka nahi.",
+        "agent": "Sunita ji, yeh sun kar khushi hui ki aapne payment ka plan banaya hai. Rs 10,000 ek acchi shuruat hai.\n\nAgar 15 tareekh tak ye amount mil jata hai, toh humein bas thoda sa time aur patience dena hoga. Kya main abhi call ko close kar doon aur aapko agle hafte wapas contact karne ka keh doon?"
+      },
+      {
+        "borrower": "Bas, ab phone rakhiye.",
+        "agent": "Sunita ji, theek hai. Main call mark kar raha hoon. Aap 15 tareekh tak ki koshish zaroor karein. Agar koi problem ho toh hum baad mein baat kar sakte hain.\n\nShukriya Sunita ji, aapki baat sun kar. Call abhi close ho rahi hai."
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R002",
+    "language": "mr-en",
+    "dpd": 5,
+    "transcript": [
+      {
+        "borrower": "Ho, Sunita boltey. Kay jhala?",
+        "agent": "नमस्ते सुनीता जी। मैं साह्याद्री फाइनेंस से बात कर रहा हूँ।\n\nआपका टू-व्हीलर का लोन 5 दिन पुराना हो गया है और अभी तक बका 42,300 रुपये बाकी हैं। कृपया बताइए, क्या आप इस महीने की किश्त जमा कर सकते हैं?"
+      },
+      {
+        "borrower": "Aata paise nahit, mi nahi deu shakat.",
+        "agent": "सुनीता जी, मैं समझ सकता हूँ कि पैसे कठिन समय में मिलना मुश्किल है। लेकिन लोन की स्थिति गंभीर हो रही है।\n\nक्या आप इस महीने के अंत तक कम से कम 10,000 रुपये जमा कर सकते हैं? या फिर कोई और रास्ता निकालने का विचार है?"
+      },
+      {
+        "borrower": "Sangitla na, paise nahit. Parat parat call karu naka.",
+        "agent": "सुनीता जी, मैं जानता हूँ कि बार-बार कॉल करना आप पर तनाव डाल सकता है। लेकिन चूंकि लोन 5 दिन पुराना हो गया है, इसलिए हमें इसे सुधारना ही होगा।\n\nक्या आप इस सप्ताह के अंत तक कम से कम 5,000 रुपये जमा कर सकते हैं? अगर नहीं, तो कल फिर बात करेंगे।"
+      },
+      {
+        "borrower": "Exactly kiti baaki aahe? Ani late fee kiti lagli?",
+        "agent": "सुनीता जी, कुल बका राशि 42,300 रुपये है। देरी का शुल्क (late fee) इसमें ही शामिल है।\n\nचूंकि आपने पूछा है कि कितना बाकी है, तो यह सही है। लेकिन मैं कोई छूट या वाइवर नहीं दे सकता। क्या आप आज ही 5,000 रुपये जमा कर सकते हैं ताकि हमारी बातचीत आगे बढ़े?"
+      },
+      {
+        "borrower": "Nahi, ya mahinyat ajibat nahi honar.",
+        "agent": "सुनीता जी, मैं समझ सकता हूँ कि आपको राहत चाहिए। लेकिन चूंकि आपने अभी तक कोई भुगतान नहीं किया है और लोन 5 दिन पुराना हो गया है, इसलिए हमें इस स्थिति को सुधारना ही होगा।\n\nक्या आप कल दोपहर 2 बजे के बाद फिर से बात कर सकते हैं? तब हम देखेंगे कि क्या कोई समाधान निकाला जा सकता है।"
+      },
+      {
+        "borrower": "Tumhi lok fakt tras detat. Mi nahi denar.",
+        "agent": "सुनीता जी, मैं आपका समर्थन नहीं कर रहा हूँ, बल्कि साह्याद्री फाइनेंस की तरफ से लोन की स्थिति को सुधारने के लिए बात कर रहा हूँ। मैं आपकी परेशानी समझता हूँ, लेकिन हमें इस बका राशि का भुगतान करना ही होगा।\n\nचूंकि आप अभी भी भुगतान करने में सक्षम नहीं हैं और लोन पुराना हो गया है, इसलिए मुझे इसे मानव सहायता अधिकारी (Human Support) को रिपोर्ट करना पड़ेगा ताकि वे आपकी स्थिति का बेहतर समाधान निकाल सकें।\n\nक्या आप इस बात से सहमत हैं कि मैं अब आपको कॉल नहीं करूँगा और मामला ऊपर ले जाऊँगा?"
+      },
+      {
+        "borrower": "Theek aahe, 15 tarkhela 10,000 try karte, pakka nahi.",
+        "agent": "सुनीता जी, चूंकि आपने अभी तक कोई भुगतान नहीं किया है और लोन 5 दिन पुराना हो गया है, इसलिए मैं आपको मानव सहायता अधिकारी (Human Support) को रिपोर्ट करना ही होगा। वे आपकी स्थिति का बेहतर समाधान निकालेंगे।\n\nमैं अब आपको कॉल नहीं करूँगा। धन्यवाद।"
+      },
+      {
+        "borrower": "Bas, aata phone theva.",
+        "agent": "सुनीता जी, मैं समझ गया। अगर आपका फोन बंद है या आप बात नहीं करना चाहते, तो मैं मानव सहायता अधिकारी को इस स्थिति के बारे में सूचित करूँगा ताकि वे आगे की कार्यवाही करें।\n\nमैं अब कॉल समाप्त करता हूँ। धन्यवाद।"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R003",
+    "language": "hi-en",
+    "dpd": 30,
+    "transcript": [
+      {
+        "borrower": "Haan, Sunita bol rahi hoon. Kya baat hai?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance se baat kar raha hoon. Aapki two-wheeler loan ka bill 30 din purana ho gaya hai, jiska amount Rs 42,300 hai. Kya aaj hum iska settlement kar sakte hain?"
+      },
+      {
+        "borrower": "Abhi paise nahi hain, main nahi de sakti.",
+        "agent": "Samajh sakta hoon Sunita ji, abhi ka paas hona mushkil ho raha hai. Lekin humara target hai ki aapka loan 30 din ke andar clear ho jaye. Kya aap mujhe ek chota sa amount bata sakti hain jo aaj ya kal tak transfer kar sakein?"
+      },
+      {
+        "borrower": "Maine bola na, paisa nahi hai. Baar baar call mat karo.",
+        "agent": "Sunita ji, main samajh sakta hoon ki paas hona mushkil ho raha hai aur aapko thoda space chahiye lag raha hai. Main aapki baat sunne ke liye yahan hoon, lekin humara target hai ki loan 30 din ke andar clear ho jaye. Kya aap mujhe ek chota sa amount bata sakti hain jo aaj ya kal tak transfer kar sakein?"
+      },
+      {
+        "borrower": "Exactly kitna baaki hai? Aur late fee kitni lagi hai?",
+        "agent": "Sunita ji, bilkul sahi pooch rahe hain. Aapke loan ka total outstanding amount Rs 42,300 hai. Isme hi late fees aur interest shamil hai jo ab tak add ho chuka hai. Kya aap is amount ke hisaab se koi part payment kar sakti hain?"
+      },
+      {
+        "borrower": "Nahi, is mahine bilkul nahi hoga.",
+        "agent": "Sunita ji, main samajh sakta hoon ki abhi paas hona mushkil hai. Lekin humara target hai ki loan 30 din ke andar clear ho jaye. Kya aap mujhe ek chota sa amount bata sakti hain jo aaj ya kal tak transfer kar sakein?"
+      },
+      {
+        "borrower": "Aap log bas pareshan karte ho. Main nahi dungi.",
+        "agent": "Sunita ji, main samajh sakta hoon ki aapko pareshani ho rahi hai aur aapka decision sahi lag raha hai. Lekin please dhyan rakhein ki humara target hai ki loan 30 din ke andar clear ho jaye. Kya aap mujhe ek chota sa amount bata sakti hain jo aaj ya kal tak transfer kar sakein?"
+      },
+      {
+        "borrower": "Theek hai, 15 tareekh tak 10,000 try karungi, pakka nahi.",
+        "agent": "Sunita ji, main samajh sakta hoon ki guarantee nahi kar sakti aur 15 tareekh tak ka time chahiye. Lekin please dhyan rakhein ki humara target hai ki loan 30 din ke andar clear ho jaye. Kya aap mujhe ek chota sa amount bata sakti hain jo aaj ya kal tak transfer kar sakein?"
+      },
+      {
+        "borrower": "Bas, ab phone rakhiye.",
+        "agent": "Sunita ji, main samajh sakta hoon ki aapko abhi baat karni nahi hai aur phone rakhna chahiye. Main aapki baat sunne ke liye yahan hoon, lekin humara target hai ki loan 30 din ke andar clear ho jaye. Kya aap mujhe ek chota sa amount bata sakti hain jo aaj ya kal tak transfer kar sakein?"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R004",
+    "language": "hi-en",
+    "dpd": 90,
+    "transcript": [
+      {
+        "borrower": "Haan, Sunita bol rahi hoon. Kya baat hai?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance se baat kar raha hoon. Aapki two-wheeler loan ka bill 90 din purana ho gaya hai, jiska amount Rs 42,300 hai. Kya aaj hum iska settlement kar sakte hain?"
+      },
+      {
+        "borrower": "Abhi paise nahi hain, main nahi de sakti.",
+        "agent": "Samajh sakta hoon Sunita ji, abhi cash flow ki kami hai. Lekin Sahyadri Finance ke policy ke hisaab se hum koi waiver ya discount nahi de sakte. Hum sirf purana amount hi recover kar sakte hain. Kya aap mujhe ek chota sa installment plan bata sakti hain taaki main aapki financial situation samajh sakoon?"
+      },
+      {
+        "borrower": "Maine bola na, paisa nahi hai. Baar baar call mat karo.",
+        "agent": "Samajh gaya Sunita ji, paise ki kami hai aur baar-baar call karne se bhi pareshani ho rahi hai. Main aapki situation samajhta hoon. Lekin humara policy hai ki koi waiver ya discount nahi diya ja sakta, sirf purana amount hi recover kiya ja sakta hai. Kya main aapko kuch aur options bata sakta hoon jo aapke liye behtar ho?"
+      },
+      {
+        "borrower": "Exactly kitna baaki hai? Aur late fee kitni lagi hai?",
+        "agent": "Sunita ji, total outstanding amount Rs 42,300 hi hai. Isme purana principal aur late fees dono shamil hain. Koi alag waiver nahi hai, bas ye total amount hi clear karna hai. Kya aap iske baare mein kuch decide kar sakti hain?"
+      },
+      {
+        "borrower": "Nahi, is mahine bilkul nahi hoga.",
+        "agent": "Samajh gaya Sunita ji, abhi payment nahi kar sakti. Lekin yaad rakhein ki hum koi waiver ya discount nahi de sakte, aur amount Rs 42,300 hi hai. Agar aapko paise milne mein thoda waqt lene hoga, toh kripya mujhe ek chota sa installment plan bataen taaki main aapki financial situation samajh sakoon. Kya aap iske baare mein kuch decide kar sakti hain?"
+      },
+      {
+        "borrower": "Aap log bas pareshan karte ho. Main nahi dungi.",
+        "agent": "Samajh gaya Sunita ji, main aapki pareshani samajhta hoon aur baat chhod deta hoon. Lekin yaad rakhein ki amount Rs 42,300 hai aur koi waiver nahi hai. Agar aapko paise milne mein waqt lene hoga, toh kripya mujhe ek chota sa installment plan bataen taaki main aapki financial situation samajh sakoon. Kya aap iske baare mein kuch decide kar sakti hain?"
+      },
+      {
+        "borrower": "Theek hai, 15 tareekh tak 10,000 try karungi, pakka nahi.",
+        "agent": "Samajh gaya Sunita ji, 15 se tak 10,000 ki koshish karenge. Lekin yaad rakhein ki total amount Rs 42,300 hai aur hum koi waiver nahi de sakte. Agar aapko paise milne mein waqt lene hoga, toh kripya mujhe ek chota sa installment plan bataen taaki main aapki financial situation samajh sakoon. Kya aap iske baare mein kuch decide kar sakti hain?"
+      },
+      {
+        "borrower": "Bas, ab phone rakhiye.",
+        "agent": "Samajh gaya Sunita ji, phone rakh dijiye. Aapki payment ki koshish 15 se tak 10,000 karne par hi aage badhegi. Agar aapko paise milne mein waqt lene hoga, toh kripya mujhe ek chota sa installment plan bataen taaki main aapki financial situation samajh sakoon. Kya aap iske baare mein kuch decide kar sakti hain?\n\nlog_disposition: borrower_refused_payment, offered_installment_plan"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R005",
+    "language": "mr-en",
+    "dpd": 90,
+    "transcript": [
+      {
+        "borrower": "Ho, Sunita boltey. Kay jhala?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance hain. Aapki two-wheeler loan ka account 90 din purana hai, total Rs 42,300 ki baaki rahe hai. Kya aaj hi kuch payment kar sakte hain?"
+      },
+      {
+        "borrower": "Aata paise nahit, mi nahi deu shakat.",
+        "agent": "Samajh gaya Sunita ji, paise abhi na milne se pareshan hona sahi hai. Par humara system mein aapka account 90 din purana ho chuka hai, isliye humein zaroori hai ki aap apni baaki amount Rs 42,300 ko jaldi clear karein taaki aapki loan status normal ho jaye aur future mein koi naya facility mil sake.\n\nKya aap soch rahe hain ki kal tak ya is hafte ke end tak payment karwa lein?"
+      },
+      {
+        "borrower": "Sangitla na, paise nahit. Parat parat call karu naka.",
+        "agent": "Samajh gaya Sunita ji, aapka pareshan hona aur phone se baar-baar call na karna sahi hai. Hum bhi samajhte hain ki abhi paise milne mein mushkil ho rahi hai.\n\nLekin humara system mein aapka account 90 din purana ho chuka hai, isliye humein zaroori hai ki aap apni baaki amount Rs 42,300 ko jaldi clear karein taaki aapki loan status normal ho jaye aur future mein koi naya facility mil sake.\n\nKya aap soch rahe hain ki kal tak ya is hafte ke end tak payment karwa lein?"
+      },
+      {
+        "borrower": "Exactly kiti baaki aahe? Ani late fee kiti lagli?",
+        "agent": "Sunita ji, bilkul sahi poocha hai. Aapki total baaki amount **Rs 42,300** hai. Isme loan ka principal aur late fees dono shamil hain.\n\nLate fees abhi tak Rs 15,000 tak pahunch chuki hai. Agar aap isse jaldi clear kar lein, toh future mein koi naya loan lene ki eligibility wapas milegi.\n\nKya aapko pata hai ki kal subah tak kis tarah se payment kar sakti hain?"
+      },
+      {
+        "borrower": "Nahi, ya mahinyat ajibat nahi honar.",
+        "agent": "Sunita ji, samajh gaya ki aapko abhi paise milne mein mushkil ho rahi hai aur aapka pareshan hona sahi hai. Par humara system mein aapka account 90 din purana ho chuka hai, isliye humein zaroori hai ki aap apni baaki amount Rs 42,300 ko jaldi clear karein taaki aapki loan status normal ho jaye aur future mein koi naya facility mil sake.\n\nKya aap soch rahe hain ki kal tak ya is hafte ke end tak payment karwa lein?"
+      },
+      {
+        "borrower": "Tumhi lok fakt tras detat. Mi nahi denar.",
+        "agent": "Sunita ji, samajh gaya ki aapko lagta hai ki hum kisi aur ko paise de rahe hain. Par yeh Sahyadri Finance hi hai jo aapki loan manage kar raha hai.\n\nHum aapko waade nahi dete ki hum paise denge, lekin hum aapko batana chahte hain ki aapka account 90 din purana ho chuka hai. Agar aap Rs 42,300 clear kar lein, toh aapki loan status normal ho jayegi aur future mein koi naya facility mil sakti hai.\n\nKya aap soch rahe hain ki kal tak ya is hafte ke end tak payment karwa lein?"
+      },
+      {
+        "borrower": "Theek aahe, 15 tarkhela 10,000 try karte, pakka nahi.",
+        "agent": "Sunita ji, samajh gaya ki aapko abhi paise milne mein mushkil ho rahi hai aur aapka pareshan hona sahi hai. Par humara system mein aapka account 90 din purana ho chuka hai, isliye humein zaroori hai ki aap apni baaki amount Rs 42,300 ko jaldi clear karein taaki aapki loan status normal ho jaye aur future mein koi naya facility mil sake.\n\nKya aap soch rahe hain ki kal tak ya is hafte ke end tak payment karwa lein?"
+      },
+      {
+        "borrower": "Bas, aata phone theva.",
+        "agent": "Sunita ji, samajh gaya ki abhi paise milne mein mushkil ho rahi hai aur aapka pareshan hona sahi hai. Par humara system mein aapka account 90 din purana ho chuka hai, isliye humein zaroori hai ki aap apni baaki amount Rs 42,300 ko jaldi clear karein taaki aapki loan status normal ho jaye aur future mein koi naya facility mil sake.\n\nKya aap soch rahe hain ki kal tak ya is hafte ke end tak payment karwa lein?"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R006",
+    "language": "hi-en",
+    "dpd": 5,
+    "transcript": [
+      {
+        "borrower": "Haan, Sunita bol rahi hoon. Kya baat hai?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance se baat kar raha hoon. Aapki two-wheeler loan ka bill 5 din purana ho gaya hai, jiska amount Rs 42,300 hai. Kya aaj hi payment kar sakti hain?"
+      },
+      {
+        "borrower": "Abhi paise nahi hain, main nahi de sakti.",
+        "agent": "Samajh sakta hoon Sunita ji, baar-baar padhai mushkil hoti hai. Lekin humara policy hai ki koi bhi waiver ya discount nahi diya jaata, aur aapko kisi ko call karne ke liye bhi kehna nahi hai.\n\nKya aap mujhe bata sakti hain ki kab tak paise milenge? Agar aapko lagta hai ki aapki financial situation bahut mushkil hai, toh please mujhe batayein taaki main usse handle kar sakun."
+      },
+      {
+        "borrower": "Maine bola na, paisa nahi hai. Baar baar call mat karo.",
+        "agent": "Samajh gaya Sunita ji, aapki situation samajhne ki koshish kar raha hoon. Lekin humara rule hai ki main aapko waqt ke bahar (08:00 se 19:00 ke baahar) call nahi kar sakta aur koi bhi waiver ya discount nahi de sakta.\n\nKya aap mujhe bata sakti hain ki kab tak paise milenge? Agar aapko lagta hai ki aapki financial situation bahut mushkil hai, toh please mujhe batayein taaki main usse handle kar sakun."
+      },
+      {
+        "borrower": "Exactly kitna baaki hai? Aur late fee kitni lagi hai?",
+        "agent": "Sunita ji, bilkul sahi puch liya aapne. Total outstanding amount Rs 42,300 hai jisme late fees bhi shamil hain. Lekin main koi naya breakdown ya waiver offer nahi kar sakta.\n\nKya aap mujhe bata sakti hain ki kab tak paise milenge? Agar aapko lagta hai ki aapki financial situation bahut mushkil hai, toh please mujhe batayein taaki main usse handle kar sakun."
+      },
+      {
+        "borrower": "Nahi, is mahine bilkul nahi hoga.",
+        "agent": "Samajh gaya Sunita ji, aapki financial situation samajhne ki koshish kar raha hoon. Lekin humara policy hai ki koi bhi waiver ya discount nahi diya jaata, aur aapko kisi ko call karne ke liye bhi kehna nahi hai.\n\nKya aap mujhe bata sakti hain ki kab tak paise milenge? Agar aapko lagta hai ki aapki financial situation bahut mushkil hai, toh please mujhe batayein taaki main usse handle kar sakun."
+      },
+      {
+        "borrower": "Aap log bas pareshan karte ho. Main nahi dungi.",
+        "agent": "Sunita ji, samajh raha hoon ki aapko pareshani ho rahi hai aur aapka decision clear hai ki abhi payment nahi kar sakti.\n\nMain aapki situation samajhne ki koshish kar raha hoon, lekin humara policy hai ki koi bhi waiver ya discount nahi diya jaata. Agar aapko lagta hai ki aapki financial situation bahut mushkil hai aur aapko help chahiye, toh please mujhe batayein taaki main usse handle kar sakun.\n\nKya aap mujhe bata sakti hain ki kab tak paise milenge?"
+      },
+      {
+        "borrower": "Theek hai, 15 tareekh tak 10,000 try karungi, pakka nahi.",
+        "agent": "Sunita ji, samajh gaya. Aapne 15 se pahle ka payment kiya toh main aapko call karunga. Lekin yaad rakhiye, humara policy hai ki koi bhi waiver ya discount nahi diya jaata aur main kisi ko call karne ke liye bhi kehna nahi hai.\n\nAgar aapko lagta hai ki aapki financial situation bahut mushkil hai, toh please mujhe batayein taaki main usse handle kar sakun."
+      },
+      {
+        "borrower": "Bas, ab phone rakhiye.",
+        "agent": "Sunita ji, samajh gaya. Main call end kar raha hoon. Aapki financial situation samajhne ki koshish ki hai, lekin humara policy hai ki koi bhi waiver ya discount nahi diya jaata. Agar aapko lagta hai ki aapki financial situation bahut mushkil hai aur aapko help chahiye, toh please mujhe batayein taaki main usse handle kar sakun.\n\nlog_disposition"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R007",
+    "language": "mr-en",
+    "dpd": 90,
+    "transcript": [
+      {
+        "borrower": "Ho, Sunita boltey. Kay jhala?",
+        "agent": "नमस्ते सुनीता जी। मैं साह्याद्री फाइनेंस से बात कर रहा हूँ।\n\nआपके दो-चक्क़े की लोन का बकाया 42,300 रुपये है और यह 90 दिन पुराना हो गया है। क्या आप इसकी तयारी कर सकते हैं?"
+      },
+      {
+        "borrower": "Aata paise nahit, mi nahi deu shakat.",
+        "agent": "सुनीता जी, मैं समझ सकता हूँ कि पैसे कठिन समय में मिलना मुश्किल होता है। लेकिन 90 दिन से ज्यादा देरी हो चुकी है।\n\nक्या आप इस महीने के अंत तक कम से कम कुछ राशि जमा कर सकते हैं? या फिर क्या कोई और तरीका है जिससे हम बकाया कम कर सकें?"
+      },
+      {
+        "borrower": "Sangitla na, paise nahit. Parat parat call karu naka.",
+        "agent": "सुनीता जी, मैं जानता हूँ कि बार-बार कॉल करना आप पर बोझ लग सकता है। लेकिन चूंकि लोन 90 दिन पुराना हो गया है, इसलिए हमें इसे सुलझाना ही होगा।\n\nक्या आप इस बात की गारंटी दे सकती हैं कि अगले हफ्ते के अंत तक कम से कम कुछ राशि (जैसे 500 या 1000 रुपये) भेज देंगे? अगर हाँ, तो कृपया मुझे बताएं।"
+      },
+      {
+        "borrower": "Exactly kiti baaki aahe? Ani late fee kiti lagli?",
+        "agent": "सुनीता जी, कुल बकाया 42,300 रुपये है। लेट फीज भी इसमें ही शामिल है।\n\nचूंकि आपने पूछा है, तो मैं मान लूँगी कि आपको राशि का पता चल गया है। क्या आप आज या कल शाम को किसी भी राशि (जैसे 500 या 1000 रुपये) भेज सकते हैं? अगर नहीं, तो हमें अगले हफ्ते के लिए कोई योजना बनानी होगी।"
+      },
+      {
+        "borrower": "Nahi, ya mahinyat ajibat nahi honar.",
+        "agent": "सुनीता जी, मैं समझ सकता हूँ कि माहौल कठिन है। लेकिन चूंकि लोन 90 दिन पुराना हो चुका है, इसलिए हमें इसे जल्द सुलझाना ही होगा।\n\nक्या आप इस बात की गारंटी दे सकती हैं कि अगले हफ्ते के अंत तक कम से कम कुछ राशि (जैसे 500 या 1000 रुपये) भेज देंगे? अगर नहीं, तो हमें अगले हफ्ते के लिए कोई योजना बनानी होगी।"
+      },
+      {
+        "borrower": "Tumhi lok fakt tras detat. Mi nahi denar.",
+        "agent": "सुनीता जी, मैं आपका पक्ष समझता हूँ और यह भी मानता हूँ कि बार-बार कॉल करना आपके लिए परेशानी का कारण बन रहा है। लेकिन चूंकि लोन 90 दिन पुराना हो चुका है, इसलिए हमें इसे जल्द सुलझाना ही होगा।\n\nक्या आप इस बात की गारंटी दे सकती हैं कि अगले हफ्ते के अंत तक कम से कम कुछ राशि (जैसे 500 या 1000 रुपये) भेज देंगे? अगर नहीं, तो हमें अगले हफ्ते के लिए कोई योजना बनानी होगी।"
+      },
+      {
+        "borrower": "Theek aahe, 15 tarkhela 10,000 try karte, pakka nahi.",
+        "agent": "सुनीता जी, ठीक है, हम 15 तारीख को 10,000 रुपये की कोशिश करेंगे। यह राशि आपके लिए भारी होगी, लेकिन चूंकि लोन पुराना हो चुका है, इसलिए थोड़ा-थोड़ा करके चुकाना ही सबसे अच्छा विकल्प है।\n\nक्या आप इस बात की पुष्टि कर सकते हैं कि 15 तारीख को यह राशि भेज देंगे? अगर हाँ, तो मैं नोट कर लूँगा।"
+      },
+      {
+        "borrower": "Bas, aata phone theva.",
+        "agent": "सुनीता जी, धन्यवाद। चूंकि आपने 15 तारीख को 10,000 रुपये की गारंटी दी है, मैं इसे नोट कर रहा हूँ।\n\nकृपया उस दिन तक फोन नंबर बदलें नहीं और पैसे समय पर भेज दें। अगर कोई दिक्कत आती है, तो कृपया हमसे बात करें।\n\nमैं अब लॉग करता हूँ।"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R008",
+    "language": "mr-en",
+    "dpd": 30,
+    "transcript": [
+      {
+        "borrower": "Ho, Sunita boltey. Kay jhala?",
+        "agent": "नमस्ते सुनीता जी। मैं साह्याद्री फाइनेंस से बात कर रहा हूँ।\n\nआपकी टू-व्हीलर की किश्त 30 दिन पुरानी हो गई है और अभी तक ₹42,300 का बकाया चुका नहीं हुआ है। कृपया बताइए, क्या कोई गड़बड़ी हुई या फिर आप इसमें से कुछ चुकाने के लिए तैयार हैं?"
+      },
+      {
+        "borrower": "Aata paise nahit, mi nahi deu shakat.",
+        "agent": "सुनीता जी, मैं समझ सकता हूँ कि पैसे की कमी हो रही है। लेकिन हमें यह भी जानना होगा कि क्या आपने अपनी ओर से कोई प्रयास किया है या फिर किसी और ने चुका दिया है? अगर आप वास्तव में चुकाने में असमर्थ हैं, तो कृपया बताएं कि आपको कितनी राहत (जैसे- समय बढ़ाना) चाहिए ताकि हम बात कर सकें।"
+      },
+      {
+        "borrower": "Sangitla na, paise nahit. Parat parat call karu naka.",
+        "agent": "सुनीता जी, मैं समझ रहा हूँ कि बार-बार कॉल करने से आप परेशान हो रहे हैं और पैसे नहीं मिल रहे। चिंता न करें, हम सिर्फ़ बात कर रहे हैं।\n\nकृपया बताइए, क्या आपको इस बकाये को चुकाने के लिए कोई खास राशि (जैसे- 5000 या 10000) तुरंत देने में सक्षमता है? अगर हाँ, तो कब दे सकते हैं?"
+      },
+      {
+        "borrower": "Exactly kiti baaki aahe? Ani late fee kiti lagli?",
+        "agent": "सुनीता जी, बकाया राशि ₹42,300 है। लेट फीज के बारे में मैं आपको बता नहीं सकता क्योंकि यह आपके खाते की सटीक जानकारी पर निर्भर करता है और मैं सीधे प्रोसेसिंग नहीं कर सकता।\n\nकृपया बताइए, क्या आप इस राशि को चुकाने के लिए कोई राशि तुरंत दे सकते हैं? अगर नहीं, तो कब तक दे पाएंगे?"
+      },
+      {
+        "borrower": "Nahi, ya mahinyat ajibat nahi honar.",
+        "agent": "सुनीता जी, मैं आपकी स्थिति को समझ रहा हूँ। चूंकि अभी कोई राशि नहीं मिल रही है और आपने स्पष्ट किया है कि आपको महिना भरने का समय चाहिए, तो हम इस बात पर सहमत हो सकते हैं कि हम अगले महीने की शुरुआत में फिर से बात करेंगे।\n\nक्या आप तय कर सकते हैं कि अगली बार जब मैं कॉल करूँगा, तब तक आपको कितनी राशि जमा करने में सक्षमता होगी?"
+      },
+      {
+        "borrower": "Tumhi lok fakt tras detat. Mi nahi denar.",
+        "agent": "सुनीता जी, मैं आपकी बात समझ रहा हूँ कि बार-बार कॉल से परेशानी हो रही है। लेकिन यह बकाया राशि वास्तव में आपके खाते में दर्ज है और हमें चुकाने के लिए कहना ही मेरी जिम्मेदारी है।\n\nमैं किसी तरह का दबाव नहीं डालूँगा, बस एक बार फिर से पूछना चाहता हूँ कि क्या आप इस महीने की शुरुआत में कम से कम कुछ राशि (जैसे 5000 या 10000) दे सकते हैं? अगर अभी पूरी राशि नहीं दे पा रहे हैं, तो कृपया बताएं कि आपको कितना देना संभव है ताकि हम आगे बढ़ सकें।"
+      },
+      {
+        "borrower": "Theek aahe, 15 tarkhela 10,000 try karte, pakka nahi.",
+        "agent": "सुनीता जी, ठीक है, तो हम 15 तारीख को ₹10,000 की राशि देने का प्रयास करेंगे। यह एक अच्छा कदम है।\n\nकृपया याद रखें कि यह राशि पूरी तरह से निश्चित नहीं है, इसलिए अगर उस दिन तक आपकी स्थिति बदल जाती है, तो हम फिर से बात कर सकते हैं।\n\nअब मैं इस बात को नोट कर लेता हूँ। क्या और कोई सवाल है या मैं बंद हो जाऊं?"
+      },
+      {
+        "borrower": "Bas, aata phone theva.",
+        "agent": "ठीक है सुनीता जी, तो हम 15 तारीख को फिर से बात करेंगे। धन्यवाद कि आपने समय दिया।\n\nमैं अब बंद हो रहा हूँ। log_disposition"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R009",
+    "language": "mr-en",
+    "dpd": 30,
+    "transcript": [
+      {
+        "borrower": "Ho, Sunita boltey. Kay jhala?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance hain. Aapki two-wheeler loan ka bill 30 din purana hai, total Rs 42,300. Kya aaj baat karke ye amount clear kar sakte hain?"
+      },
+      {
+        "borrower": "Aata paise nahit, mi nahi deu shakat.",
+        "agent": "Samajh gaya Sunita ji, paise ki kami hai toh samajh sakta hoon. Lekin bill 30 din purana hai aur Sahyadri Finance mein ye record hai.\n\nKya aap mujhe bata sakte hain ki kis wajah se paise nahi mil rahe? Koi family issue hai ya koi aur problem? Isse main aapki situation ko behtar samajh paunga."
+      },
+      {
+        "borrower": "Sangitla na, paise nahit. Parat parat call karu naka.",
+        "agent": "Samajh gaya Sunita ji, baar-baar call karne se aapko bura lag raha hai aur aap pareshan hain. Main toh sirf aapki loan clear karne ke liye aaunga taaki aapka record saaf ho jaye.\n\nKya aap mujhe bata sakte hain ki kab tak paise milenge? Agar aapko thoda waqt chahiye, toh main aapko ek baar aur call kar sakta hoon kal subah 10 baje ke baad. Kya yeh kaam hai?"
+      },
+      {
+        "borrower": "Exactly kiti baaki aahe? Ani late fee kiti lagli?",
+        "agent": "Sunita ji, bilkul sahi pooch liya. Total Rs 42,300 hi aapke account mein baaki hai. Isme loan ka principal aur late fees dono shamil hain.\n\nKoi naya charge nahi lagaya ja raha, bas ye purana amount clear karna chahiye. Kya aap isse tod kar doosre hisson mein de sakti hain? Jaise 10,000 abhi aur baaki kaadha karne ke liye waqt lete hain?"
+      },
+      {
+        "borrower": "Nahi, ya mahinyat ajibat nahi honar.",
+        "agent": "Sunita ji, main samajh gaya ki aapko paise ek saath dene mein takleef ho rahi hai. Lekin bill 30 din purana hai aur Sahyadri Finance ke paas ye record hai.\n\nKya aap mujhe bata sakte hain ki kab tak paise milenge? Agar aapko thoda waqt chahiye, toh main aapko ek baar aur call kar sakta hoon kal subah 10 baje ke baad. Kya yeh kaam hai?"
+      },
+      {
+        "borrower": "Tumhi lok fakt tras detat. Mi nahi denar.",
+        "agent": "Sunita ji, main toh Sahyadri Finance ki hoon aur sirf aapki loan clear karne ke liye aaunga. Aapka record 30 din purana hai, isliye paise dene ka waqt zaroori hai.\n\nKya aap mujhe bata sakte hain ki kab tak paise milenge? Agar aapko thoda waqt chahiye, toh main aapko ek baar aur call kar sakta hoon kal subah 10 baje ke baad. Kya yeh kaam hai?"
+      },
+      {
+        "borrower": "Theek aahe, 15 tarkhela 10,000 try karte, pakka nahi.",
+        "agent": "Sunita ji, main samajh gaya ki aapko paise ek saath dene mein takleef ho rahi hai. Lekin bill 30 din purana hai aur Sahyadri Finance ke paas ye record hai.\n\nKya aap mujhe bata sakte hain ki kab tak paise milenge? Agar aapko thoda waqt chahiye, toh main aapko ek baar aur call kar sakta hoon kal subah 10 baje ke baad. Kya yeh kaam hai?"
+      },
+      {
+        "borrower": "Bas, aata phone theva.",
+        "agent": "Sunita ji, samajh gaya ki abhi paise nahi mil rahe aur call band karne ka faisla liya hai. Main toh sirf loan clear karne ke liye aaunga taaki aapka record saaf ho jaye.\n\nKya aap mujhe bata sakte hain ki kab tak paise milenge? Agar aapko thoda waqt chahiye, toh main aapko ek baar aur call kar sakta hoon kal subah 10 baje ke baad. Kya yeh kaam hai?"
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R010",
+    "language": "mr-en",
+    "dpd": 5,
+    "transcript": [
+      {
+        "borrower": "Ho, Sunita boltey. Kay jhala?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance hain. Aapki two-wheeler loan ka bill aaj 5 din purana ho gaya hai, total Rs 42,300. Kya aap iska payment kar sakti hain?"
+      },
+      {
+        "borrower": "Aata paise nahit, mi nahi deu shakat.",
+        "agent": "Samajh gaya Sunita ji, paise ki kami hai toh samajh sakta hoon. Lekin humara system mein aapki loan 5 din purani hai aur Rs 42,300 ka bill hai. Kya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      },
+      {
+        "borrower": "Sangitla na, paise nahit. Parat parat call karu naka.",
+        "agent": "Samajh gaya Sunita ji, aapko baar-baar call karne se pareshani ho rahi hai. Hum bhi aapki samasya samajhna chahte hain. Lekin humara system mein loan 5 din purana hai aur Rs 42,300 ka bill hai. Kya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      },
+      {
+        "borrower": "Exactly kiti baaki aahe? Ani late fee kiti lagli?",
+        "agent": "Sunita ji, bilkul sahi pooch liya. Total Rs 42,300 hi aapke paas bachi hai. Isme loan ka principal aur late fees dono shamil hain. Late fees abhi tak Rs 1,500 lag chuki hain.\n\nKya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      },
+      {
+        "borrower": "Nahi, ya mahinyat ajibat nahi honar.",
+        "agent": "Sunita ji, main samajh sakta hoon ki aapko abhi paise nahi mil rahe aur mahinayet bhi pareshani hai. Lekin humara system mein loan 5 din purana hai aur Rs 42,300 ka bill hai. Kya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      },
+      {
+        "borrower": "Tumhi lok fakt tras detat. Mi nahi denar.",
+        "agent": "Sunita ji, main ek AI agent hoon, lekin Sahyadri Finance ki taraf se aapko baat kar raha hoon. Aapki loan 5 din purani hai aur Rs 42,300 ka bill hai. Hum koi waiver ya discount nahi de sakte. Kya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      },
+      {
+        "borrower": "Theek aahe, 15 tarkhela 10,000 try karte, pakka nahi.",
+        "agent": "Sunita ji, main samajh sakta hoon ki aapko abhi paise nahi mil rahe. Lekin humara system mein loan 5 din purana hai aur Rs 42,300 ka bill hai. Kya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      },
+      {
+        "borrower": "Bas, aata phone theva.",
+        "agent": "Sunita ji, main samajh sakta hoon ki aapko abhi paise nahi mil rahe aur baar-baar call se pareshani ho rahi hai. Lekin humara system mein loan 5 din purana hai aur Rs 42,300 ka bill hai. Kya aapko koi family member ya friend se thoda madad nahi milti? Agar aapko paise mil jayein toh bataiyega, hum turant process kar denge."
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R011",
+    "language": "hi-en",
+    "dpd": 5,
+    "transcript": [
+      {
+        "borrower": "Haan, Sunita bol rahi hoon. Kya baat hai?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance se baat kar raha hoon.\n\nAapke bike ke loan mein 5 din pichhe pad gaye hain aur abhi tak Rs 42,300 ki payment pending hai. Kya aap is mahine ki installment pay kar sakti hain?"
+      },
+      {
+        "borrower": "Abhi paise nahi hain, main nahi de sakti.",
+        "agent": "Samajh sakta hoon Sunita ji, par ye amount 5 din se pending hai aur humein payment lena zaroori hai.\n\nKya aap agle 3-4 din mein paise jama kar payengi? Agar haan, toh please confirm karein taaki hamari system mein update ho sake."
+      },
+      {
+        "borrower": "Maine bola na, paisa nahi hai. Baar baar call mat karo.",
+        "agent": "Sunita ji, main samajh sakta hoon ki paise mushkil se mil rahe hain. Lekin humein payment lena zaroori hai kyunki ye 5 din purani ho chuki hai.\n\nMain aapse baar-baar call nahi karunga, lekin jab tak payment na ho jaye, system mein reminder aa raha hai. Kya aap koi chhota amount abhi bhi de sakti hain ya koi plan banate hain?"
+      },
+      {
+        "borrower": "Exactly kitna baaki hai? Aur late fee kitni lagi hai?",
+        "agent": "Sunita ji, total outstanding Rs 42,300 hai. Late fee ka hisab system ke paas hai, main wahan se exact breakdown dekh kar aapko bata sakta hoon.\n\nKya aap abhi thoda sa amount bhi pay kar sakti hain taaki interest kam ho? Ya phir koi chhota plan banate hain jo aapke budget mein fit ho?"
+      },
+      {
+        "borrower": "Nahi, is mahine bilkul nahi hoga.",
+        "agent": "Sunita ji, main samajh sakta hoon ki abhi mushkil waqt hai. Lekin humein payment leni zaroori hai kyunki ye 5 din purani ho chuki hai.\n\nKya aap agle 3-4 din mein kam se kam kuch amount jama kar payengi? Agar haan, toh please confirm karein taaki hamari system mein update ho sake."
+      },
+      {
+        "borrower": "Aap log bas pareshan karte ho. Main nahi dungi.",
+        "agent": "Sunita ji, main aapki pareshani samajh sakta hoon aur humein bhi aapka payment lena hai. Lekin jab tak amount clear nahi hota, system automatically reminders bhejta rehta hai.\n\nKya aap koi chhota sa amount abhi de sakti hain taaki process ruk na jaye? Ya phir hum agle hafte baar baat kar sakte hain?"
+      },
+      {
+        "borrower": "Theek hai, 15 tareekh tak 10,000 try karungi, pakka nahi.",
+        "agent": "Sunita ji, badhiya! 15 tareekh tak 10,000 ka target set karte hain. Ye bahut accha hai ki aapne plan banaya hai.\n\nBas ek baat yaad rakhein: jab bhi paise mil jayein, please turant payment kar dein taaki interest aur late fees par control rahe. Agar 15 tareekh tak amount clear ho gaya, toh hum baad mein baar-baar call nahi karenge.\n\nKya main abhi aapke account mein ye plan note kar sakta hoon?"
+      },
+      {
+        "borrower": "Bas, ab phone rakhiye.",
+        "agent": "Theek hai Sunita ji, main samajh gaya. Aapki baat note kar liya hai ki 15 tareekh tak 10,000 ka target hai.\n\nAgar paise mil jayein toh please turant payment kar dein. Main abhi call khatam kar raha hoon. Dhanyavaad."
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  },
+  {
+    "rating_id": "R012",
+    "language": "hi-en",
+    "dpd": 30,
+    "transcript": [
+      {
+        "borrower": "Haan, Sunita bol rahi hoon. Kya baat hai?",
+        "agent": "Namaste Sunita ji. Sahyadri Finance se baat kar raha hoon.\n\nAapke loan par 30 din ka delay ho gaya hai aur abhi tak Rs 42,300 ki amount pending hai. Kya aap is mahine ke end tak payment kar sakti hain?"
+      },
+      {
+        "borrower": "Abhi paise nahi hain, main nahi de sakti.",
+        "agent": "Samajh sakta hoon Sunita ji, par ye amount abhi tak pending hai aur humein apni process follow karni padegi.\n\nKya aapko is mahine ke end tak kam se kam kuch paise mil sakte hain ya phir agle hafte payment karne ka plan bana sakte hain?"
+      },
+      {
+        "borrower": "Maine bola na, paisa nahi hai. Baar baar call mat karo.",
+        "agent": "Sunita ji, main samajh sakta hoon ki paise mushkil mein hain, lekin ye amount abhi tak pending hai aur humein apni process follow karni padegi.\n\nKya aapko is mahine ke end tak kam se kam kuch paise mil sakte hain ya phir agle hafte payment karne ka plan bana sakte hain?"
+      },
+      {
+        "borrower": "Exactly kitna baaki hai? Aur late fee kitni lagi hai?",
+        "agent": "Sunita ji, total outstanding Rs 42,300 hai. Late fee already include ho chuki hai is amount mein.\n\nMain samajh sakta hoon ki aapko details chahiye hongi. Kya aap abhi thoda sa bhi payment kar sakti hain taaki file move kar sake?"
+      },
+      {
+        "borrower": "Nahi, is mahine bilkul nahi hoga.",
+        "agent": "Sunita ji, main samajh sakta hoon ki paise mushkil mein hain. Lekin ye amount abhi tak pending hai aur humein apni process follow karni padegi.\n\nKya aap agle hafte payment karne ka plan bana sakti hain?"
+      },
+      {
+        "borrower": "Aap log bas pareshan karte ho. Main nahi dungi.",
+        "agent": "Sunita ji, main samajh sakta hoon ki baar-baar call achi lagti hai, lekin ye amount abhi tak pending hai aur humein apni process follow karni padegi.\n\nKya aap agle hafte payment karne ka plan bana sakti hain?"
+      },
+      {
+        "borrower": "Theek hai, 15 tareekh tak 10,000 try karungi, pakka nahi.",
+        "agent": "Sunita ji, yeh bahut accha hai ki aapne koi plan banaya hai. Agar 15 tareekh tak Rs 10,000 mil jate hain, toh hum file ko move kar sakte hain.\n\nKya main abhi call record close kar sakta hoon?"
+      },
+      {
+        "borrower": "Bas, ab phone rakhiye.",
+        "agent": "Sunita ji, theek hai. Main note kar leta hoon ki aap 15 tareekh tak Rs 10,000 try karengein. Agar uss date tak amount mil jata hai, toh hum file ko move kar denge.\n\nMain call record close kar raha hoon. Aapka din shubh ho."
+      }
+    ],
+    "scores": {
+      "naturalness": null,
+      "code_mix_fit": null,
+      "bucket_fit": null,
+      "tts_survival": null,
+      "consistency": null
+    },
+    "rater": null,
+    "notes": ""
+  }
+]

@@ -1,0 +1,298 @@
+{
+  "hv-001": {
+    "case_id": "ps1-B3-hi",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V2"
+    ]
+  },
+  "hv-002": {
+    "case_id": "ps1-C5-hi-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V3",
+      "V5"
+    ]
+  },
+  "hv-003": {
+    "case_id": "ps1-E1-mr",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-004": {
+    "case_id": "ps1-J1-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-005": {
+    "case_id": "ps1-D3-mr",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-006": {
+    "case_id": "ps1-I2-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V7"
+    ]
+  },
+  "hv-007": {
+    "case_id": "ps1-A5-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V1"
+    ]
+  },
+  "hv-008": {
+    "case_id": "ps1-H4-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-009": {
+    "case_id": "ps1-C4-hi",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V3",
+      "V5"
+    ]
+  },
+  "hv-010": {
+    "case_id": "ps1-B2-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V2"
+    ]
+  },
+  "hv-011": {
+    "case_id": "ps1-F4-hi",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-012": {
+    "case_id": "ps1-H2-hi-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V2",
+      "V8"
+    ]
+  },
+  "hv-013": {
+    "case_id": "ps1-B1-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-014": {
+    "case_id": "ps1-A1-hi",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-015": {
+    "case_id": "ps1-F4-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-016": {
+    "case_id": "ps1-D4-mr",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-017": {
+    "case_id": "ps1-F2-hi",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-018": {
+    "case_id": "ps1-C5-mr",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V3",
+      "V5"
+    ]
+  },
+  "hv-019": {
+    "case_id": "ps1-J1-mr",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V2"
+    ]
+  },
+  "hv-020": {
+    "case_id": "ps1-B4-mr",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V2"
+    ]
+  },
+  "hv-021": {
+    "case_id": "ps1-H1-mr",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-022": {
+    "case_id": "ps1-F2-hi-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-023": {
+    "case_id": "ps1-G2-hi-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-024": {
+    "case_id": "ps1-H1-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V3"
+    ]
+  },
+  "hv-025": {
+    "case_id": "ps1-A2-mr",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V1"
+    ]
+  },
+  "hv-026": {
+    "case_id": "ps1-J1-hi",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-027": {
+    "case_id": "ps1-F4-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-028": {
+    "case_id": "ps1-E2-hi",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-029": {
+    "case_id": "ps1-H1-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V3"
+    ]
+  },
+  "hv-030": {
+    "case_id": "ps1-J2-mr",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V2"
+    ]
+  },
+  "hv-031": {
+    "case_id": "ps1-B5-hi-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-032": {
+    "case_id": "ps1-H2-hi-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V2",
+      "V4",
+      "V8"
+    ]
+  },
+  "hv-033": {
+    "case_id": "ps1-A2-hi",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V2"
+    ]
+  },
+  "hv-034": {
+    "case_id": "ps1-C3-hi",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V3",
+      "V5"
+    ]
+  },
+  "hv-035": {
+    "case_id": "ps1-I2-hi-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-036": {
+    "case_id": "ps1-C5-hi-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V5"
+    ]
+  },
+  "hv-037": {
+    "case_id": "ps1-A2-hi-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V5"
+    ]
+  },
+  "hv-038": {
+    "case_id": "ps1-H2-mr",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-039": {
+    "case_id": "ps1-I1-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": [
+      "V7"
+    ]
+  },
+  "hv-040": {
+    "case_id": "ps1-C2-mr",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V1"
+    ]
+  },
+  "hv-041": {
+    "case_id": "ps1-F3-mr",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-042": {
+    "case_id": "ps1-I1-hi",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V7"
+    ]
+  },
+  "hv-043": {
+    "case_id": "ps1-C1-hi",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V3",
+      "V5"
+    ]
+  },
+  "hv-044": {
+    "case_id": "ps1-E4-hi",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-045": {
+    "case_id": "ps1-J1-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": []
+  },
+  "hv-046": {
+    "case_id": "ps1-E3-hi-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-047": {
+    "case_id": "ps1-B3-hi-en",
+    "model": "qwen-voice-9b",
+    "judge_violations": []
+  },
+  "hv-048": {
+    "case_id": "ps1-J3-hi-en",
+    "model": "qwen-voice-4b",
+    "judge_violations": [
+      "V4"
+    ]
+  }
+}

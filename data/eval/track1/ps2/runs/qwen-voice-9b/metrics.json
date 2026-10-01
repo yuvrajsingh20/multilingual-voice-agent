@@ -1,0 +1,538 @@
+{
+  "calls": 6,
+  "turns": 48,
+  "script_by_language": {
+    "hi-en": {
+      "latin": 24
+    },
+    "mr-en": {
+      "devanagari": 22,
+      "mixed": 2
+    }
+  },
+  "failure_modes": {
+    "language_mismatch": {
+      "turns": 24,
+      "of_turns": 48,
+      "calls": [
+        "ps2-mr-en-dpd30",
+        "ps2-mr-en-dpd5",
+        "ps2-mr-en-dpd90"
+      ]
+    },
+    "tone_collapse_under_refusal": {
+      "calls": 2,
+      "of_calls": 6,
+      "call_ids": [
+        "ps2-hi-en-dpd30",
+        "ps2-mr-en-dpd90"
+      ]
+    },
+    "numeral_currency_handling": {
+      "turns": 20,
+      "of_turns": 48
+    },
+    "script_inconsistency": {
+      "turns": 24,
+      "of_turns": 48,
+      "calls_switching": 2
+    },
+    "long_turns": {
+      "turns": 28,
+      "of_turns": 48
+    },
+    "register_drift_bucket": {
+      "first_turn_by_bucket": {
+        "hi-en": {
+          "5": {
+            "pressure": 1,
+            "courtesy": 0,
+            "words": 41
+          },
+          "30": {
+            "pressure": 1,
+            "courtesy": 0,
+            "words": 41
+          },
+          "90": {
+            "pressure": 1,
+            "courtesy": 0,
+            "words": 42
+          }
+        },
+        "mr-en": {
+          "5": {
+            "pressure": 0,
+            "courtesy": 1,
+            "words": 67
+          },
+          "30": {
+            "pressure": 0,
+            "courtesy": 1,
+            "words": 83
+          },
+          "90": {
+            "pressure": 0,
+            "courtesy": 0,
+            "words": 56
+          }
+        }
+      },
+      "languages_with_identical_markers_across_buckets": [
+        "hi-en"
+      ]
+    }
+  },
+  "failure_mode_definitions": [
+    {
+      "mode": "tone_collapse_under_refusal",
+      "signal": "More pressure markers after refusals than elsewhere, informal address after honorific, or repeated turns",
+      "severity_rank": 1
+    },
+    {
+      "mode": "numeral_currency_handling",
+      "signal": "Amount introduced by the model, INR token, digits in a different script from the words, western grouping",
+      "severity_rank": 2
+    },
+    {
+      "mode": "language_mismatch",
+      "signal": "Reply's matrix language (Hindi vs Marathi function words) differs from the borrower's",
+      "severity_rank": 3
+    },
+    {
+      "mode": "script_inconsistency",
+      "signal": "Reply script differs from the borrower's romanised script, or switches within the call",
+      "severity_rank": 4
+    },
+    {
+      "mode": "register_drift_bucket",
+      "signal": "Same first-turn pressure/courtesy across 5, 30 and 90 DPD (firmness does not track the bucket)",
+      "severity_rank": 5
+    },
+    {
+      "mode": "long_turns",
+      "signal": "Replies over 60 words on a phone call",
+      "severity_rank": 6
+    }
+  ],
+  "per_call": {
+    "ps2-hi-en-dpd5": {
+      "scripts_used": [
+        "latin"
+      ],
+      "script_switches": 0,
+      "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 0,
+      "honorific_dropped": false,
+      "repeated_turns": 0,
+      "pressure_per_turn_after_refusal": 1.5,
+      "pressure_per_turn_other": 1.5,
+      "courtesy_per_turn_after_refusal": 0.5,
+      "courtesy_per_turn_other": 0.75,
+      "mean_words": 52.625,
+      "long_turns": 2,
+      "empty_turns": 0,
+      "introduced_amounts": [],
+      "tts_hazard_turns": 0,
+      "first_turn": {
+        "devanagari_letters": 0,
+        "latin_letters": 159,
+        "devanagari_ratio": 0.0,
+        "script": "latin",
+        "hindi_function_words": 13,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": false,
+        "words": 41,
+        "long_turn": false,
+        "empty": false,
+        "numerals": {
+          "numbers": [
+            "5",
+            "42,300"
+          ],
+          "amounts": [
+            42300
+          ],
+          "states_outstanding": true,
+          "introduced_amounts": [],
+          "western_grouping": false,
+          "devanagari_digits": false,
+          "digit_script_mismatch": false,
+          "currency": {
+            "rupee_symbol": false,
+            "inr_token": false,
+            "rs_abbrev": true,
+            "rupee_word": false
+          }
+        },
+        "honorific": 3,
+        "informal": 0,
+        "pressure_markers": [
+          "abhi"
+        ],
+        "courtesy_markers": [],
+        "tts_hazards": [],
+        "similarity_to_previous": null,
+        "repeated": false
+      }
+    },
+    "ps2-hi-en-dpd30": {
+      "scripts_used": [
+        "latin"
+      ],
+      "script_switches": 0,
+      "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 0,
+      "honorific_dropped": false,
+      "repeated_turns": 1,
+      "pressure_per_turn_after_refusal": 1.0,
+      "pressure_per_turn_other": 0.75,
+      "courtesy_per_turn_after_refusal": 0.0,
+      "courtesy_per_turn_other": 0.0,
+      "mean_words": 42.125,
+      "long_turns": 0,
+      "empty_turns": 0,
+      "introduced_amounts": [],
+      "tts_hazard_turns": 0,
+      "first_turn": {
+        "devanagari_letters": 0,
+        "latin_letters": 149,
+        "devanagari_ratio": 0.0,
+        "script": "latin",
+        "hindi_function_words": 11,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": false,
+        "words": 41,
+        "long_turn": false,
+        "empty": false,
+        "numerals": {
+          "numbers": [
+            "30",
+            "42,300"
+          ],
+          "amounts": [
+            42300
+          ],
+          "states_outstanding": true,
+          "introduced_amounts": [],
+          "western_grouping": false,
+          "devanagari_digits": false,
+          "digit_script_mismatch": false,
+          "currency": {
+            "rupee_symbol": false,
+            "inr_token": false,
+            "rs_abbrev": true,
+            "rupee_word": false
+          }
+        },
+        "honorific": 3,
+        "informal": 0,
+        "pressure_markers": [
+          "abhi"
+        ],
+        "courtesy_markers": [],
+        "tts_hazards": [],
+        "similarity_to_previous": null,
+        "repeated": false
+      }
+    },
+    "ps2-hi-en-dpd90": {
+      "scripts_used": [
+        "latin"
+      ],
+      "script_switches": 0,
+      "turns_not_matching_borrower_script": 0,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 0,
+      "honorific_dropped": false,
+      "repeated_turns": 0,
+      "pressure_per_turn_after_refusal": 1.5,
+      "pressure_per_turn_other": 1.5,
+      "courtesy_per_turn_after_refusal": 0.0,
+      "courtesy_per_turn_other": 0.0,
+      "mean_words": 59.875,
+      "long_turns": 4,
+      "empty_turns": 0,
+      "introduced_amounts": [
+        200,
+        500
+      ],
+      "tts_hazard_turns": 0,
+      "first_turn": {
+        "devanagari_letters": 0,
+        "latin_letters": 153,
+        "devanagari_ratio": 0.0,
+        "script": "latin",
+        "hindi_function_words": 9,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": false,
+        "words": 42,
+        "long_turn": false,
+        "empty": false,
+        "numerals": {
+          "numbers": [
+            "90",
+            "42,300"
+          ],
+          "amounts": [
+            42300
+          ],
+          "states_outstanding": true,
+          "introduced_amounts": [],
+          "western_grouping": false,
+          "devanagari_digits": false,
+          "digit_script_mismatch": false,
+          "currency": {
+            "rupee_symbol": false,
+            "inr_token": false,
+            "rs_abbrev": true,
+            "rupee_word": false
+          }
+        },
+        "honorific": 3,
+        "informal": 0,
+        "pressure_markers": [
+          "abhi"
+        ],
+        "courtesy_markers": [],
+        "tts_hazards": [],
+        "similarity_to_previous": null,
+        "repeated": false
+      }
+    },
+    "ps2-mr-en-dpd5": {
+      "scripts_used": [
+        "devanagari",
+        "mixed"
+      ],
+      "script_switches": 2,
+      "turns_not_matching_borrower_script": 8,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 8,
+      "honorific_dropped": false,
+      "repeated_turns": 0,
+      "pressure_per_turn_after_refusal": 0.0,
+      "pressure_per_turn_other": 0.25,
+      "courtesy_per_turn_after_refusal": 0.5,
+      "courtesy_per_turn_other": 0.75,
+      "mean_words": 87.375,
+      "long_turns": 8,
+      "empty_turns": 0,
+      "introduced_amounts": [
+        5000
+      ],
+      "tts_hazard_turns": 6,
+      "first_turn": {
+        "devanagari_letters": 88,
+        "latin_letters": 0,
+        "devanagari_ratio": 1.0,
+        "script": "devanagari",
+        "hindi_function_words": 8,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": true,
+        "words": 67,
+        "long_turn": true,
+        "empty": false,
+        "numerals": {
+          "numbers": [
+            "5",
+            "42,300"
+          ],
+          "amounts": [
+            42300
+          ],
+          "states_outstanding": true,
+          "introduced_amounts": [],
+          "western_grouping": false,
+          "devanagari_digits": false,
+          "digit_script_mismatch": true,
+          "currency": {
+            "rupee_symbol": false,
+            "inr_token": false,
+            "rs_abbrev": false,
+            "rupee_word": true
+          }
+        },
+        "honorific": 0,
+        "informal": 0,
+        "pressure_markers": [],
+        "courtesy_markers": [
+          "कृपया"
+        ],
+        "tts_hazards": [
+          "digit_script_mismatch"
+        ],
+        "similarity_to_previous": null,
+        "repeated": false
+      }
+    },
+    "ps2-mr-en-dpd30": {
+      "scripts_used": [
+        "devanagari",
+        "mixed"
+      ],
+      "script_switches": 1,
+      "turns_not_matching_borrower_script": 8,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 8,
+      "honorific_dropped": false,
+      "repeated_turns": 0,
+      "pressure_per_turn_after_refusal": 0.25,
+      "pressure_per_turn_other": 0.25,
+      "courtesy_per_turn_after_refusal": 1.0,
+      "courtesy_per_turn_other": 1.0,
+      "mean_words": 92.375,
+      "long_turns": 7,
+      "empty_turns": 0,
+      "introduced_amounts": [
+        5000
+      ],
+      "tts_hazard_turns": 6,
+      "first_turn": {
+        "devanagari_letters": 102,
+        "latin_letters": 0,
+        "devanagari_ratio": 1.0,
+        "script": "devanagari",
+        "hindi_function_words": 8,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": true,
+        "words": 83,
+        "long_turn": true,
+        "empty": false,
+        "numerals": {
+          "numbers": [
+            "30",
+            "42,300"
+          ],
+          "amounts": [
+            42300
+          ],
+          "states_outstanding": true,
+          "introduced_amounts": [],
+          "western_grouping": false,
+          "devanagari_digits": false,
+          "digit_script_mismatch": true,
+          "currency": {
+            "rupee_symbol": true,
+            "inr_token": false,
+            "rs_abbrev": false,
+            "rupee_word": false
+          }
+        },
+        "honorific": 0,
+        "informal": 0,
+        "pressure_markers": [],
+        "courtesy_markers": [
+          "कृपया"
+        ],
+        "tts_hazards": [
+          "digit_script_mismatch"
+        ],
+        "similarity_to_previous": null,
+        "repeated": false
+      }
+    },
+    "ps2-mr-en-dpd90": {
+      "scripts_used": [
+        "devanagari"
+      ],
+      "script_switches": 0,
+      "turns_not_matching_borrower_script": 8,
+      "matrix_languages": [
+        "hindi"
+      ],
+      "language_mismatch_turns": 8,
+      "honorific_dropped": false,
+      "repeated_turns": 1,
+      "pressure_per_turn_after_refusal": 0.0,
+      "pressure_per_turn_other": 0.0,
+      "courtesy_per_turn_after_refusal": 0.75,
+      "courtesy_per_turn_other": 0.75,
+      "mean_words": 89.625,
+      "long_turns": 7,
+      "empty_turns": 0,
+      "introduced_amounts": [
+        500,
+        1000
+      ],
+      "tts_hazard_turns": 8,
+      "first_turn": {
+        "devanagari_letters": 73,
+        "latin_letters": 0,
+        "devanagari_ratio": 1.0,
+        "script": "devanagari",
+        "hindi_function_words": 7,
+        "marathi_function_words": 0,
+        "matrix_language": "hindi",
+        "language_mismatch": true,
+        "words": 56,
+        "long_turn": false,
+        "empty": false,
+        "numerals": {
+          "numbers": [
+            "42,300",
+            "90"
+          ],
+          "amounts": [
+            42300
+          ],
+          "states_outstanding": true,
+          "introduced_amounts": [],
+          "western_grouping": false,
+          "devanagari_digits": false,
+          "digit_script_mismatch": true,
+          "currency": {
+            "rupee_symbol": false,
+            "inr_token": false,
+            "rs_abbrev": false,
+            "rupee_word": true
+          }
+        },
+        "honorific": 0,
+        "informal": 0,
+        "pressure_markers": [],
+        "courtesy_markers": [],
+        "tts_hazards": [
+          "digit_script_mismatch"
+        ],
+        "similarity_to_previous": null,
+        "repeated": false
+      }
+    }
+  },
+  "thinking_leaked": 0,
+  "model_errors": 0,
+  "latency_ttft_ms": {
+    "n": 48,
+    "p50": 10411.5,
+    "p95": 21880.0,
+    "p99": 23113.6,
+    "max": 23494.4
+  },
+  "latency_total_ms": {
+    "n": 48,
+    "p50": 37427.2,
+    "p95": 51092.1,
+    "p99": 55224.4,
+    "max": 57190.0
+  },
+  "note": "Text-side signals only. TTS survival requires audio; see tts.json.",
+  "model": "qwen-voice-9b"
+}

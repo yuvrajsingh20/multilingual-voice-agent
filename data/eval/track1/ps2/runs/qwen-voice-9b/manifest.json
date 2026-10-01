@@ -1,6 +1,6 @@
 {
   "challenge_version": "1.0 (issued 2026-08-28)",
-  "problem": "PS-3",
+  "problem": "PS-2",
   "model": "qwen-voice-9b",
   "base_url": "http://127.0.0.1:11434/v1",
   "ollama_version": "0.35.0",
@@ -16,17 +16,10 @@
     "reasoning_effort": "none",
     "temperature": 0.0,
     "seed": 42,
-    "max_tokens": 256,
-    "stream": true
+    "max_tokens": 200,
+    "tools": "none offered (spoken text only)"
   },
-  "call_context_message": "Call context: today is Wednesday 2026-09-30, 11:00 IST.",
-  "suite_sha256": "b4c28eaa93c68d4555ff871189687605b44ee21f3fd41702cee6c5bd725e13d5",
-  "suite_cases": 200,
-  "runs": [
-    {
-      "started_at": "2026-10-01T09:46:40+00:00",
-      "limit": 0,
-      "finished_at": "2026-10-01T12:32:04+00:00"
-    }
-  ]
+  "suite_sha256": "c15aba73f63e1bb58fe5a2efb5b2e7aebf67f96519513c6c59415c0b6e2a0176",
+  "run_started_at": "2026-10-01T12:32:04+00:00",
+  "run_finished_at": "2026-10-01T13:01:27+00:00"
 }
