@@ -46,6 +46,7 @@ class ValidationCode(str, Enum):
     INVALID_TOOL_REQUEST = "invalid_tool_request"
     MISSING_REQUIRED_ACTION = "missing_required_action"
     COLLECTION_NOT_ALLOWED = "collection_not_allowed"
+    RECOVERY_AFTER_DISPUTE = "recovery_after_dispute"
 
 
 #: Required actions that must be expressed in the utterance itself, and whose
@@ -342,6 +343,29 @@ class ResponseValidator:
                             conduct=ProhibitedConduct.FALSE_OR_MISLEADING_REPRESENTATION,
                         )
                     )
+
+        # 3b. Once the customer disputes the dues, recovery pressure stops. Quoting
+        # the balance back to them is the commonest form it takes, and the one
+        # that can be detected without understanding the sentence.
+        if RequiredAction.RECORD_DISPUTE in decision.required_actions:
+            amount = next(
+                (s for s in detect_spans(text) if s.kind is SpanKind.CURRENCY), None
+            )
+            if amount is not None:
+                issues.append(
+                    ValidationIssue(
+                        code=ValidationCode.RECOVERY_AFTER_DISPUTE,
+                        severity=Severity.CRITICAL,
+                        detail=f"Stated the amount {amount.raw!r} after the customer disputed the dues.",
+                        blocking=True,
+                        rule_ids=tuple(
+                            rule.rule_id
+                            for rule in self._rule_set.rules
+                            if rule.check_id == "dispute_handling"
+                            and rule.rule_id in decision.rule_ids
+                        ),
+                    )
+                )
 
         # 4. Concessions the agent is not authorised to offer.
         if not grounding.allow_concession_offer:

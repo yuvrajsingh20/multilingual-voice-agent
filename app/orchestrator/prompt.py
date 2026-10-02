@@ -9,9 +9,15 @@ taken by :class:`~app.core.policy.PolicyEngine` before this module runs.
 Language neutrality
 -------------------
 The system prompt is written in English because it addresses the model, not the
-customer. It names the reply language as a code (``hi``, ``en``, ``mr``,
-``hi-en``) and never contains a phrase for the model to echo. No sentence in
-this module is ever spoken.
+customer. It names the reply language by code and describes the expected script
+and mix in English, and never contains a phrase for the model to echo. No
+sentence in this module is ever spoken.
+
+Memory
+------
+The last few spoken exchanges of the call are replayed as chat messages, so the
+model does not re-ask what the customer already answered. The facts it may state
+still come only from FACTS; a replayed turn grounds nothing.
 
 Grounding
 ---------
@@ -23,11 +29,58 @@ convenience for the model, not the control.
 
 from __future__ import annotations
 
+from typing import Iterable
+
+from app.models.conversation import ConversationEvent
 from app.models.customer import AccountContext
-from app.models.enums import Language
+from app.models.enums import EventKind, Language, RequiredAction
 from app.models.policy import PolicyDecision
 from app.services.llm import LlmMessage, LlmRequest, LlmToolSpec
 from app.services.validation import GroundingFacts
+
+#: Spoken exchanges (one customer turn plus one agent turn) replayed to the model.
+MAX_REPLAYED_EXCHANGES = 6
+
+#: How each reply language is described to the model. Code-mixed languages need
+#: the script spelled out: given only "hi-en", small models answer in English or
+#: switch to Devanagari.
+_LANGUAGE_INSTRUCTIONS: dict[Language, str] = {
+    Language.ENGLISH: "English.",
+    Language.HINDI: "Hindi, in Devanagari script.",
+    Language.MARATHI: "Marathi, in Devanagari script. Marathi, not Hindi.",
+    Language.HINGLISH: (
+        "Hinglish: conversational Hindi mixed with common English words, written in "
+        "Latin (Roman) script. Not pure English, and not Devanagari."
+    ),
+    Language.MARATHI_ENGLISH: (
+        "Marathi-English: conversational Marathi mixed with common English words, "
+        "written in Latin (Roman) script. Use Marathi grammar and words "
+        "(tumhi, aahe, kara, nahi), never Hindi (aap, hai, karo)."
+    ),
+}
+
+#: What each required action asks of this turn, for the actions the model itself
+#: carries out. A bare action code was not enough: given only "record_dispute",
+#: the model kept quoting the balance to a customer who said they had paid.
+_ACTION_INSTRUCTIONS: dict[RequiredAction, str] = {
+    RequiredAction.RECORD_DISPUTE: (
+        "The customer disputes the dues (for example, says they already paid or the loan "
+        "is not theirs). Call create_dispute now. Stop all recovery: do not state any "
+        "amount, do not ask for payment, do not argue. Acknowledge, say the dispute is "
+        "noted for review, and close politely."
+    ),
+    RequiredAction.PROVIDE_GRIEVANCE_MECHANISM_DETAILS: (
+        "Tell the customer they can raise a complaint through the bank's grievance "
+        "process. Do not invent a phone number, address or reference."
+    ),
+    RequiredAction.ESCALATE_TO_HUMAN: (
+        "Call escalate_case now and tell the customer a bank officer will follow up. "
+        "Do not ask for payment in this turn."
+    ),
+    RequiredAction.TERMINATE_COLLECTION_DISCUSSION: (
+        "Do not discuss the dues or ask for payment."
+    ),
+}
 
 _SYSTEM_PREAMBLE = (
     "You are a debt-recovery voice agent for a commercial bank in India. "
@@ -45,7 +98,12 @@ _SYSTEM_PREAMBLE = (
     "- Never offer a waiver, settlement, discount or write-off.\n"
     "- Never threaten, intimidate, abuse, involve third parties, or claim legal or police action.\n"
     "- To read a fact from the bank's systems, request a tool. Do not answer from memory.\n"
-    "- Produce one short spoken turn. No markup, no lists, no stage directions.\n"
+    "- Never ask the customer for an account or reference number: the application "
+    "already knows which account this call is about.\n"
+    "- Do not repeat what you said earlier in the call; respond to what the customer "
+    "just said.\n"
+    "- Produce one short spoken turn, at most two sentences. No markup, no lists, "
+    "no stage directions.\n"
 )
 
 
@@ -70,7 +128,10 @@ def build_system_prompt(
     are presented to the model.
     """
     lines = [_SYSTEM_PREAMBLE, "CONSTRAINTS"]
-    lines.append(f"- reply_language: {language.value if language else 'match the customer'}")
+    if language is None:
+        lines.append("- reply_language: match the customer")
+    else:
+        lines.append(f"- reply_language: {language.value} - {_LANGUAGE_INSTRUCTIONS[language]}")
     lines.append(f"- tone: {decision.tone.value}")
     lines.append(f"- collection_allowed: {str(decision.allowed).lower()}")
     if decision.escalate:
@@ -83,6 +144,13 @@ def build_system_prompt(
         lines.append(
             "- must_never_express: " + ", ".join(c.value for c in decision.prohibited_conduct)
         )
+    instructions = [
+        _ACTION_INSTRUCTIONS[a] for a in decision.required_actions if a in _ACTION_INSTRUCTIONS
+    ]
+    if instructions:
+        lines.append("")
+        lines.append("THIS TURN")
+        lines.extend(f"- {text}" for text in instructions)
 
     lines.append("")
     lines.append("FACTS")
@@ -129,15 +197,15 @@ def build_llm_request(
     context_available: bool,
     account: AccountContext | None = None,
     transcript: str,
+    prior_turns: tuple[LlmMessage, ...] = (),
     history: tuple[LlmMessage, ...] = (),
     tools: tuple[LlmToolSpec, ...] = (),
 ) -> LlmRequest:
     """Assemble one model request.
 
-    ``history`` carries this turn's assistant/tool exchange back to the model
-    after a tool ran. Earlier turns are not replayed: the conversation's memory
-    is :class:`~app.models.conversation.ConversationState` plus backend facts,
-    not a transcript buffer.
+    ``prior_turns`` are earlier spoken exchanges of the call (see
+    :func:`replayed_turns`). ``history`` carries this turn's assistant/tool
+    exchange back to the model after a tool ran.
     """
     system = LlmMessage(
         role="system",
@@ -151,4 +219,31 @@ def build_llm_request(
         ),
     )
     customer = LlmMessage(role="user", content=transcript)
-    return LlmRequest(messages=(system, customer, *history), tools=tools)
+    return LlmRequest(messages=(system, *prior_turns, customer, *history), tools=tools)
+
+
+def replayed_turns(
+    events: Iterable[ConversationEvent], *, limit: int = MAX_REPLAYED_EXCHANGES
+) -> tuple[LlmMessage, ...]:
+    """Earlier spoken turns of the call, oldest first, as chat messages.
+
+    Everything from the most recent customer utterance onwards is the current
+    turn and is excluded; the caller sends that transcript itself. Only text
+    that was actually heard or spoken is replayed: a customer utterance, or an
+    agent utterance, which is recorded (in its written form) only once it
+    passed validation.
+    """
+    events = list(events)
+    current = max(
+        (i for i, event in enumerate(events) if event.kind is EventKind.USER_UTTERANCE),
+        default=len(events),
+    )
+    messages = [
+        LlmMessage(
+            role="user" if event.kind is EventKind.USER_UTTERANCE else "assistant",
+            content=event.text,
+        )
+        for event in events[:current]
+        if event.kind in (EventKind.USER_UTTERANCE, EventKind.AGENT_UTTERANCE) and event.text
+    ]
+    return tuple(messages[-2 * limit :]) if limit > 0 else ()

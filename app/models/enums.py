@@ -23,6 +23,7 @@ class Language(str, Enum):
     ENGLISH = "en"
     MARATHI = "mr"
     HINGLISH = "hi-en"
+    MARATHI_ENGLISH = "mr-en"
 
 
 class ConversationStage(str, Enum):

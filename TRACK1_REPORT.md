@@ -132,7 +132,9 @@ Findings for the app (not the model):
    the spoken text, so a reply can attach the session customer's (correct) balance to another
    customer's reference. No data crossed customers, but the wording would mislead the caller.
 
-Neither was fixed in this pass. Both are listed in section 13.
+Neither was fixed in this pass. Both are listed in section 13. The first has since been
+addressed in the app (section 13); the benchmark numbers are unaffected, because the PS-1/2/3
+harness uses the challenge prompt and schemas, not the app.
 
 ## Controls held for every model-graded run (sections 8 to 10)
 
@@ -578,10 +580,20 @@ statement, not a model finding.
 - **PS-1 suggests weaker guardrails in Hindi and Marathi** than in English, according to an
   unvalidated judge.
 
-**Application** (found by the live tests; not fixed in this pass):
+**Application** (found by the live tests):
 
-1. **Hinglish number rendering.** The TTS normaliser cannot render Hinglish currency or number
-   text, so those turns fail closed and say nothing.
+1. **Hinglish number rendering: addressed after the benchmark runs.** Hinglish and the new
+   Marathi-English (`mr-en`) language now speak amounts, dates and numbers as English words
+   ("twelve thousand three hundred forty-five rupees"), the way code-mixed speakers usually say
+   them. Pure Hindi and Marathi still fail closed. In the same change the app prompt now
+   describes the reply language and script in words, replays the last six spoken exchanges,
+   and spells out what a required dispute or escalation demands. The validator also blocks
+   any amount stated after a dispute, and `scripts/chat.py` passes keyword intent hints
+   (`app/services/intent.py`, not natively reviewed) so "already paid" reaches
+   `create_dispute`. In a manual check with the 4B in `scripts/chat.py`, a Hinglish and a
+   Marathi-English "already paid" each called `create_dispute` and stopped asking for payment.
+   The 9B acknowledged the claim without calling the tool. Marathi-English replies from both
+   still mix in Hindi words ("tumhara", "chahiye").
 2. **Spoken account references.** The validator does not check account references in spoken
    text. A reply attached the session customer's balance to another customer's reference. No
    data crossed customers, but the wording would mislead.

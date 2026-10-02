@@ -28,6 +28,9 @@ BACKCHANNEL_TOKENS: dict[Language, frozenset[str]] = {
         {"haan", "han", "hmm", "hm", "ji", "achha", "acha", "ok", "okay", "theek hai", "right"}
     ),
     Language.MARATHI: frozenset({"ho", "hoy", "bara", "bare", "hmm", "hm", "theek", "ok", "okay"}),
+    Language.MARATHI_ENGLISH: frozenset(
+        {"ho", "hoy", "bara", "bare", "hmm", "hm", "theek", "ok", "okay", "right", "yes"}
+    ),
 }
 
 #: Used when the language is unknown: the union, so an unknown-language "hmm"

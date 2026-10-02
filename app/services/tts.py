@@ -8,11 +8,13 @@ Honest scope
 ------------
 Span *detection* (currency, numbers, dates, phone numbers, account references,
 abbreviations) is language-independent and implemented. Span *rendering* is
-implemented for English only. Hindi, Marathi and Hinglish rendering is NOT
-solved: correct spoken forms need a pronunciation lexicon and native review, so
-for those languages the detected spans are returned unrendered and
-``fully_normalized`` is ``False``. Pretending otherwise would produce a voice
-agent that misreads amounts to customers.
+implemented in English words, and used for English and for the two code-mixed
+languages, Hinglish and Marathi-English, where amounts and dates are commonly
+spoken in English ("twelve thousand rupees", "5 October"). Pure Hindi and
+Marathi rendering is NOT solved: correct spoken forms need a pronunciation
+lexicon and native review, so for those languages the detected spans are
+returned unrendered and ``fully_normalized`` is ``False``. Pretending otherwise
+would produce a voice agent that misreads amounts to customers.
 """
 
 from __future__ import annotations
@@ -25,8 +27,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import Language, SpanKind
 
-#: Languages this implementation can render spoken forms for.
-RENDERABLE_LANGUAGES: frozenset[Language] = frozenset({Language.ENGLISH})
+#: Languages whose spans are rendered as English words. The code-mixed languages
+#: are here because their speakers say amounts and dates in English; that is a
+#: convention of the register, not a Hindi or Marathi rendering.
+RENDERABLE_LANGUAGES: frozenset[Language] = frozenset(
+    {Language.ENGLISH, Language.HINGLISH, Language.MARATHI_ENGLISH}
+)
 
 _UNITS = (
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -178,7 +184,7 @@ def _render_english(span: TextSpan) -> str | None:
 
 
 class SpanDetectingTtsNormalizer:
-    """Detects spans in any language; renders them only for English."""
+    """Detects spans in any language; renders them for English and the code-mixed languages."""
 
     def normalize(self, text: str, language: Language | None) -> NormalizedSpeechText:
         spans = detect_spans(text)

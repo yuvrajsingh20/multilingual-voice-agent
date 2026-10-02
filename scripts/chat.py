@@ -7,7 +7,12 @@ model, tool registry, validator, TTS normalisation) against a local model.
 The account is the in-memory sample used by the test suite, and the clock is
 fixed inside calling hours so the calling-hours rule does not stop the call.
 
+No NLU model is integrated, so each turn is passed through the keyword intent
+hints in app/services/intent.py. That is what lets "I have already paid" record
+a dispute; the detected hint is printed under each reply.
+
     .venv/bin/python scripts/chat.py --model qwen-voice-4b --language hi-en
+    .venv/bin/python scripts/chat.py --model qwen-voice-4b --language mr-en
 """
 
 from __future__ import annotations
@@ -28,6 +33,7 @@ from app.models.customer import ComplianceContext  # noqa: E402
 from app.models.enums import ConversationStage, EventKind, Language  # noqa: E402
 from app.orchestrator import ConversationOrchestrator  # noqa: E402
 from app.runtime import build_runtime  # noqa: E402
+from app.services.intent import intent_hints  # noqa: E402
 from app.services.stt import TranscriptSegment  # noqa: E402
 from tests.fakes import InMemoryBankingBackend, sample_account, sample_customer  # noqa: E402
 
@@ -105,8 +111,11 @@ def main() -> None:
                 break
             if not text:
                 continue
+            signals = intent_hints(text)
             result = orchestrator.process_turn(
-                session.session_id, TranscriptSegment(text=text, is_final=True, language=language)
+                session.session_id,
+                TranscriptSegment(text=text, is_final=True, language=language),
+                signals=signals,
             )
             seconds = result.latency.total_ms / 1000
             if result.speakable:
@@ -118,7 +127,8 @@ def main() -> None:
                 for error in result.errors:
                     print(f"          {error.category.value}: {error.detail}")
             tools = ", ".join(f"{t.tool_name}({t.status.value if t.status else 'refused'})" for t in result.tools)
-            print(f"          [{seconds:.1f}s | tools: {tools or 'none'}]\n")
+            hint = signals.intent.value if signals and signals.intent else "none"
+            print(f"          [{seconds:.1f}s | intent hint: {hint} | tools: {tools or 'none'}]\n")
     finally:
         close = getattr(runtime.llm, "close", None)
         if callable(close):

@@ -97,7 +97,7 @@ def test_english_text_with_no_spans_is_fully_normalized(normalizer) -> None:
     assert result.spans == ()
 
 
-@pytest.mark.parametrize("language", [Language.HINDI, Language.MARATHI, Language.HINGLISH])
+@pytest.mark.parametrize("language", [Language.HINDI, Language.MARATHI])
 def test_unsupported_languages_are_detected_but_not_rendered(normalizer, language: Language) -> None:
     """Pronunciation in these languages is not solved; the text must not be mangled."""
     source = "Aapka EMI Rs. 12,345 bakaya hai"
@@ -109,8 +109,23 @@ def test_unsupported_languages_are_detected_but_not_rendered(normalizer, languag
     assert SpanKind.CURRENCY in result.unrendered_kinds
 
 
-def test_only_english_is_claimed_as_renderable() -> None:
-    assert RENDERABLE_LANGUAGES == frozenset({Language.ENGLISH})
+@pytest.mark.parametrize("language", [Language.HINGLISH, Language.MARATHI_ENGLISH])
+def test_code_mixed_languages_speak_amounts_in_english_words(normalizer, language: Language) -> None:
+    result = normalizer.normalize(
+        "Aapka INR 12,345.00 baaki hai, 35 din se, due 2026-10-05.", language
+    )
+    assert result.text == (
+        "Aapka twelve thousand three hundred forty-five rupees baaki hai, "
+        "thirty-five din se, due 5 October 2026."
+    )
+    assert result.fully_normalized is True
+    assert result.unrendered_kinds == ()
+
+
+def test_only_english_and_code_mixed_languages_are_renderable() -> None:
+    assert RENDERABLE_LANGUAGES == frozenset(
+        {Language.ENGLISH, Language.HINGLISH, Language.MARATHI_ENGLISH}
+    )
 
 
 def test_unknown_language_is_not_rendered(normalizer) -> None:

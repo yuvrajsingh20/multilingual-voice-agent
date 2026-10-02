@@ -1011,9 +1011,6 @@ def test_the_transcript_is_not_accumulated_in_conversation_state() -> None:
 
     dumped = json.dumps(result.state.model_dump(mode="json"))
     assert "First thing I said" not in dumped
-    # Earlier turns are not replayed into the model either; memory is state plus
-    # backend facts.
-    assert all("First thing I said" not in m.content for m in runtime.llm.requests[-1].messages)
 
 
 # --- 11. tool-loop safety --------------------------------------------------
@@ -1114,19 +1111,97 @@ def test_tts_normalization_failure_stops_the_turn() -> None:
 
 
 def test_an_amount_that_cannot_be_rendered_for_the_language_is_not_spoken() -> None:
-    """Hinglish rendering is not implemented, so an amount would be misread."""
+    """Pure Hindi rendering is not implemented, so an amount would be misread."""
     runtime = make_runtime(llm=ScriptedLlmService([text_generation(GROUNDED_REPLY)]))
-    session = open_session(runtime, language=Language.HINGLISH)
+    session = open_session(runtime, language=Language.HINDI)
 
     result = ConversationOrchestrator(runtime).process_turn(
         session.session_id,
-        TranscriptSegment(text="Kitna dena hai?", is_final=True, language=Language.HINGLISH),
+        TranscriptSegment(text="कितना देना है?", is_final=True, language=Language.HINDI),
     )
 
     assert result.outcome is TurnOutcome.FAILED
     assert TurnErrorCategory.TTS_NORMALIZATION_FAILED in result.error_categories
     assert result.tts_unrendered_kinds != ()
     assert result.speakable is False
+
+
+@pytest.mark.parametrize("language", [Language.HINGLISH, Language.MARATHI_ENGLISH])
+def test_a_code_mixed_turn_speaks_its_amount_in_english_words(language: Language) -> None:
+    runtime = make_runtime(llm=ScriptedLlmService([text_generation(GROUNDED_REPLY)]))
+    session = open_session(runtime, language=language)
+
+    result = ConversationOrchestrator(runtime).process_turn(
+        session.session_id,
+        TranscriptSegment(text="Kitna dena hai?", is_final=True, language=language),
+    )
+
+    assert result.outcome is TurnOutcome.COMPLETED
+    assert result.speakable is True
+    assert "rupees" in result.response_text
+    assert OUTSTANDING not in result.response_text
+
+
+def test_quoting_the_balance_after_a_dispute_is_never_spoken() -> None:
+    runtime = make_runtime(llm=ScriptedLlmService([text_generation(GROUNDED_REPLY)]))
+    session = open_session(runtime)
+
+    result = ConversationOrchestrator(runtime).process_turn(
+        session.session_id, say("I already paid."), signals=EventSignals(intent=Intent.DISPUTE)
+    )
+
+    assert result.outcome is TurnOutcome.RESPONSE_BLOCKED
+    assert result.speakable is False
+    assert "recovery_after_dispute" in {issue.code.value for issue in result.validation.issues}
+
+
+def test_a_dispute_is_recorded_and_acknowledged_without_pressure() -> None:
+    runtime = make_runtime(
+        llm=ScriptedLlmService(
+            [
+                tool_generation("create_dispute", {"account_ref": "ACC-1", "reason_code": "already_paid"}),
+                text_generation("Understood, I have noted your dispute for review."),
+            ]
+        )
+    )
+    session = open_session(runtime)
+
+    result = ConversationOrchestrator(runtime).process_turn(
+        session.session_id, say("I already paid."), signals=EventSignals(intent=Intent.DISPUTE)
+    )
+
+    assert result.outcome is TurnOutcome.COMPLETED
+    assert [(t.tool_name, t.status) for t in result.tools] == [("create_dispute", ToolStatus.OK)]
+    system = runtime.llm.requests[0].messages[0].content
+    assert "THIS TURN" in system
+    assert "Call create_dispute now" in system
+
+
+def test_the_next_turn_sees_the_earlier_exchange_in_its_written_form() -> None:
+    runtime = make_runtime(
+        llm=ScriptedLlmService(
+            [text_generation(GROUNDED_REPLY), text_generation("Theek hai, main note kar leta hoon.")]
+        )
+    )
+    session = open_session(runtime, language=Language.HINGLISH)
+    orchestrator = ConversationOrchestrator(runtime)
+
+    orchestrator.process_turn(
+        session.session_id,
+        TranscriptSegment(text="Kitna dena hai?", is_final=True, language=Language.HINGLISH),
+    )
+    orchestrator.process_turn(
+        session.session_id,
+        TranscriptSegment(text="Main kal dunga.", is_final=True, language=Language.HINGLISH),
+    )
+
+    second = runtime.llm.requests[1].messages
+    assert [(m.role, m.content) for m in second[1:]] == [
+        ("user", "Kitna dena hai?"),
+        ("assistant", GROUNDED_REPLY),
+        ("user", "Main kal dunga."),
+    ]
+    assert "Latin (Roman) script" in second[0].content
 
 
 def test_a_hinglish_turn_with_no_numeric_spans_is_still_speakable() -> None:

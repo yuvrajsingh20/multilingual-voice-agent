@@ -66,7 +66,7 @@ from app.models.enums import (
 from app.models.policy import PolicyContext, PolicyDecision
 from app.models.tools import ToolRequest, ToolResult
 from app.observability import get_logger, log_event
-from app.orchestrator.prompt import build_llm_request
+from app.orchestrator.prompt import build_llm_request, replayed_turns
 from app.orchestrator.result import (
     GroundingSource,
     PolicyCheckpoint,
@@ -564,7 +564,10 @@ class ConversationOrchestrator:
             kind=EventKind.AGENT_UTTERANCE,
             work=work,
             language=language,
-            text=speech.text,
+            # The validated written form, not the spoken one: it is replayed to
+            # the model on later turns, and grounding can only check amounts and
+            # dates written as figures. The spoken form is derived from it.
+            text=draft.text,
             data={
                 "disclosed_recording": RequiredAction.DISCLOSE_CALL_RECORDING in claimed_actions,
                 "identified_agent": RequiredAction.IDENTIFY_BANK_AND_AGENT in claimed_actions,
@@ -644,6 +647,7 @@ class ConversationOrchestrator:
             context_available=account is not None,
             account=account,
             transcript=transcript,
+            prior_turns=replayed_turns(session.events),
             history=history,
             tools=self._runtime.tools.specs(),
         )
